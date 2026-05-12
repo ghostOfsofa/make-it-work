@@ -341,8 +341,8 @@ export const createCandleElements = (candles, options = {}) => {
     plotHeight,
   } = { ...DEFAULT_OPTIONS, ...options };
   const candleCount = candles.length;
-  const candleWidth = Math.max(3, Math.min(18, (plotWidth / candleCount) * 0.55));
   const candleSlotWidth = plotWidth / candleCount;
+  const candleWidth = Math.max(2, Math.min(18, candleSlotWidth * 0.8));
 
   return candles
     .map((candle, index) => {
@@ -732,7 +732,7 @@ export const generateChartHtml = (results, options = {}) => {
     }
 
     .candle-wick {
-      stroke-width: 2.2;
+      stroke-width: 1.4;
       stroke-linecap: round;
     }
 
@@ -745,7 +745,7 @@ export const generateChartHtml = (results, options = {}) => {
     }
 
     .candle-body {
-      stroke-width: 1;
+      stroke-width: 0;
       rx: 1;
       shape-rendering: crispEdges;
     }
@@ -995,8 +995,8 @@ export const generateChartHtml = (results, options = {}) => {
         const padding = (maxRawPrice - minRawPrice) * 0.05 || maxRawPrice * 0.05;
         const minPrice = Math.max(minRawPrice - padding, 1);
         const maxPrice = maxRawPrice + padding;
-        const candleWidth = Math.max(3, Math.min(18, (plotWidth / candles.length) * 0.55));
         const candleSlotWidth = plotWidth / candles.length;
+        const candleWidth = Math.max(2, Math.min(18, candleSlotWidth * 0.8));
         const selectedPoints = candles.map((candle, index) => ({
           x: plotLeft + (index / (candles.length - 1 || 1)) * plotWidth,
           y: priceToY(selectedPrice(candle), minPrice, maxPrice, plotTop, plotHeight),
