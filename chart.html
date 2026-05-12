@@ -1,0 +1,559 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Strong Downtrend Charts</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f7f9;
+      --panel: #ffffff;
+      --ink: #18212f;
+      --muted: #637083;
+      --line: #d8dee8;
+      --price: #1f7a5a;
+      --regression: #c4382b;
+      --guide: #805ad5;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    main {
+      width: min(1760px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 28px 0 44px;
+    }
+
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      align-items: flex-end;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-size: 28px;
+      line-height: 1.2;
+    }
+
+    .summary {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .legend {
+      display: flex;
+      gap: 14px;
+      color: var(--muted);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend i {
+      display: inline-block;
+      width: 24px;
+      height: 3px;
+      border-radius: 99px;
+    }
+
+    .chart-list {
+      display: grid;
+      gap: 18px;
+    }
+
+    .chart-card {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: 0 10px 24px rgba(24, 33, 47, 0.06);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      align-items: flex-start;
+      padding: 18px 20px 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .code {
+      margin: 0 0 4px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 21px;
+      line-height: 1.2;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(92px, 1fr));
+      gap: 10px;
+      margin: 0;
+      min-width: min(620px, 100%);
+    }
+
+    .metrics div {
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fafbfc;
+    }
+
+    dt {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    dd {
+      margin: 3px 0 0;
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .chart {
+      display: block;
+      width: 100%;
+      aspect-ratio: 1600 / 900;
+      max-height: 900px;
+      background: #ffffff;
+    }
+
+    .plot-bg {
+      fill: #ffffff;
+    }
+
+    .grid line {
+      stroke: #e8edf3;
+      stroke-width: 1;
+    }
+
+    .price-line {
+      fill: none;
+      stroke: var(--price);
+      stroke-width: 6;
+      stroke-linejoin: round;
+      stroke-linecap: round;
+    }
+
+    .regression-line {
+      stroke: var(--regression);
+      stroke-width: 6;
+      stroke-dasharray: 20 14;
+      stroke-linecap: round;
+    }
+
+    .endpoint {
+      stroke: #ffffff;
+      stroke-width: 4;
+    }
+
+    .endpoint.first {
+      fill: #2b6cb0;
+    }
+
+    .endpoint.last {
+      fill: #c4382b;
+    }
+
+    .angle-guide line {
+      stroke: var(--guide);
+      stroke-width: 5;
+      stroke-linecap: round;
+    }
+
+    .angle-guide text,
+    .chart-labels text {
+      fill: #263445;
+      font-size: 30px;
+      font-weight: 700;
+    }
+
+    .card-footer {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 18px;
+      padding: 12px 20px 16px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    @media (max-width: 820px) {
+      main {
+        width: min(100vw - 20px, 1760px);
+        padding-top: 16px;
+      }
+
+      .page-header,
+      .card-header {
+        display: block;
+      }
+
+      .legend {
+        margin-top: 12px;
+        flex-wrap: wrap;
+      }
+
+      .metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        min-width: 0;
+        margin-top: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header class="page-header">
+      <div>
+        <h1>Strong Downtrend Charts</h1>
+        <p class="summary">Top 5 demo results, 1600x900, minAngleDegree 29 deg</p>
+      </div>
+      <div class="legend" aria-label="chart legend">
+        <span><i style="background: var(--price)"></i>selectedPrice</span>
+        <span><i style="background: var(--regression)"></i>linear regression</span>
+        <span><i style="background: var(--guide)"></i>min angle guide</span>
+      </div>
+    </header>
+    <section class="chart-list">
+      
+    <article class="chart-card">
+      <header class="card-header">
+        <div>
+          <p class="code">STK0001</p>
+          <h2>SampleStock1</h2>
+        </div>
+        <dl class="metrics">
+          <div><dt>Angle</dt><dd>30.6 deg</dd></div>
+          <div><dt>Slope</dt><dd>0.591</dd></div>
+          <div><dt>R2</dt><dd>0.949</dd></div>
+          <div><dt>Return</dt><dd>-67.77%</dd></div>
+        </dl>
+      </header>
+
+      <svg
+        class="chart"
+        viewBox="0 0 1600 900"
+        role="img"
+        aria-label="STK0001 SampleStock1 selected price chart"
+      >
+        <rect x="0" y="0" width="1600" height="900" class="plot-bg" />
+        <g class="grid">
+          <line x1="0" y1="0" x2="1600" y2="0" /><line x1="0" y1="225" x2="1600" y2="225" /><line x1="0" y1="450" x2="1600" y2="450" /><line x1="0" y1="675" x2="1600" y2="675" /><line x1="0" y1="900" x2="1600" y2="900" />
+          <line x1="0" y1="0" x2="0" y2="900" /><line x1="200" y1="0" x2="200" y2="900" /><line x1="400" y1="0" x2="400" y2="900" /><line x1="600" y1="0" x2="600" y2="900" /><line x1="800" y1="0" x2="800" y2="900" /><line x1="1000" y1="0" x2="1000" y2="900" /><line x1="1200" y1="0" x2="1200" y2="900" /><line x1="1400" y1="0" x2="1400" y2="900" /><line x1="1600" y1="0" x2="1600" y2="900" />
+        </g>
+
+        <polyline class="price-line" points="0,26.74253137114067 84.21052631578947,0 168.42105263157893,190.23290256099153 252.6315789473684,125.37794808427498 336.84210526315786,312.55559372086486 421.05263157894734,307.5049850337466 505.2631578947368,462.2069759246289 589.4736842105262,413.1100811434128 673.6842105263157,481.93566518416736 757.8947368421052,579.8885672098532 842.1052631578947,676.1432121014761 926.3157894736843,711.485428534467 1010.5263157894736,689.1953018008574 1094.7368421052631,778.6689625330663 1178.9473684210525,815.6893621387244 1263.157894736842,824.0722484175027 1347.3684210526314,864.3847776920297 1431.578947368421,887.774957510115 1515.7894736842104,881.8651832752676 1600,900" />
+        <line
+          class="regression-line"
+          x1="0"
+          y1="73.33654729138553"
+          x2="1600"
+          y2="1019.5469211322733"
+        />
+
+        <circle class="endpoint first" cx="0" cy="26.74253137114067" r="10" />
+        <circle class="endpoint last" cx="1600" cy="900" r="10" />
+
+        <g class="angle-guide">
+          <line x1="90" y1="790" x2="260" y2="790" />
+          <line x1="90" y1="790" x2="260" y2="884.2325387469707" />
+          <text x="90" y="772">minAngleDegree 29 deg</text>
+        </g>
+
+        <g class="chart-labels">
+          <text x="34" y="48">max 3,276.24</text>
+          <text x="34" y="872">min 1,034.53</text>
+          <text x="1130" y="48">angle 30.6 deg</text>
+          <text x="1130" y="92">slopePixel 0.591</text>
+          <text x="1130" y="136">rSquared 0.949</text>
+          <text x="1130" y="180">returnRate -67.77%</text>
+        </g>
+      </svg>
+
+      <footer class="card-footer">
+        <span>firstPrice 3,209.63</span>
+        <span>lastPrice 1,034.53</span>
+        <span>period 20</span>
+        <span>type strongDowntrend</span>
+      </footer>
+    </article>
+  
+    <article class="chart-card">
+      <header class="card-header">
+        <div>
+          <p class="code">STK0004</p>
+          <h2>SampleStock4</h2>
+        </div>
+        <dl class="metrics">
+          <div><dt>Angle</dt><dd>29.74 deg</dd></div>
+          <div><dt>Slope</dt><dd>0.571</dd></div>
+          <div><dt>R2</dt><dd>0.982</dd></div>
+          <div><dt>Return</dt><dd>-75.19%</dd></div>
+        </dl>
+      </header>
+
+      <svg
+        class="chart"
+        viewBox="0 0 1600 900"
+        role="img"
+        aria-label="STK0004 SampleStock4 selected price chart"
+      >
+        <rect x="0" y="0" width="1600" height="900" class="plot-bg" />
+        <g class="grid">
+          <line x1="0" y1="0" x2="1600" y2="0" /><line x1="0" y1="225" x2="1600" y2="225" /><line x1="0" y1="450" x2="1600" y2="450" /><line x1="0" y1="675" x2="1600" y2="675" /><line x1="0" y1="900" x2="1600" y2="900" />
+          <line x1="0" y1="0" x2="0" y2="900" /><line x1="200" y1="0" x2="200" y2="900" /><line x1="400" y1="0" x2="400" y2="900" /><line x1="600" y1="0" x2="600" y2="900" /><line x1="800" y1="0" x2="800" y2="900" /><line x1="1000" y1="0" x2="1000" y2="900" /><line x1="1200" y1="0" x2="1200" y2="900" /><line x1="1400" y1="0" x2="1400" y2="900" /><line x1="1600" y1="0" x2="1600" y2="900" />
+        </g>
+
+        <polyline class="price-line" points="0,0 84.21052631578947,74.70574135179436 168.42105263157893,146.9899710893735 252.6315789473684,42.69632741733312 336.84210526315786,178.21035443682206 421.05263157894734,259.16040159432987 505.2631578947368,344.7399170195895 589.4736842105262,371.7574837481952 673.6842105263157,481.85022154290414 757.8947368421052,461.28627656054823 842.1052631578947,485.69971010448745 926.3157894736843,569.2061155439777 1010.5263157894736,612.083002305747 1094.7368421052631,621.4807953929362 1178.9473684210525,675.8590603454434 1263.157894736842,741.6987192176169 1347.3684210526314,757.8402205105181 1431.578947368421,834.025379891947 1515.7894736842104,892.7077396742625 1600,900" />
+        <line
+          class="regression-line"
+          x1="0"
+          y1="15.582796801468977"
+          x2="1600"
+          y2="929.6169469733135"
+        />
+
+        <circle class="endpoint first" cx="0" cy="0" r="10" />
+        <circle class="endpoint last" cx="1600" cy="900" r="10" />
+
+        <g class="angle-guide">
+          <line x1="90" y1="790" x2="260" y2="790" />
+          <line x1="90" y1="790" x2="260" y2="884.2325387469707" />
+          <text x="90" y="772">minAngleDegree 29 deg</text>
+        </g>
+
+        <g class="chart-labels">
+          <text x="34" y="48">max 104,470.49</text>
+          <text x="34" y="872">min 25,914.6</text>
+          <text x="1130" y="48">angle 29.74 deg</text>
+          <text x="1130" y="92">slopePixel 0.571</text>
+          <text x="1130" y="136">rSquared 0.982</text>
+          <text x="1130" y="180">returnRate -75.19%</text>
+        </g>
+      </svg>
+
+      <footer class="card-footer">
+        <span>firstPrice 104,470.49</span>
+        <span>lastPrice 25,914.6</span>
+        <span>period 20</span>
+        <span>type surgeThenDrop</span>
+      </footer>
+    </article>
+  
+    <article class="chart-card">
+      <header class="card-header">
+        <div>
+          <p class="code">STK0011</p>
+          <h2>SampleStock11</h2>
+        </div>
+        <dl class="metrics">
+          <div><dt>Angle</dt><dd>30.04 deg</dd></div>
+          <div><dt>Slope</dt><dd>0.578</dd></div>
+          <div><dt>R2</dt><dd>0.976</dd></div>
+          <div><dt>Return</dt><dd>-71.05%</dd></div>
+        </dl>
+      </header>
+
+      <svg
+        class="chart"
+        viewBox="0 0 1600 900"
+        role="img"
+        aria-label="STK0011 SampleStock11 selected price chart"
+      >
+        <rect x="0" y="0" width="1600" height="900" class="plot-bg" />
+        <g class="grid">
+          <line x1="0" y1="0" x2="1600" y2="0" /><line x1="0" y1="225" x2="1600" y2="225" /><line x1="0" y1="450" x2="1600" y2="450" /><line x1="0" y1="675" x2="1600" y2="675" /><line x1="0" y1="900" x2="1600" y2="900" />
+          <line x1="0" y1="0" x2="0" y2="900" /><line x1="200" y1="0" x2="200" y2="900" /><line x1="400" y1="0" x2="400" y2="900" /><line x1="600" y1="0" x2="600" y2="900" /><line x1="800" y1="0" x2="800" y2="900" /><line x1="1000" y1="0" x2="1000" y2="900" /><line x1="1200" y1="0" x2="1200" y2="900" /><line x1="1400" y1="0" x2="1400" y2="900" /><line x1="1600" y1="0" x2="1600" y2="900" />
+        </g>
+
+        <polyline class="price-line" points="0,32.49532488074021 84.21052631578947,0 168.42105263157893,158.93449437046513 252.6315789473684,266.27135420794457 336.84210526315786,226.27442317712496 421.05263157894734,309.2048840452387 505.2631578947368,302.4211131589641 589.4736842105262,386.42453286747946 673.6842105263157,538.4857166464599 757.8947368421052,488.7486868353026 842.1052631578947,536.2138363295128 926.3157894736843,587.699166825455 1010.5263157894736,647.6224763208793 1094.7368421052631,738.8710240408207 1178.9473684210525,777.429249299786 1263.157894736842,804.75403561016 1347.3684210526314,830.6659157247573 1431.578947368421,860.8028558275846 1515.7894736842104,899.666123133114 1600,900" />
+        <line
+          class="regression-line"
+          x1="0"
+          y1="51.96635166773431"
+          x2="1600"
+          y2="977.3321696624449"
+        />
+
+        <circle class="endpoint first" cx="0" cy="32.49532488074021" r="10" />
+        <circle class="endpoint last" cx="1600" cy="900" r="10" />
+
+        <g class="angle-guide">
+          <line x1="90" y1="790" x2="260" y2="790" />
+          <line x1="90" y1="790" x2="260" y2="884.2325387469707" />
+          <text x="90" y="772">minAngleDegree 29 deg</text>
+        </g>
+
+        <g class="chart-labels">
+          <text x="34" y="48">max 8,259.16</text>
+          <text x="34" y="872">min 2,328.83</text>
+          <text x="1130" y="48">angle 30.04 deg</text>
+          <text x="1130" y="92">slopePixel 0.578</text>
+          <text x="1130" y="136">rSquared 0.976</text>
+          <text x="1130" y="180">returnRate -71.05%</text>
+        </g>
+      </svg>
+
+      <footer class="card-footer">
+        <span>firstPrice 8,045.04</span>
+        <span>lastPrice 2,328.83</span>
+        <span>period 20</span>
+        <span>type strongDowntrend</span>
+      </footer>
+    </article>
+  
+    <article class="chart-card">
+      <header class="card-header">
+        <div>
+          <p class="code">STK0016</p>
+          <h2>SampleStock16</h2>
+        </div>
+        <dl class="metrics">
+          <div><dt>Angle</dt><dd>30.57 deg</dd></div>
+          <div><dt>Slope</dt><dd>0.591</dd></div>
+          <div><dt>R2</dt><dd>0.976</dd></div>
+          <div><dt>Return</dt><dd>-69.37%</dd></div>
+        </dl>
+      </header>
+
+      <svg
+        class="chart"
+        viewBox="0 0 1600 900"
+        role="img"
+        aria-label="STK0016 SampleStock16 selected price chart"
+      >
+        <rect x="0" y="0" width="1600" height="900" class="plot-bg" />
+        <g class="grid">
+          <line x1="0" y1="0" x2="1600" y2="0" /><line x1="0" y1="225" x2="1600" y2="225" /><line x1="0" y1="450" x2="1600" y2="450" /><line x1="0" y1="675" x2="1600" y2="675" /><line x1="0" y1="900" x2="1600" y2="900" />
+          <line x1="0" y1="0" x2="0" y2="900" /><line x1="200" y1="0" x2="200" y2="900" /><line x1="400" y1="0" x2="400" y2="900" /><line x1="600" y1="0" x2="600" y2="900" /><line x1="800" y1="0" x2="800" y2="900" /><line x1="1000" y1="0" x2="1000" y2="900" /><line x1="1200" y1="0" x2="1200" y2="900" /><line x1="1400" y1="0" x2="1400" y2="900" /><line x1="1600" y1="0" x2="1600" y2="900" />
+        </g>
+
+        <polyline class="price-line" points="0,0 84.21052631578947,57.7974092552754 168.42105263157893,84.59513892067571 252.6315789473684,72.42184281594712 336.84210526315786,177.2852107840895 421.05263157894734,340.296150501213 505.2631578947368,349.62695106879664 589.4736842105262,364.62214491692237 673.6842105263157,378.64924245891893 757.8947368421052,506.60273721792464 842.1052631578947,565.0592758731177 926.3157894736843,508.8272989426466 1010.5263157894736,684.6088707831739 1094.7368421052631,708.5435071176821 1178.9473684210525,695.0931478006135 1263.157894736842,775.8570970842678 1347.3684210526314,801.2335789810958 1431.578947368421,829.1641873026044 1515.7894736842104,886.1788803954777 1600,900" />
+        <line
+          class="regression-line"
+          x1="0"
+          y1="11.720438896481392"
+          x2="1600"
+          y2="956.9258283255631"
+        />
+
+        <circle class="endpoint first" cx="0" cy="0" r="10" />
+        <circle class="endpoint last" cx="1600" cy="900" r="10" />
+
+        <g class="angle-guide">
+          <line x1="90" y1="790" x2="260" y2="790" />
+          <line x1="90" y1="790" x2="260" y2="884.2325387469707" />
+          <text x="90" y="772">minAngleDegree 29 deg</text>
+        </g>
+
+        <g class="chart-labels">
+          <text x="34" y="48">max 629.86</text>
+          <text x="34" y="872">min 192.92</text>
+          <text x="1130" y="48">angle 30.57 deg</text>
+          <text x="1130" y="92">slopePixel 0.591</text>
+          <text x="1130" y="136">rSquared 0.976</text>
+          <text x="1130" y="180">returnRate -69.37%</text>
+        </g>
+      </svg>
+
+      <footer class="card-footer">
+        <span>firstPrice 629.86</span>
+        <span>lastPrice 192.92</span>
+        <span>period 20</span>
+        <span>type strongDowntrend</span>
+      </footer>
+    </article>
+  
+    <article class="chart-card">
+      <header class="card-header">
+        <div>
+          <p class="code">STK0024</p>
+          <h2>SampleStock24</h2>
+        </div>
+        <dl class="metrics">
+          <div><dt>Angle</dt><dd>30 deg</dd></div>
+          <div><dt>Slope</dt><dd>0.577</dd></div>
+          <div><dt>R2</dt><dd>0.957</dd></div>
+          <div><dt>Return</dt><dd>-67.53%</dd></div>
+        </dl>
+      </header>
+
+      <svg
+        class="chart"
+        viewBox="0 0 1600 900"
+        role="img"
+        aria-label="STK0024 SampleStock24 selected price chart"
+      >
+        <rect x="0" y="0" width="1600" height="900" class="plot-bg" />
+        <g class="grid">
+          <line x1="0" y1="0" x2="1600" y2="0" /><line x1="0" y1="225" x2="1600" y2="225" /><line x1="0" y1="450" x2="1600" y2="450" /><line x1="0" y1="675" x2="1600" y2="675" /><line x1="0" y1="900" x2="1600" y2="900" />
+          <line x1="0" y1="0" x2="0" y2="900" /><line x1="200" y1="0" x2="200" y2="900" /><line x1="400" y1="0" x2="400" y2="900" /><line x1="600" y1="0" x2="600" y2="900" /><line x1="800" y1="0" x2="800" y2="900" /><line x1="1000" y1="0" x2="1000" y2="900" /><line x1="1200" y1="0" x2="1200" y2="900" /><line x1="1400" y1="0" x2="1400" y2="900" /><line x1="1600" y1="0" x2="1600" y2="900" />
+        </g>
+
+        <polyline class="price-line" points="0,81.7553866463445 84.21052631578947,0 168.42105263157893,163.11804179032242 252.6315789473684,211.36367392817317 336.84210526315786,304.7282138696029 421.05263157894734,336.4256717555761 505.2631578947368,387.22326025323173 589.4736842105262,446.0544897333914 673.6842105263157,552.3347106685569 757.8947368421052,597.9092139085427 842.1052631578947,637.9484973306639 926.3157894736843,653.2378801332693 1010.5263157894736,761.6241269014777 1094.7368421052631,797.6951665086508 1178.9473684210525,796.966852534863 1263.157894736842,844.0042869243671 1347.3684210526314,857.3709410064188 1431.578947368421,866.7107735168029 1515.7894736842104,899.0164483688854 1600,900" />
+        <line
+          class="regression-line"
+          x1="0"
+          y1="92.9692355320608"
+          x2="1600"
+          y2="1016.5795280458535"
+        />
+
+        <circle class="endpoint first" cx="0" cy="81.7553866463445" r="10" />
+        <circle class="endpoint last" cx="1600" cy="900" r="10" />
+
+        <g class="angle-guide">
+          <line x1="90" y1="790" x2="260" y2="790" />
+          <line x1="90" y1="790" x2="260" y2="884.2325387469707" />
+          <text x="90" y="772">minAngleDegree 29 deg</text>
+        </g>
+
+        <g class="chart-labels">
+          <text x="34" y="48">max 153,911.66</text>
+          <text x="34" y="872">min 46,823.23</text>
+          <text x="1130" y="48">angle 30 deg</text>
+          <text x="1130" y="92">slopePixel 0.577</text>
+          <text x="1130" y="136">rSquared 0.957</text>
+          <text x="1130" y="180">returnRate -67.53%</text>
+        </g>
+      </svg>
+
+      <footer class="card-footer">
+        <span>firstPrice 144,183.82</span>
+        <span>lastPrice 46,823.23</span>
+        <span>period 20</span>
+        <span>type surgeThenDrop</span>
+      </footer>
+    </article>
+  
+    </section>
+  </main>
+</body>
+</html>
