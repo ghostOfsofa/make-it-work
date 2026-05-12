@@ -5,13 +5,12 @@ import {
   calculateLinearRegressionByPoints,
   calculateRSquaredByPoints,
   calculateReturnRate,
-  convertToChartPoints,
   filterStrongDowntrendStocks,
   generateSampleStocks,
-  getRecentValidPrices,
 } from "./strong-downtrend-filter.mjs";
 
 const DEFAULT_CHART_FILE_PATH = "chart.html";
+const DEFAULT_CHART_TYPE = "candlestick";
 
 const round = (value, digits = 2) => {
   const factor = 10 ** digits;
@@ -39,14 +38,79 @@ const getRegressionLine = ({ slopePixel, intercept, chartWidth }) => ({
   y2: slopePixel * chartWidth + intercept,
 });
 
+const isValidCandle = (candle) =>
+  candle != null &&
+  Number.isFinite(candle.open) &&
+  Number.isFinite(candle.close) &&
+  candle.open > 0 &&
+  candle.close > 0;
+
+const getSelectedPrice = (candle) =>
+  candle.close >= candle.open ? candle.close : candle.open;
+
+const getRecentValidCandles = (prices, period) => {
+  if (!Array.isArray(prices) || !Number.isInteger(period) || period < 2) {
+    return [];
+  }
+
+  const validCandles = [...prices]
+    .filter(isValidCandle)
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+
+  return validCandles.length < period ? [] : validCandles.slice(-period);
+};
+
+export const priceToY = (price, minPrice, maxPrice, chartHeight) => {
+  if (
+    !Number.isFinite(price) ||
+    !Number.isFinite(minPrice) ||
+    !Number.isFinite(maxPrice) ||
+    !Number.isFinite(chartHeight) ||
+    maxPrice === minPrice
+  ) {
+    return Number.NaN;
+  }
+
+  return chartHeight - ((price - minPrice) / (maxPrice - minPrice)) * chartHeight;
+};
+
+const createChartPointsByScale = ({
+  selectedPrices,
+  minPrice,
+  maxPrice,
+  chartWidth,
+  chartHeight,
+}) => {
+  if (!Array.isArray(selectedPrices) || selectedPrices.length < 2) {
+    return [];
+  }
+
+  return selectedPrices.map((selectedPrice, index) => ({
+    xPixel: (index / (selectedPrices.length - 1)) * chartWidth,
+    yPixel: priceToY(selectedPrice, minPrice, maxPrice, chartHeight),
+    selectedPrice,
+    index,
+  }));
+};
+
 const enrichResultForChart = (result, stocks, options) => {
   const stock = stocks.find((item) => item.code === result.code);
-  const selectedPrices = getRecentValidPrices(stock?.prices, options.period);
-  const points = convertToChartPoints(
+  const candles = getRecentValidCandles(stock?.prices, options.period);
+  const selectedPrices = candles.map(getSelectedPrice);
+  const chartScalePrices = candles.flatMap((candle, index) => [
+    candle.open,
+    candle.close,
+    selectedPrices[index],
+  ]);
+  const minPrice = Math.min(...chartScalePrices);
+  const maxPrice = Math.max(...chartScalePrices);
+  const points = createChartPointsByScale({
     selectedPrices,
-    options.chartWidth,
-    options.chartHeight,
-  );
+    minPrice,
+    maxPrice,
+    chartWidth: options.chartWidth,
+    chartHeight: options.chartHeight,
+  });
   const { slopePixel, intercept } = calculateLinearRegressionByPoints(points);
   const rSquared = calculateRSquaredByPoints(points, slopePixel, intercept);
   const angleDegree = calculateAngleDegree(slopePixel);
@@ -55,10 +119,11 @@ const enrichResultForChart = (result, stocks, options) => {
   return {
     ...result,
     type: stock?.type,
+    candles,
     selectedPrices,
     points,
-    minPrice: Math.min(...selectedPrices),
-    maxPrice: Math.max(...selectedPrices),
+    minPrice,
+    maxPrice,
     slopePixel,
     intercept,
     angleDegree,
@@ -69,13 +134,48 @@ const enrichResultForChart = (result, stocks, options) => {
   };
 };
 
+export const createCandleElements = (candles, options = {}) => {
+  const {
+    chartWidth,
+    chartHeight,
+    period,
+    minPrice,
+    maxPrice,
+  } = { ...DEFAULT_OPTIONS, ...options };
+  const candleWidth = (chartWidth / period) * 0.6;
+
+  return candles
+    .map((candle, index) => {
+      const xCenter = (index / (period - 1)) * chartWidth;
+      const openY = priceToY(candle.open, minPrice, maxPrice, chartHeight);
+      const closeY = priceToY(candle.close, minPrice, maxPrice, chartHeight);
+      const bodyY = Math.min(openY, closeY);
+      const rawBodyHeight = Math.abs(closeY - openY);
+      const bodyHeight = Math.max(rawBodyHeight, 1);
+      const adjustedBodyY = rawBodyHeight < 1 ? bodyY - 0.5 : bodyY;
+      const isBullish = candle.close >= candle.open;
+      const candleClass = isBullish ? "bullish" : "bearish";
+
+      return `
+        <rect
+          class="candle-body ${candleClass}"
+          x="${xCenter - candleWidth / 2}"
+          y="${adjustedBodyY}"
+          width="${candleWidth}"
+          height="${bodyHeight}"
+        />
+      `;
+    })
+    .join("");
+};
+
 /**
  * Creates one SVG chart card for a filtered stock result.
  *
  * The SVG viewBox is exactly chartWidth x chartHeight, so plotted points use
  * the same xPixel/yPixel coordinates used by the regression calculation.
  */
-export const createSvgChart = (stockResult, options = {}) => {
+export const createCandlestickSvgChart = (stockResult, options = {}) => {
   const config = { ...DEFAULT_OPTIONS, ...options };
   const { chartWidth, chartHeight, minAngleDegree } = config;
   const priceLinePoints = toPolylinePoints(stockResult.points);
@@ -91,6 +191,11 @@ export const createSvgChart = (stockResult, options = {}) => {
   const guideEndY = guideY + Math.min(thresholdSlope * guideLength, 130);
   const firstPoint = stockResult.points[0];
   const lastPoint = stockResult.points.at(-1);
+  const candleElements = createCandleElements(stockResult.candles, {
+    ...config,
+    minPrice: stockResult.minPrice,
+    maxPrice: stockResult.maxPrice,
+  });
 
   return `
     <article class="chart-card">
@@ -111,7 +216,7 @@ export const createSvgChart = (stockResult, options = {}) => {
         class="chart"
         viewBox="0 0 ${chartWidth} ${chartHeight}"
         role="img"
-        aria-label="${escapeHtml(stockResult.code)} ${escapeHtml(stockResult.name)} selected price chart"
+        aria-label="${escapeHtml(stockResult.code)} ${escapeHtml(stockResult.name)} candlestick chart"
       >
         <rect x="0" y="0" width="${chartWidth}" height="${chartHeight}" class="plot-bg" />
         <g class="grid">
@@ -125,6 +230,9 @@ export const createSvgChart = (stockResult, options = {}) => {
           }).join("")}
         </g>
 
+        <g class="candles">
+          ${candleElements}
+        </g>
         <polyline class="price-line" points="${priceLinePoints}" />
         <line
           class="regression-line"
@@ -163,11 +271,27 @@ export const createSvgChart = (stockResult, options = {}) => {
   `;
 };
 
+export const createSvgChart = (stockResult, options = {}) => {
+  const config = {
+    ...DEFAULT_OPTIONS,
+    chartType: DEFAULT_CHART_TYPE,
+    ...options,
+  };
+
+  return config.chartType === "candlestick"
+    ? createCandlestickSvgChart(stockResult, config)
+    : createCandlestickSvgChart(stockResult, config);
+};
+
 /**
  * Generates a complete static HTML document with SVG charts.
  */
 export const generateChartHtml = (results, options = {}) => {
-  const config = { ...DEFAULT_OPTIONS, ...options };
+  const config = {
+    ...DEFAULT_OPTIONS,
+    chartType: DEFAULT_CHART_TYPE,
+    ...options,
+  };
   const cards = results.map((result) => createSvgChart(result, config)).join("");
 
   return `<!doctype html>
@@ -187,6 +311,8 @@ export const generateChartHtml = (results, options = {}) => {
       --price: #1f7a5a;
       --regression: #c4382b;
       --guide: #805ad5;
+      --bullish: #197a55;
+      --bearish: #c24135;
     }
 
     * {
@@ -328,9 +454,25 @@ export const generateChartHtml = (results, options = {}) => {
     .price-line {
       fill: none;
       stroke: var(--price);
-      stroke-width: 6;
+      stroke-width: 5;
+      stroke-dasharray: 14 12;
       stroke-linejoin: round;
       stroke-linecap: round;
+    }
+
+    .candle-body {
+      stroke-width: 3;
+      rx: 2;
+    }
+
+    .candle-body.bullish {
+      fill: rgba(25, 122, 85, 0.82);
+      stroke: var(--bullish);
+    }
+
+    .candle-body.bearish {
+      fill: rgba(194, 65, 53, 0.82);
+      stroke: var(--bearish);
     }
 
     .regression-line {
@@ -405,9 +547,11 @@ export const generateChartHtml = (results, options = {}) => {
     <header class="page-header">
       <div>
         <h1>Strong Downtrend Charts</h1>
-        <p class="summary">Top ${results.length} demo results, ${config.chartWidth}x${config.chartHeight}, minAngleDegree ${formatNumber(config.minAngleDegree)} deg</p>
+        <p class="summary">Top ${results.length} demo results, ${config.chartWidth}x${config.chartHeight}, ${escapeHtml(config.chartType)}, minAngleDegree ${formatNumber(config.minAngleDegree)} deg</p>
       </div>
       <div class="legend" aria-label="chart legend">
+        <span><i style="background: var(--bullish)"></i>bullish candle</span>
+        <span><i style="background: var(--bearish)"></i>bearish candle</span>
         <span><i style="background: var(--price)"></i>selectedPrice</span>
         <span><i style="background: var(--regression)"></i>linear regression</span>
         <span><i style="background: var(--guide)"></i>min angle guide</span>
@@ -432,7 +576,11 @@ const run = () => {
     seed: 20260512,
   });
   const strictOptions = { ...DEFAULT_OPTIONS, minAngleDegree: 45 };
-  const demoOptions = { ...DEFAULT_OPTIONS, minAngleDegree: 29 };
+  const demoOptions = {
+    ...DEFAULT_OPTIONS,
+    chartType: DEFAULT_CHART_TYPE,
+    minAngleDegree: 29,
+  };
   const strictResults = filterStrongDowntrendStocks(generatedStocks, strictOptions);
   const demoResults = filterStrongDowntrendStocks(generatedStocks, demoOptions);
   const chartResults = demoResults
