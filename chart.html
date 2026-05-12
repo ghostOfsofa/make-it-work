@@ -171,6 +171,11 @@
       stroke: var(--bearish);
     }
 
+    .candle-hover-area {
+      cursor: crosshair;
+      pointer-events: all;
+    }
+
     .regression-line {
       stroke: var(--regression);
       stroke-width: 3.2;
@@ -220,6 +225,49 @@
       font-weight: 700;
       text-anchor: middle;
       dominant-baseline: middle;
+    }
+
+    #chart-tooltip {
+      position: fixed;
+      pointer-events: none;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid #475569;
+      color: #e5e7eb;
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      line-height: 1.55;
+      z-index: 9999;
+      display: none;
+      white-space: nowrap;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+    }
+
+    #chart-tooltip .tooltip-date {
+      color: #ffffff;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    #chart-tooltip .tooltip-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+    }
+
+    #chart-tooltip .change-up {
+      color: var(--bullish);
+      font-weight: 700;
+    }
+
+    #chart-tooltip .change-down {
+      color: var(--bearish);
+      font-weight: 700;
+    }
+
+    #chart-tooltip .change-flat {
+      color: #94a3b8;
+      font-weight: 700;
     }
 
     @media (max-width: 820px) {
@@ -296,6 +344,20 @@
           width="18"
           height="28.379141032706457"
         />
+        <rect
+          class="candle-hover-area"
+          x="-7"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-10"
+          data-open="12652"
+          data-high="13412.99"
+          data-low="12447.46"
+          data-close="13036.87"
+          data-change-rate=""
+        />
       
         <line
           class="candle-wick bullish"
@@ -310,6 +372,20 @@
           y="140.92844962434253"
           width="18"
           height="45.354862311448755"
+        />
+        <rect
+          class="candle-hover-area"
+          x="70.89473684210526"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-11"
+          data-open="11922.29"
+          data-high="12767.17"
+          data-low="11644.42"
+          data-close="12537.38"
+          data-change-rate="-3.83"
         />
       
         <line
@@ -326,6 +402,20 @@
           width="18"
           height="32.155210386734666"
         />
+        <rect
+          class="candle-hover-area"
+          x="148.78947368421052"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-12"
+          data-open="12158.69"
+          data-high="12462.21"
+          data-low="11494.23"
+          data-close="11722.61"
+          data-change-rate="-6.50"
+        />
       
         <line
           class="candle-wick bearish"
@@ -340,6 +430,20 @@
           y="231.753203893643"
           width="18"
           height="39.26640211691404"
+        />
+        <rect
+          class="candle-hover-area"
+          x="226.68421052631578"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-13"
+          data-open="11305.64"
+          data-high="11638.17"
+          data-low="10641.99"
+          data-close="10773.12"
+          data-change-rate="-8.10"
         />
       
         <line
@@ -356,6 +460,20 @@
           width="18"
           height="6.109843910853215"
         />
+        <rect
+          class="candle-hover-area"
+          x="304.57894736842104"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-14"
+          data-open="9775.72"
+          data-high="9921.28"
+          data-low="9518.71"
+          data-close="9858.58"
+          data-change-rate="-8.49"
+        />
       
         <line
           class="candle-wick bearish"
@@ -370,6 +488,20 @@
           y="330.67722506094134"
           width="18"
           height="46.21684728994103"
+        />
+        <rect
+          class="candle-hover-area"
+          x="382.4736842105263"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-15"
+          data-open="9964.06"
+          data-high="10073.33"
+          data-low="9165.68"
+          data-close="9337.28"
+          data-change-rate="-5.29"
         />
       
         <line
@@ -386,6 +518,20 @@
           width="18"
           height="47.79776755845057"
         />
+        <rect
+          class="candle-hover-area"
+          x="460.36842105263156"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-16"
+          data-open="9684.25"
+          data-high="9767.28"
+          data-low="8732.86"
+          data-close="9036.03"
+          data-change-rate="-3.23"
+        />
       
         <line
           class="candle-wick bearish"
@@ -400,6 +546,20 @@
           y="334.8168175923835"
           width="18"
           height="121.2803278934818"
+        />
+        <rect
+          class="candle-hover-area"
+          x="538.2631578947368"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-17"
+          data-open="9907.92"
+          data-high="10121.37"
+          data-low="8149.13"
+          data-close="8263.15"
+          data-change-rate="-8.55"
         />
       
         <line
@@ -416,6 +576,20 @@
           width="18"
           height="8.220932870154684"
         />
+        <rect
+          class="candle-hover-area"
+          x="616.1578947368421"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-18"
+          data-open="7680.81"
+          data-high="7837.36"
+          data-low="7361.56"
+          data-close="7569.32"
+          data-change-rate="-8.40"
+        />
       
         <line
           class="candle-wick bearish"
@@ -430,6 +604,20 @@
           y="523.0620965609362"
           width="18"
           height="2.173027999672172"
+        />
+        <rect
+          class="candle-hover-area"
+          x="694.0526315789473"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-19"
+          data-open="7354.99"
+          data-high="7484"
+          data-low="7216.59"
+          data-close="7325.52"
+          data-change-rate="-3.22"
         />
       
         <line
@@ -446,6 +634,20 @@
           width="18"
           height="8.740778387551586"
         />
+        <rect
+          class="candle-hover-area"
+          x="771.9473684210526"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-20"
+          data-open="6857.68"
+          data-high="7014.75"
+          data-low="6619.25"
+          data-close="6976.22"
+          data-change-rate="-4.77"
+        />
       
         <line
           class="candle-wick bullish"
@@ -460,6 +662,20 @@
           y="592.8010318011809"
           width="18"
           height="5.867249336067744"
+        />
+        <rect
+          class="candle-hover-area"
+          x="849.8421052631579"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-21"
+          data-open="6329.64"
+          data-high="6513.05"
+          data-low="6180.16"
+          data-close="6409.21"
+          data-change-rate="-8.13"
         />
       
         <line
@@ -476,6 +692,20 @@
           width="18"
           height="30.063293035166907"
         />
+        <rect
+          class="candle-hover-area"
+          x="927.7368421052631"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-22"
+          data-open="6315.81"
+          data-high="6476.73"
+          data-low="5889.91"
+          data-close="5908.1"
+          data-change-rate="-7.82"
+        />
       
         <line
           class="candle-wick bearish"
@@ -490,6 +720,20 @@
           y="641.7196010425299"
           width="18"
           height="18.667984346013668"
+        />
+        <rect
+          class="candle-hover-area"
+          x="1005.6315789473683"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-23"
+          data-open="5745.79"
+          data-high="5916.33"
+          data-low="5336.13"
+          data-close="5492.62"
+          data-change-rate="-7.03"
         />
       
         <line
@@ -506,6 +750,20 @@
           width="18"
           height="54.71281899412281"
         />
+        <rect
+          class="candle-hover-area"
+          x="1083.5263157894735"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-24"
+          data-open="5717.04"
+          data-high="5913.28"
+          data-low="4951.54"
+          data-close="4975.04"
+          data-change-rate="-9.42"
+        />
       
         <line
           class="candle-wick bearish"
@@ -520,6 +778,20 @@
           y="708.0828585825711"
           width="18"
           height="23.796389414802434"
+        />
+        <rect
+          class="candle-hover-area"
+          x="1161.421052631579"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-25"
+          data-open="4845.79"
+          data-high="5011.36"
+          data-low="4378.24"
+          data-close="4523.07"
+          data-change-rate="-9.08"
         />
       
         <line
@@ -536,6 +808,20 @@
           width="18"
           height="29.250711815065642"
         />
+        <rect
+          class="candle-hover-area"
+          x="1239.3157894736842"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-26"
+          data-open="4620.85"
+          data-high="4646.89"
+          data-low="4200.4"
+          data-close="4224.16"
+          data-change-rate="-6.61"
+        />
       
         <line
           class="candle-wick bearish"
@@ -550,6 +836,20 @@
           y="735.8492455373245"
           width="18"
           height="40.994796291068155"
+        />
+        <rect
+          class="candle-hover-area"
+          x="1317.2105263157896"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-27"
+          data-open="4469.23"
+          data-high="4500.87"
+          data-low="3888.72"
+          data-close="3913.27"
+          data-change-rate="-7.36"
         />
       
         <line
@@ -566,6 +866,20 @@
           width="18"
           height="11.390147102455671"
         />
+        <rect
+          class="candle-hover-area"
+          x="1395.1052631578946"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-28"
+          data-open="3857.77"
+          data-high="3967.53"
+          data-low="3614.76"
+          data-close="3703.3"
+          data-change-rate="-5.37"
+        />
       
         <line
           class="candle-wick bearish"
@@ -580,6 +894,20 @@
           y="799.2364796614589"
           width="18"
           height="2.518854308408663"
+        />
+        <rect
+          class="candle-hover-area"
+          x="1473"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-03-01"
+          data-open="3609.59"
+          data-high="3726.22"
+          data-low="3549.92"
+          data-close="3575.43"
+          data-change-rate="-3.45"
         />
       
         </g>
@@ -642,6 +970,20 @@
           width="18"
           height="27.334910004986114"
         />
+        <rect
+          class="candle-hover-area"
+          x="-7"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-10"
+          data-open="8245.53"
+          data-high="8460.03"
+          data-low="7833.77"
+          data-close="8020.35"
+          data-change-rate=""
+        />
       
         <line
           class="candle-wick bullish"
@@ -656,6 +998,20 @@
           y="164.0361297151826"
           width="18"
           height="12.517878673568589"
+        />
+        <rect
+          class="candle-hover-area"
+          x="70.89473684210526"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-11"
+          data-open="7634.68"
+          data-high="7855.02"
+          data-low="7377.33"
+          data-close="7737.8"
+          data-change-rate="-3.52"
         />
       
         <line
@@ -672,6 +1028,20 @@
           width="18"
           height="43.80650578869938"
         />
+        <rect
+          class="candle-hover-area"
+          x="148.78947368421052"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-12"
+          data-open="7744.79"
+          data-high="7960.61"
+          data-low="7130.24"
+          data-close="7383.92"
+          data-change-rate="-4.57"
+        />
       
         <line
           class="candle-wick bearish"
@@ -686,6 +1056,20 @@
           y="146.09691219792148"
           width="18"
           height="107.07326303356444"
+        />
+        <rect
+          class="candle-hover-area"
+          x="226.68421052631578"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-13"
+          data-open="7885.58"
+          data-high="7951.87"
+          data-low="6881.96"
+          data-close="7003.53"
+          data-change-rate="-5.15"
         />
       
         <line
@@ -702,6 +1086,20 @@
           width="18"
           height="2.2105369535074715"
         />
+        <rect
+          class="candle-hover-area"
+          x="304.57894736842104"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-14"
+          data-open="6495.67"
+          data-high="6624.85"
+          data-low="6403.26"
+          data-close="6477.46"
+          data-change-rate="-7.51"
+        />
       
         <line
           class="candle-wick bullish"
@@ -716,6 +1114,20 @@
           y="369.005467771045"
           width="18"
           height="22.996382233522468"
+        />
+        <rect
+          class="candle-hover-area"
+          x="382.4736842105263"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-15"
+          data-open="5859.86"
+          data-high="6090.91"
+          data-low="5729.56"
+          data-close="6049.3"
+          data-change-rate="-6.61"
         />
       
         <line
@@ -732,6 +1144,20 @@
           width="18"
           height="101.99788961093168"
         />
+        <rect
+          class="candle-hover-area"
+          x="460.36842105263156"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-16"
+          data-open="6562.27"
+          data-high="6674.2"
+          data-low="5625.96"
+          data-close="5722.03"
+          data-change-rate="-5.41"
+        />
       
         <line
           class="candle-wick bearish"
@@ -746,6 +1172,20 @@
           y="426.20508405290605"
           width="18"
           height="47.227314759036574"
+        />
+        <rect
+          class="candle-hover-area"
+          x="538.2631578947368"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-17"
+          data-open="5578.1"
+          data-high="5702.88"
+          data-low="5024.97"
+          data-close="5189.05"
+          data-change-rate="-9.31"
         />
       
         <line
@@ -762,6 +1202,20 @@
           width="18"
           height="51.24172755708656"
         />
+        <rect
+          class="candle-hover-area"
+          x="616.1578947368421"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-18"
+          data-open="5290.38"
+          data-high="5324.4"
+          data-low="4727.28"
+          data-close="4868.26"
+          data-change-rate="-6.18"
+        />
       
         <line
           class="candle-wick bearish"
@@ -776,6 +1230,20 @@
           y="497.2469589184272"
           width="18"
           height="54.30807371005727"
+        />
+        <rect
+          class="candle-hover-area"
+          x="694.0526315789473"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-19"
+          data-open="4992.87"
+          data-high="5008.26"
+          data-low="4427.79"
+          data-close="4545.49"
+          data-change-rate="-6.63"
         />
       
         <line
@@ -792,6 +1260,20 @@
           width="18"
           height="40.26794718382621"
         />
+        <rect
+          class="candle-hover-area"
+          x="771.9473684210526"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-20"
+          data-open="4532.82"
+          data-high="4579.76"
+          data-low="4176.27"
+          data-close="4201.1"
+          data-change-rate="-7.58"
+        />
       
         <line
           class="candle-wick bullish"
@@ -806,6 +1288,20 @@
           y="625.0999976632161"
           width="18"
           height="1.1337954500691012"
+        />
+        <rect
+          class="candle-hover-area"
+          x="849.8421052631579"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-21"
+          data-open="3930.3"
+          data-high="3976.06"
+          data-low="3844.66"
+          data-close="3939.64"
+          data-change-rate="-6.22"
         />
       
         <line
@@ -822,6 +1318,20 @@
           width="18"
           height="40.7255926706315"
         />
+        <rect
+          class="candle-hover-area"
+          x="927.7368421052631"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-22"
+          data-open="3962.38"
+          data-high="4073.43"
+          data-low="3568.99"
+          data-close="3626.89"
+          data-change-rate="-7.94"
+        />
       
         <line
           class="candle-wick bullish"
@@ -836,6 +1346,20 @@
           y="683.8910548819515"
           width="18"
           height="12.356428143740686"
+        />
+        <rect
+          class="candle-hover-area"
+          x="1005.6315789473683"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-23"
+          data-open="3353.54"
+          data-high="3465.92"
+          data-low="3304.19"
+          data-close="3455.33"
+          data-change-rate="-4.73"
         />
       
         <line
@@ -852,6 +1376,20 @@
           width="18"
           height="47.95809084141524"
         />
+        <rect
+          class="candle-hover-area"
+          x="1083.5263157894735"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-24"
+          data-open="3702.46"
+          data-high="3777.69"
+          data-low="3281.2"
+          data-close="3307.39"
+          data-change-rate="-4.28"
+        />
       
         <line
           class="candle-wick bearish"
@@ -866,6 +1404,20 @@
           y="671.1692386970213"
           width="18"
           height="53.6926194346986"
+        />
+        <rect
+          class="candle-hover-area"
+          x="1161.421052631579"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-25"
+          data-open="3560.13"
+          data-high="3602.8"
+          data-low="3048.85"
+          data-close="3117.82"
+          data-change-rate="-5.73"
         />
       
         <line
@@ -882,6 +1434,20 @@
           width="18"
           height="54.64675564856827"
         />
+        <rect
+          class="candle-hover-area"
+          x="1239.3157894736842"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-26"
+          data-open="3391.15"
+          data-high="3404.65"
+          data-low="2905.09"
+          data-close="2940.98"
+          data-change-rate="-5.67"
+        />
       
         <line
           class="candle-wick bearish"
@@ -896,6 +1462,20 @@
           y="756.0448747498958"
           width="18"
           height="4.731835829089391"
+        />
+        <rect
+          class="candle-hover-area"
+          x="1317.2105263157896"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-27"
+          data-open="2860.94"
+          data-high="2875.98"
+          data-low="2737.48"
+          data-close="2821.96"
+          data-change-rate="-4.05"
         />
       
         <line
@@ -912,6 +1492,20 @@
           width="18"
           height="5.008608165937176"
         />
+        <rect
+          class="candle-hover-area"
+          x="1395.1052631578946"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-28"
+          data-open="2695.98"
+          data-high="2760.91"
+          data-low="2617.29"
+          data-close="2654.72"
+          data-change-rate="-5.93"
+        />
       
         <line
           class="candle-wick bearish"
@@ -926,6 +1520,20 @@
           y="767.7846347045197"
           width="18"
           height="33.715240717580855"
+        />
+        <rect
+          class="candle-hover-area"
+          x="1473"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-03-01"
+          data-open="2764.23"
+          data-high="2796.92"
+          data-low="2468.89"
+          data-close="2486.49"
+          data-change-rate="-6.34"
         />
       
         </g>
@@ -988,6 +1596,20 @@
           width="18"
           height="44.16677774290213"
         />
+        <rect
+          class="candle-hover-area"
+          x="-7"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-10"
+          data-open="3253.35"
+          data-high="3283.26"
+          data-low="3033.93"
+          data-close="3112.11"
+          data-change-rate=""
+        />
       
         <line
           class="candle-wick bullish"
@@ -1002,6 +1624,20 @@
           y="198.42580022772916"
           width="18"
           height="15.535298203535717"
+        />
+        <rect
+          class="candle-hover-area"
+          x="70.89473684210526"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-11"
+          data-open="2967.73"
+          data-high="3031.15"
+          data-low="2932.01"
+          data-close="3017.41"
+          data-change-rate="-3.04"
         />
       
         <line
@@ -1018,6 +1654,20 @@
           width="18"
           height="147.81673632873037"
         />
+        <rect
+          class="candle-hover-area"
+          x="148.78947368421052"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-12"
+          data-open="3317.62"
+          data-high="3407.75"
+          data-low="2801.05"
+          data-close="2844.92"
+          data-change-rate="-5.72"
+        />
       
         <line
           class="candle-wick bearish"
@@ -1032,6 +1682,20 @@
           y="220.0432552359904"
           width="18"
           height="79.97488960455428"
+        />
+        <rect
+          class="candle-hover-area"
+          x="226.68421052631578"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-13"
+          data-open="2948.28"
+          data-high="3021.21"
+          data-low="2686.41"
+          data-close="2692.53"
+          data-change-rate="-5.36"
         />
       
         <line
@@ -1048,6 +1712,20 @@
           width="18"
           height="29.62901579679965"
         />
+        <rect
+          class="candle-hover-area"
+          x="304.57894736842104"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-14"
+          data-open="2608.77"
+          data-high="2632.03"
+          data-low="2503.62"
+          data-close="2514.02"
+          data-change-rate="-6.63"
+        />
       
         <line
           class="candle-wick bearish"
@@ -1062,6 +1740,20 @@
           y="374.88652438745527"
           width="18"
           height="12.226855067597512"
+        />
+        <rect
+          class="candle-hover-area"
+          x="382.4736842105263"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-15"
+          data-open="2453.11"
+          data-high="2492.56"
+          data-low="2357.77"
+          data-close="2414.01"
+          data-change-rate="-3.98"
         />
       
         <line
@@ -1078,6 +1770,20 @@
           width="18"
           height="73.92713060180904"
         />
+        <rect
+          class="candle-hover-area"
+          x="460.36842105263156"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-16"
+          data-open="2546.67"
+          data-high="2604.19"
+          data-low="2257.91"
+          data-close="2310.26"
+          data-change-rate="-4.30"
+        />
       
         <line
           class="candle-wick bearish"
@@ -1092,6 +1798,20 @@
           y="354.0414563873005"
           width="18"
           height="96.77977940845938"
+        />
+        <rect
+          class="candle-hover-area"
+          x="538.2631578947368"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-17"
+          data-open="2519.77"
+          data-high="2531.4"
+          data-low="2142.31"
+          data-close="2210.28"
+          data-change-rate="-4.33"
         />
       
         <line
@@ -1108,6 +1828,20 @@
           width="18"
           height="1.8011939946129587"
         />
+        <rect
+          class="candle-hover-area"
+          x="616.1578947368421"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-18"
+          data-open="2115.75"
+          data-high="2145.38"
+          data-low="2103.86"
+          data-close="2121.51"
+          data-change-rate="-4.02"
+        />
       
         <line
           class="candle-wick bearish"
@@ -1122,6 +1856,20 @@
           y="461.86918437730014"
           width="18"
           height="78.96484505549188"
+        />
+        <rect
+          class="candle-hover-area"
+          x="694.0526315789473"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-19"
+          data-open="2174.95"
+          data-high="2236.89"
+          data-low="1858.09"
+          data-close="1922.43"
+          data-change-rate="-9.38"
         />
       
         <line
@@ -1138,6 +1886,20 @@
           width="18"
           height="19.462901775121964"
         />
+        <rect
+          class="candle-hover-area"
+          x="771.9473684210526"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-20"
+          data-open="1895.48"
+          data-high="1922.31"
+          data-low="1783.09"
+          data-close="1833.24"
+          data-change-rate="-4.64"
+        />
       
         <line
           class="candle-wick bearish"
@@ -1152,6 +1914,20 @@
           y="591.6083122288486"
           width="18"
           height="3.355349229547869"
+        />
+        <rect
+          class="candle-hover-area"
+          x="849.8421052631579"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-21"
+          data-open="1760.06"
+          data-high="1813.21"
+          data-low="1726.01"
+          data-close="1749.33"
+          data-change-rate="-4.58"
         />
       
         <line
@@ -1168,6 +1944,20 @@
           width="18"
           height="38.39420115600069"
         />
+        <rect
+          class="candle-hover-area"
+          x="927.7368421052631"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-22"
+          data-open="1582.7"
+          data-high="1723.47"
+          data-low="1549.92"
+          data-close="1705.48"
+          data-change-rate="-2.51"
+        />
       
         <line
           class="candle-wick bearish"
@@ -1182,6 +1972,20 @@
           y="615.7837128752927"
           width="18"
           height="20.86695751050604"
+        />
+        <rect
+          class="candle-hover-area"
+          x="1005.6315789473683"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-23"
+          data-open="1682.75"
+          data-high="1735.89"
+          data-low="1582.88"
+          data-close="1616.02"
+          data-change-rate="-5.25"
         />
       
         <line
@@ -1198,6 +2002,20 @@
           width="18"
           height="63.01677322819069"
         />
+        <rect
+          class="candle-hover-area"
+          x="1083.5263157894735"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-24"
+          data-open="1673.27"
+          data-high="1695.19"
+          data-low="1421.51"
+          data-close="1471.75"
+          data-change-rate="-8.93"
+        />
       
         <line
           class="candle-wick bearish"
@@ -1212,6 +2030,20 @@
           y="661.9299277685246"
           width="18"
           height="45.839761748315254"
+        />
+        <rect
+          class="candle-hover-area"
+          x="1161.421052631579"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-25"
+          data-open="1535.18"
+          data-high="1581.4"
+          data-low="1367.85"
+          data-close="1388.59"
+          data-change-rate="-5.65"
         />
       
         <line
@@ -1228,6 +2060,20 @@
           width="18"
           height="13.821662250327563"
         />
+        <rect
+          class="candle-hover-area"
+          x="1239.3157894736842"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-26"
+          data-open="1285.67"
+          data-high="1349.6"
+          data-low="1280.39"
+          data-close="1329.87"
+          data-change-rate="-4.23"
+        />
       
         <line
           class="candle-wick bearish"
@@ -1242,6 +2088,20 @@
           y="720.650102822066"
           width="18"
           height="24.441201843565864"
+        />
+        <rect
+          class="candle-hover-area"
+          x="1317.2105263157896"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-27"
+          data-open="1347.4"
+          data-high="1364.83"
+          data-low="1250.02"
+          data-close="1269.24"
+          data-change-rate="-4.56"
         />
       
         <line
@@ -1258,6 +2118,20 @@
           width="18"
           height="5.425471494189651"
         />
+        <rect
+          class="candle-hover-area"
+          x="1395.1052631578946"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-28"
+          data-open="1243.8"
+          data-high="1269.5"
+          data-low="1186.17"
+          data-close="1226.45"
+          data-change-rate="-3.37"
+        />
       
         <line
           class="candle-wick bearish"
@@ -1272,6 +2146,20 @@
           y="763.181421434443"
           width="18"
           height="31.27698321895423"
+        />
+        <rect
+          class="candle-hover-area"
+          x="1473"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-03-01"
+          data-open="1211.39"
+          data-high="1238.59"
+          data-low="1082.02"
+          data-close="1111.37"
+          data-change-rate="-9.38"
         />
       
         </g>
@@ -1334,6 +2222,20 @@
           width="18"
           height="24.3025867669337"
         />
+        <rect
+          class="candle-hover-area"
+          x="-7"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-10"
+          data-open="8532.25"
+          data-high="8708.73"
+          data-low="8302.02"
+          data-close="8326.64"
+          data-change-rate=""
+        />
       
         <line
           class="candle-wick bullish"
@@ -1348,6 +2250,20 @@
           y="177.9768400875074"
           width="18"
           height="60.16843438406488"
+        />
+        <rect
+          class="candle-hover-area"
+          x="70.89473684210526"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-11"
+          data-open="7573.23"
+          data-high="8230.98"
+          data-low="7486.79"
+          data-close="8082.28"
+          data-change-rate="-2.93"
         />
       
         <line
@@ -1364,6 +2280,20 @@
           width="18"
           height="119.64777737738359"
         />
+        <rect
+          class="candle-hover-area"
+          x="148.78947368421052"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-12"
+          data-open="8669.71"
+          data-high="8941.97"
+          data-low="7591.59"
+          data-close="7657.44"
+          data-change-rate="-5.26"
+        />
       
         <line
           class="candle-wick bearish"
@@ -1378,6 +2308,20 @@
           y="160.39850876131538"
           width="18"
           height="141.27437287733915"
+        />
+        <rect
+          class="candle-hover-area"
+          x="226.68421052631578"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-13"
+          data-open="8231"
+          data-high="8397.56"
+          data-low="6802.45"
+          data-close="7035.76"
+          data-change-rate="-8.12"
         />
       
         <line
@@ -1394,6 +2338,20 @@
           width="18"
           height="89.51687217517213"
         />
+        <rect
+          class="candle-hover-area"
+          x="304.57894736842104"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-14"
+          data-open="7409.73"
+          data-high="7547.38"
+          data-low="6446.38"
+          data-close="6652.38"
+          data-change-rate="-5.45"
+        />
       
         <line
           class="candle-wick bullish"
@@ -1408,6 +2366,20 @@
           y="371.1777360836116"
           width="18"
           height="28.484414109057695"
+        />
+        <rect
+          class="candle-hover-area"
+          x="382.4736842105263"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-15"
+          data-open="6206.73"
+          data-high="6589.2"
+          data-low="6006.8"
+          data-close="6447.72"
+          data-change-rate="-3.08"
         />
       
         <line
@@ -1424,6 +2396,20 @@
           width="18"
           height="66.41517194854327"
         />
+        <rect
+          class="candle-hover-area"
+          x="460.36842105263156"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-16"
+          data-open="6529.29"
+          data-high="6568.07"
+          data-low="5868.38"
+          data-close="5967.39"
+          data-change-rate="-7.45"
+        />
       
         <line
           class="candle-wick bearish"
@@ -1438,6 +2424,20 @@
           y="382.64289301368586"
           width="18"
           height="66.47308872066435"
+        />
+        <rect
+          class="candle-hover-area"
+          x="538.2631578947368"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-17"
+          data-open="6350.72"
+          data-high="6444.89"
+          data-low="5697.39"
+          data-close="5788.33"
+          data-change-rate="-3.00"
         />
       
         <line
@@ -1454,6 +2454,20 @@
           width="18"
           height="50.88638517046951"
         />
+        <rect
+          class="candle-hover-area"
+          x="616.1578947368421"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-18"
+          data-open="5821.9"
+          data-high="5852.81"
+          data-low="5283.05"
+          data-close="5391.38"
+          data-change-rate="-6.86"
+        />
       
         <line
           class="candle-wick bearish"
@@ -1468,6 +2482,20 @@
           y="466.2416166580456"
           width="18"
           height="79.88614035390992"
+        />
+        <rect
+          class="candle-hover-area"
+          x="694.0526315789473"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-19"
+          data-open="5643.44"
+          data-high="5811.37"
+          data-low="4841.18"
+          data-close="4967.57"
+          data-change-rate="-7.86"
         />
       
         <line
@@ -1484,6 +2512,20 @@
           width="18"
           height="82.77252316042961"
         />
+        <rect
+          class="candle-hover-area"
+          x="771.9473684210526"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-20"
+          data-open="5266.53"
+          data-high="5431.64"
+          data-low="4415.29"
+          data-close="4566.24"
+          data-change-rate="-8.08"
+        />
       
         <line
           class="candle-wick bearish"
@@ -1498,6 +2540,20 @@
           y="601.659303701517"
           width="18"
           height="20.452894383299395"
+        />
+        <rect
+          class="candle-hover-area"
+          x="849.8421052631579"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-21"
+          data-open="4497.75"
+          data-high="4573.34"
+          data-low="4214.42"
+          data-close="4324.71"
+          data-change-rate="-5.29"
         />
       
         <line
@@ -1514,6 +2570,20 @@
           width="18"
           height="19.287467091231974"
         />
+        <rect
+          class="candle-hover-area"
+          x="927.7368421052631"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-22"
+          data-open="3940.3"
+          data-high="4216.94"
+          data-low="3889.16"
+          data-close="4103.48"
+          data-change-rate="-5.12"
+        />
       
         <line
           class="candle-wick bullish"
@@ -1528,6 +2598,20 @@
           y="661.7390899649885"
           width="18"
           height="10.420291082013819"
+        />
+        <rect
+          class="candle-hover-area"
+          x="1005.6315789473683"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-23"
+          data-open="3901.29"
+          data-high="4118.14"
+          data-low="3811.56"
+          data-close="3989.45"
+          data-change-rate="-2.78"
         />
       
         <line
@@ -1544,6 +2628,20 @@
           width="18"
           height="49.794240324759585"
         />
+        <rect
+          class="candle-hover-area"
+          x="1083.5263157894735"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-24"
+          data-open="4184.52"
+          data-high="4327.18"
+          data-low="3713.35"
+          data-close="3763.24"
+          data-change-rate="-5.67"
+        />
       
         <line
           class="candle-wick bullish"
@@ -1558,6 +2656,20 @@
           y="711.5616976883377"
           width="18"
           height="5.166412468180852"
+        />
+        <rect
+          class="candle-hover-area"
+          x="1161.421052631579"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-25"
+          data-open="3524.22"
+          data-high="3592.44"
+          data-low="3433.09"
+          data-close="3567.93"
+          data-change-rate="-5.19"
         />
       
         <line
@@ -1574,6 +2686,20 @@
           width="18"
           height="65.03817114199319"
         />
+        <rect
+          class="candle-hover-area"
+          x="1239.3157894736842"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-26"
+          data-open="3848.36"
+          data-high="3981.38"
+          data-low="3237.85"
+          data-close="3298.11"
+          data-change-rate="-7.56"
+        />
       
         <line
           class="candle-wick bullish"
@@ -1588,6 +2714,20 @@
           y="772.9877534098869"
           width="18"
           height="1.0023147501755147"
+        />
+        <rect
+          class="candle-hover-area"
+          x="1317.2105263157896"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-27"
+          data-open="3039.76"
+          data-high="3107.69"
+          data-low="3031.68"
+          data-close="3048.24"
+          data-change-rate="-7.58"
         />
       
         <line
@@ -1604,6 +2744,20 @@
           width="18"
           height="13.2818524147674"
         />
+        <rect
+          class="candle-hover-area"
+          x="1395.1052631578946"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-28"
+          data-open="3024.77"
+          data-high="3063.99"
+          data-low="2878.94"
+          data-close="2912.4"
+          data-change-rate="-4.46"
+        />
       
         <line
           class="candle-wick bearish"
@@ -1618,6 +2772,20 @@
           y="771.4890091843886"
           width="18"
           height="28.9737517347329"
+        />
+        <rect
+          class="candle-hover-area"
+          x="1473"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-03-01"
+          data-open="3060.92"
+          data-high="3122.2"
+          data-low="2788.94"
+          data-close="2815.79"
+          data-change-rate="-3.32"
         />
       
         </g>
@@ -1680,6 +2848,20 @@
           width="18"
           height="23.91099422999571"
         />
+        <rect
+          class="candle-hover-area"
+          x="-7"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-10"
+          data-open="3204.26"
+          data-high="3272.22"
+          data-low="3090.44"
+          data-close="3129.59"
+          data-change-rate=""
+        />
       
         <line
           class="candle-wick bullish"
@@ -1694,6 +2876,20 @@
           y="171.71300882812648"
           width="18"
           height="3.3911534605016413"
+        />
+        <rect
+          class="candle-hover-area"
+          x="70.89473684210526"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-11"
+          data-open="2963.87"
+          data-high="3014.92"
+          data-low="2898.07"
+          data-close="2974.46"
+          data-change-rate="-4.96"
         />
       
         <line
@@ -1710,6 +2906,20 @@
           width="18"
           height="33.06935012898964"
         />
+        <rect
+          class="candle-hover-area"
+          x="148.78947368421052"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-12"
+          data-open="2971.08"
+          data-high="3034.96"
+          data-low="2780.42"
+          data-close="2867.81"
+          data-change-rate="-3.59"
+        />
       
         <line
           class="candle-wick bearish"
@@ -1724,6 +2934,20 @@
           y="203.2869211232594"
           width="18"
           height="34.79534797149233"
+        />
+        <rect
+          class="candle-hover-area"
+          x="226.68421052631578"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-13"
+          data-open="2875.86"
+          data-high="2973.01"
+          data-low="2716.98"
+          data-close="2767.2"
+          data-change-rate="-3.51"
         />
       
         <line
@@ -1740,6 +2964,20 @@
           width="18"
           height="39.03829257504697"
         />
+        <rect
+          class="candle-hover-area"
+          x="304.57894736842104"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-14"
+          data-open="2693.33"
+          data-high="2733.49"
+          data-low="2534.64"
+          data-close="2571.42"
+          data-change-rate="-7.08"
+        />
       
         <line
           class="candle-wick bullish"
@@ -1754,6 +2992,20 @@
           y="322.32633447612636"
           width="18"
           height="55.497715414497634"
+        />
+        <rect
+          class="candle-hover-area"
+          x="382.4736842105263"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-15"
+          data-open="2330.81"
+          data-high="2588.08"
+          data-low="2251.43"
+          data-close="2504.12"
+          data-change-rate="-2.62"
         />
       
         <line
@@ -1770,6 +3022,20 @@
           width="18"
           height="20.228438536344242"
         />
+        <rect
+          class="candle-hover-area"
+          x="460.36842105263156"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-16"
+          data-open="2332.23"
+          data-high="2381.63"
+          data-low="2245.39"
+          data-close="2269.06"
+          data-change-rate="-9.39"
+        />
       
         <line
           class="candle-wick bearish"
@@ -1784,6 +3050,20 @@
           y="382.01575893670207"
           width="18"
           height="82.88952533057937"
+        />
+        <rect
+          class="candle-hover-area"
+          x="538.2631578947368"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-17"
+          data-open="2317.72"
+          data-high="2368.43"
+          data-low="2022.11"
+          data-close="2058.87"
+          data-change-rate="-9.26"
         />
       
         <line
@@ -1800,6 +3080,20 @@
           width="18"
           height="53.326608666414586"
         />
+        <rect
+          class="candle-hover-area"
+          x="616.1578947368421"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-18"
+          data-open="2044.37"
+          data-high="2083.7"
+          data-low="1870.26"
+          data-close="1877.84"
+          data-change-rate="-8.79"
+        />
       
         <line
           class="candle-wick bearish"
@@ -1814,6 +3108,20 @@
           y="541.1469960152344"
           width="18"
           height="8.226509197383166"
+        />
+        <rect
+          class="candle-hover-area"
+          x="694.0526315789473"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-19"
+          data-open="1820.78"
+          data-high="1857.77"
+          data-low="1787.49"
+          data-close="1795.09"
+          data-change-rate="-4.41"
         />
       
         <line
@@ -1830,6 +3138,20 @@
           width="18"
           height="5.696753546961531"
         />
+        <rect
+          class="candle-hover-area"
+          x="771.9473684210526"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-20"
+          data-open="1689.43"
+          data-high="1735.81"
+          data-low="1662.91"
+          data-close="1671.64"
+          data-change-rate="-6.88"
+        />
       
         <line
           class="candle-wick bearish"
@@ -1844,6 +3166,20 @@
           y="538.6972959233708"
           width="18"
           height="84.23445871434774"
+        />
+        <rect
+          class="candle-hover-area"
+          x="849.8421052631579"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-21"
+          data-open="1828.43"
+          data-high="1888.23"
+          data-low="1533.48"
+          data-close="1565.38"
+          data-change-rate="-6.36"
         />
       
         <line
@@ -1860,6 +3196,20 @@
           width="18"
           height="33.49524570051619"
         />
+        <rect
+          class="candle-hover-area"
+          x="927.7368421052631"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-22"
+          data-open="1629.85"
+          data-high="1650.54"
+          data-low="1492.04"
+          data-close="1525.25"
+          data-change-rate="-2.56"
+        />
       
         <line
           class="candle-wick bullish"
@@ -1874,6 +3224,20 @@
           y="664.8648562102098"
           width="18"
           height="3.47441124140164"
+        />
+        <rect
+          class="candle-hover-area"
+          x="1005.6315789473683"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-23"
+          data-open="1423.58"
+          data-high="1447.31"
+          data-low="1409.06"
+          data-close="1434.43"
+          data-change-rate="-5.95"
         />
       
         <line
@@ -1890,6 +3254,20 @@
           width="18"
           height="55.93641987539354"
         />
+        <rect
+          class="candle-hover-area"
+          x="1083.5263157894735"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-24"
+          data-open="1538.07"
+          data-high="1575.29"
+          data-low="1339.63"
+          data-close="1363.39"
+          data-change-rate="-4.95"
+        />
       
         <line
           class="candle-wick bullish"
@@ -1904,6 +3282,20 @@
           y="707.5472778108007"
           width="18"
           height="18.48963180447231"
+        />
+        <rect
+          class="candle-hover-area"
+          x="1161.421052631579"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-25"
+          data-open="1243.4"
+          data-high="1344.96"
+          data-low="1233.2"
+          data-close="1301.14"
+          data-change-rate="-4.57"
         />
       
         <line
@@ -1920,6 +3312,20 @@
           width="18"
           height="25.50890317880601"
         />
+        <rect
+          class="candle-hover-area"
+          x="1239.3157894736842"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-26"
+          data-open="1264.08"
+          data-high="1294.71"
+          data-low="1159.84"
+          data-close="1184.42"
+          data-change-rate="-8.97"
+        />
       
         <line
           class="candle-wick bearish"
@@ -1934,6 +3340,20 @@
           y="730.4047408901778"
           width="18"
           height="44.437239444174224"
+        />
+        <rect
+          class="candle-hover-area"
+          x="1317.2105263157896"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-27"
+          data-open="1229.76"
+          data-high="1246.1"
+          data-low="1052.98"
+          data-close="1090.99"
+          data-change-rate="-7.89"
         />
       
         <line
@@ -1950,6 +3370,20 @@
           width="18"
           height="45.12251502542756"
         />
+        <rect
+          class="candle-hover-area"
+          x="1395.1052631578946"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-02-28"
+          data-open="1190.07"
+          data-high="1201.53"
+          data-low="1026.53"
+          data-close="1049.16"
+          data-change-rate="-3.83"
+        />
       
         <line
           class="candle-wick bearish"
@@ -1964,6 +3398,20 @@
           y="782.0597894939087"
           width="18"
           height="18.17261179258412"
+        />
+        <rect
+          class="candle-hover-area"
+          x="1473"
+          y="40"
+          width="74"
+          height="800"
+          fill="transparent"
+          data-date="2026-03-01"
+          data-open="1068.45"
+          data-high="1087.02"
+          data-low="1001.07"
+          data-close="1011.7"
+          data-change-rate="-3.57"
         />
       
         </g>
@@ -1990,5 +3438,56 @@
   
     </section>
   </main>
+  <div id="chart-tooltip"></div>
+  <script>
+    (() => {
+      const tooltip = document.getElementById("chart-tooltip");
+      const formatPrice = (value) => {
+        const number = Number(value);
+        return Number.isFinite(number) ? Math.round(number).toLocaleString("ko-KR") : "-";
+      };
+      const formatChangeRate = (value) => {
+        const number = Number(value);
+
+        if (!Number.isFinite(number)) {
+          return { text: "N/A", className: "change-flat" };
+        }
+
+        if (number > 0) {
+          return { text: "+" + number.toFixed(2) + "%", className: "change-up" };
+        }
+
+        if (number < 0) {
+          return { text: number.toFixed(2) + "%", className: "change-down" };
+        }
+
+        return { text: "0.00%", className: "change-flat" };
+      };
+      const showTooltip = (event) => {
+        const target = event.currentTarget;
+        const changeRate = formatChangeRate(target.dataset.changeRate);
+
+        tooltip.innerHTML = [
+          '<div class="tooltip-date">' + target.dataset.date + '</div>',
+          '<div class="tooltip-row"><span>시가</span><strong>' + formatPrice(target.dataset.open) + '</strong></div>',
+          '<div class="tooltip-row"><span>고가</span><strong>' + formatPrice(target.dataset.high) + '</strong></div>',
+          '<div class="tooltip-row"><span>저가</span><strong>' + formatPrice(target.dataset.low) + '</strong></div>',
+          '<div class="tooltip-row"><span>종가</span><strong>' + formatPrice(target.dataset.close) + '</strong></div>',
+          '<div class="tooltip-row"><span>전일 종가 대비</span><strong class="' + changeRate.className + '">' + changeRate.text + '</strong></div>',
+        ].join("");
+        tooltip.style.left = event.clientX + 12 + "px";
+        tooltip.style.top = event.clientY + 12 + "px";
+        tooltip.style.display = "block";
+      };
+      const hideTooltip = () => {
+        tooltip.style.display = "none";
+      };
+
+      document.querySelectorAll(".candle-hover-area").forEach((element) => {
+        element.addEventListener("mousemove", showTooltip);
+        element.addEventListener("mouseleave", hideTooltip);
+      });
+    })();
+  </script>
 </body>
 </html>

@@ -51,6 +51,9 @@ const formatNumber = (value, digits = 2) =>
 export const formatPrice = (value) =>
   Number.isFinite(value) ? Math.round(value).toLocaleString("ko-KR") : "-";
 
+const formatChangeRateValue = (value) =>
+  Number.isFinite(value) ? round(value, 2).toFixed(2) : "";
+
 export const formatDateLabel = (date) => {
   const parts = String(date ?? "").split("-");
   return parts.length === 3 ? `${parts[1]}/${parts[2]}` : String(date ?? "");
@@ -307,9 +310,15 @@ export const createCandleElements = (candles, options = {}) => {
     plotHeight,
   } = { ...DEFAULT_OPTIONS, ...options };
   const candleWidth = Math.max(3, Math.min(18, (plotWidth / period) * 0.55));
+  const candleSlotWidth = plotWidth / period;
 
   return candles
     .map((candle, index) => {
+      const prevClose = candles[index - 1]?.close;
+      const changeRate =
+        Number.isFinite(prevClose) && prevClose > 0
+          ? ((candle.close - prevClose) / prevClose) * 100
+          : Number.NaN;
       const xCenter = plotLeft + (index / (period - 1)) * plotWidth;
       const highY = priceToPlotY(
         getCandleHigh(candle),
@@ -348,6 +357,20 @@ export const createCandleElements = (candles, options = {}) => {
           y="${adjustedBodyY}"
           width="${candleWidth}"
           height="${bodyHeight}"
+        />
+        <rect
+          class="candle-hover-area"
+          x="${xCenter - candleSlotWidth / 2}"
+          y="${plotTop}"
+          width="${candleSlotWidth}"
+          height="${plotHeight}"
+          fill="transparent"
+          data-date="${escapeHtml(candle.date)}"
+          data-open="${candle.open}"
+          data-high="${getCandleHigh(candle)}"
+          data-low="${getCandleLow(candle)}"
+          data-close="${candle.close}"
+          data-change-rate="${formatChangeRateValue(changeRate)}"
         />
       `;
     })
@@ -678,6 +701,11 @@ export const generateChartHtml = (results, options = {}) => {
       stroke: var(--bearish);
     }
 
+    .candle-hover-area {
+      cursor: crosshair;
+      pointer-events: all;
+    }
+
     .regression-line {
       stroke: var(--regression);
       stroke-width: 3.2;
@@ -729,6 +757,49 @@ export const generateChartHtml = (results, options = {}) => {
       dominant-baseline: middle;
     }
 
+    #chart-tooltip {
+      position: fixed;
+      pointer-events: none;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid #475569;
+      color: #e5e7eb;
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      line-height: 1.55;
+      z-index: 9999;
+      display: none;
+      white-space: nowrap;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+    }
+
+    #chart-tooltip .tooltip-date {
+      color: #ffffff;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    #chart-tooltip .tooltip-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+    }
+
+    #chart-tooltip .change-up {
+      color: var(--bullish);
+      font-weight: 700;
+    }
+
+    #chart-tooltip .change-down {
+      color: var(--bearish);
+      font-weight: 700;
+    }
+
+    #chart-tooltip .change-flat {
+      color: #94a3b8;
+      font-weight: 700;
+    }
+
     @media (max-width: 820px) {
       main {
         width: min(100vw - 20px, 1760px);
@@ -767,6 +838,57 @@ export const generateChartHtml = (results, options = {}) => {
       ${cards || "<p>No chart results.</p>"}
     </section>
   </main>
+  <div id="chart-tooltip"></div>
+  <script>
+    (() => {
+      const tooltip = document.getElementById("chart-tooltip");
+      const formatPrice = (value) => {
+        const number = Number(value);
+        return Number.isFinite(number) ? Math.round(number).toLocaleString("ko-KR") : "-";
+      };
+      const formatChangeRate = (value) => {
+        const number = Number(value);
+
+        if (!Number.isFinite(number)) {
+          return { text: "N/A", className: "change-flat" };
+        }
+
+        if (number > 0) {
+          return { text: "+" + number.toFixed(2) + "%", className: "change-up" };
+        }
+
+        if (number < 0) {
+          return { text: number.toFixed(2) + "%", className: "change-down" };
+        }
+
+        return { text: "0.00%", className: "change-flat" };
+      };
+      const showTooltip = (event) => {
+        const target = event.currentTarget;
+        const changeRate = formatChangeRate(target.dataset.changeRate);
+
+        tooltip.innerHTML = [
+          '<div class="tooltip-date">' + target.dataset.date + '</div>',
+          '<div class="tooltip-row"><span>시가</span><strong>' + formatPrice(target.dataset.open) + '</strong></div>',
+          '<div class="tooltip-row"><span>고가</span><strong>' + formatPrice(target.dataset.high) + '</strong></div>',
+          '<div class="tooltip-row"><span>저가</span><strong>' + formatPrice(target.dataset.low) + '</strong></div>',
+          '<div class="tooltip-row"><span>종가</span><strong>' + formatPrice(target.dataset.close) + '</strong></div>',
+          '<div class="tooltip-row"><span>전일 종가 대비</span><strong class="' + changeRate.className + '">' + changeRate.text + '</strong></div>',
+        ].join("");
+        tooltip.style.left = event.clientX + 12 + "px";
+        tooltip.style.top = event.clientY + 12 + "px";
+        tooltip.style.display = "block";
+      };
+      const hideTooltip = () => {
+        tooltip.style.display = "none";
+      };
+
+      document.querySelectorAll(".candle-hover-area").forEach((element) => {
+        element.addEventListener("mousemove", showTooltip);
+        element.addEventListener("mouseleave", hideTooltip);
+      });
+    })();
+  </script>
 </body>
 </html>`;
 };
