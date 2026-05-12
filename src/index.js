@@ -101,6 +101,16 @@ const getRecentValidCandles = (prices, period) => {
   return validCandles.length < period ? [] : validCandles.slice(-period);
 };
 
+const getValidCandlesSortedByDate = (prices) => {
+  if (!Array.isArray(prices)) {
+    return [];
+  }
+
+  return [...prices]
+    .filter(isValidCandle)
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+};
+
 export const priceToY = (price, minPrice, maxPrice, chartHeight) => {
   if (
     !Number.isFinite(price) ||
@@ -148,8 +158,9 @@ const enrichResultForChart = (result, stocks, options) => {
   const plotWidth = options.chartWidth - margin.left - margin.right;
   const plotHeight = options.chartHeight - margin.top - margin.bottom;
   const stock = stocks.find((item) => item.code === result.code);
+  const allCandles = getValidCandlesSortedByDate(stock?.prices);
   const renderPeriod = options.renderPeriod ?? options.period;
-  const candles = getRecentValidCandles(stock?.prices, renderPeriod);
+  const candles = allCandles.slice(-renderPeriod);
   const selectedPrices = candles.map(getSelectedPrice);
   const minRawPrice = Math.min(...candles.map(getCandleLow));
   const maxRawPrice = Math.max(...candles.map(getCandleHigh));
@@ -189,6 +200,7 @@ const enrichResultForChart = (result, stocks, options) => {
   return {
     ...result,
     type: stock?.type,
+    allCandles,
     candles,
     selectedPrices,
     points,
@@ -550,6 +562,30 @@ export const generateChartHtml = (results, options = {}) => {
     ...options,
   };
   const cards = results.map((result) => createSvgChart(result, config)).join("");
+  const interactivePayload = {
+    options: {
+      chartWidth: config.chartWidth,
+      chartHeight: config.chartHeight,
+      margin: { ...DEFAULT_MARGIN, ...config.margin },
+      renderPeriod: config.renderPeriod ?? config.period,
+      minRenderPeriod: config.minRenderPeriod ?? 30,
+      maxRenderPeriod: config.maxRenderPeriod ?? 200,
+      showSelectedPriceLine: config.showSelectedPriceLine !== false,
+    },
+    charts: results.map((result) => ({
+      code: result.code,
+      name: result.name,
+      type: result.type,
+      matchedPeriod: result.matchedPeriod,
+      scanStartDate: result.scanStartDate,
+      scanEndDate: result.scanEndDate,
+      allCandles: result.allCandles,
+    })),
+  };
+  const interactivePayloadJson = JSON.stringify(interactivePayload).replaceAll(
+    "<",
+    "\\u003c",
+  );
 
   return `<!doctype html>
 <html lang="ko">
@@ -823,6 +859,12 @@ export const generateChartHtml = (results, options = {}) => {
       font-weight: 700;
     }
 
+    .viewport-hint {
+      fill: var(--muted);
+      font-size: 17px;
+      text-anchor: end;
+    }
+
     @media (max-width: 820px) {
       main {
         width: min(100vw - 20px, 1760px);
@@ -862,12 +904,187 @@ export const generateChartHtml = (results, options = {}) => {
     </section>
   </main>
   <div id="chart-tooltip"></div>
+  <script id="chart-data" type="application/json">${interactivePayloadJson}</script>
   <script>
     (() => {
       const tooltip = document.getElementById("chart-tooltip");
+      const chartList = document.querySelector(".chart-list");
+      const payload = JSON.parse(document.getElementById("chart-data").textContent);
+      const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
       const formatPrice = (value) => {
         const number = Number(value);
         return Number.isFinite(number) ? Math.round(number).toLocaleString("ko-KR") : "-";
+      };
+      const formatNumber = (value, digits = 2) => {
+        const number = Number(value);
+        return Number.isFinite(number) ? number.toFixed(digits) : "-";
+      };
+      const formatDateLabel = (date) => {
+        const parts = String(date || "").split("-");
+        return parts.length === 3 ? parts[1] + "/" + parts[2] : String(date || "");
+      };
+      const selectedPrice = (candle) => candle.close >= candle.open ? candle.close : candle.open;
+      const highPrice = (candle) => Math.max(candle.high || candle.open, candle.open, candle.close);
+      const lowPrice = (candle) => Math.min(candle.low || candle.open, candle.open, candle.close);
+      const priceToY = (price, minPrice, maxPrice, top, height) =>
+        top + (height - ((price - minPrice) / (maxPrice - minPrice)) * height);
+      const pointsToString = (points) => points.map((point) => point.x + "," + point.y).join(" ");
+      const linearRegression = (points) => {
+        const n = points.length;
+        const sums = points.reduce((acc, point) => ({
+          x: acc.x + point.x,
+          y: acc.y + point.y,
+          xy: acc.xy + point.x * point.y,
+          x2: acc.x2 + point.x * point.x,
+        }), { x: 0, y: 0, xy: 0, x2: 0 });
+        const denominator = n * sums.x2 - sums.x * sums.x;
+        const slope = denominator === 0 ? NaN : (n * sums.xy - sums.x * sums.y) / denominator;
+
+        return { slope, intercept: Number.isFinite(slope) ? (sums.y - slope * sums.x) / n : NaN };
+      };
+      const rSquared = (points, slope, intercept) => {
+        const meanY = points.reduce((sum, point) => sum + point.y, 0) / points.length;
+        const sums = points.reduce((acc, point) => {
+          const predictedY = slope * point.x + intercept;
+          return {
+            total: acc.total + (point.y - meanY) ** 2,
+            residual: acc.residual + (point.y - predictedY) ** 2,
+          };
+        }, { total: 0, residual: 0 });
+
+        return sums.total === 0 ? NaN : 1 - sums.residual / sums.total;
+      };
+      const priceTicks = (minPrice, maxPrice, count = 7) =>
+        Array.from({ length: count }, (_, index) => minPrice + ((maxPrice - minPrice) * index) / (count - 1));
+      const dateLabelIndexes = (candles, count = 5) =>
+        Array.from(new Set(Array.from({ length: Math.min(count, candles.length) }, (_, index) =>
+          Math.round((index / (Math.min(count, candles.length) - 1 || 1)) * (candles.length - 1))
+        ))).sort((a, b) => a - b);
+      const changeRateAt = (allCandles, index) => {
+        const prevClose = allCandles[index - 1]?.close;
+        return Number.isFinite(prevClose) && prevClose > 0
+          ? ((allCandles[index].close - prevClose) / prevClose) * 100
+          : NaN;
+      };
+      const states = payload.charts.map((chart) => {
+        const maxPeriod = Math.min(payload.options.maxRenderPeriod, chart.allCandles.length);
+        const renderPeriod = clamp(payload.options.renderPeriod, payload.options.minRenderPeriod, maxPeriod);
+
+        return {
+          renderPeriod,
+          endIndex: chart.allCandles.length,
+          isDragging: false,
+          dragStartX: 0,
+          dragStartEndIndex: chart.allCandles.length,
+        };
+      });
+      const createChartSvg = (chart, state, chartIndex) => {
+        const options = payload.options;
+        const margin = options.margin;
+        const chartWidth = options.chartWidth;
+        const chartHeight = options.chartHeight;
+        const plotLeft = margin.left;
+        const plotTop = margin.top;
+        const plotWidth = chartWidth - margin.left - margin.right;
+        const plotHeight = chartHeight - margin.top - margin.bottom;
+        const endIndex = clamp(state.endIndex, state.renderPeriod, chart.allCandles.length);
+        const startIndex = endIndex - state.renderPeriod;
+        const candles = chart.allCandles.slice(startIndex, endIndex);
+        const minRawPrice = Math.min(...candles.map(lowPrice));
+        const maxRawPrice = Math.max(...candles.map(highPrice));
+        const padding = (maxRawPrice - minRawPrice) * 0.05 || maxRawPrice * 0.05;
+        const minPrice = Math.max(minRawPrice - padding, 1);
+        const maxPrice = maxRawPrice + padding;
+        const candleWidth = Math.max(3, Math.min(18, (plotWidth / candles.length) * 0.55));
+        const candleSlotWidth = plotWidth / candles.length;
+        const selectedPoints = candles.map((candle, index) => ({
+          x: plotLeft + (index / (candles.length - 1 || 1)) * plotWidth,
+          y: priceToY(selectedPrice(candle), minPrice, maxPrice, plotTop, plotHeight),
+        }));
+        const regressionPeriod = Math.min(chart.matchedPeriod || candles.length, candles.length);
+        const regressionStartIndex = candles.length - regressionPeriod;
+        const regressionCandles = candles.slice(-regressionPeriod);
+        const regressionPoints = regressionCandles.map((candle, index) => ({
+          x: plotLeft + ((regressionStartIndex + index) / (candles.length - 1 || 1)) * plotWidth,
+          y: priceToY(selectedPrice(candle), minPrice, maxPrice, plotTop, plotHeight),
+        }));
+        const regression = linearRegression(regressionPoints);
+        const angle = Math.atan(regression.slope) * 180 / Math.PI;
+        const r2 = rSquared(regressionPoints, regression.slope, regression.intercept);
+        const firstSelected = selectedPrice(regressionCandles[0]);
+        const lastSelected = selectedPrice(regressionCandles[regressionCandles.length - 1]);
+        const returnRate = ((lastSelected - firstSelected) / firstSelected) * 100;
+        const ticks = priceTicks(minPrice, maxPrice);
+        const dateIndexes = dateLabelIndexes(candles);
+        const grid = [
+          ...ticks.map((price) => {
+            const y = priceToY(price, minPrice, maxPrice, plotTop, plotHeight);
+            return '<line class="grid-line" x1="' + plotLeft + '" y1="' + y + '" x2="' + (plotLeft + plotWidth) + '" y2="' + y + '" />';
+          }),
+          ...dateIndexes.map((index) => {
+            const x = plotLeft + (index / (candles.length - 1 || 1)) * plotWidth;
+            return '<line class="grid-line" x1="' + x + '" y1="' + plotTop + '" x2="' + x + '" y2="' + (plotTop + plotHeight) + '" />';
+          }),
+        ].join("");
+        const labels = [
+          ...ticks.map((price) => {
+            const y = priceToY(price, minPrice, maxPrice, plotTop, plotHeight);
+            return '<text class="axis-label price-label" x="' + (plotLeft + plotWidth + 12) + '" y="' + (y + 5) + '">' + formatPrice(price) + '</text>';
+          }),
+          ...dateIndexes.map((index) => {
+            const x = plotLeft + (index / (candles.length - 1 || 1)) * plotWidth;
+            return '<text class="axis-label date-label" x="' + x + '" y="' + (plotTop + plotHeight + 34) + '">' + formatDateLabel(candles[index].date) + '</text>';
+          }),
+        ].join("");
+        const candleElements = candles.map((candle, index) => {
+          const absoluteIndex = startIndex + index;
+          const x = plotLeft + (index / (candles.length - 1 || 1)) * plotWidth;
+          const highY = priceToY(highPrice(candle), minPrice, maxPrice, plotTop, plotHeight);
+          const lowY = priceToY(lowPrice(candle), minPrice, maxPrice, plotTop, plotHeight);
+          const openY = priceToY(candle.open, minPrice, maxPrice, plotTop, plotHeight);
+          const closeY = priceToY(candle.close, minPrice, maxPrice, plotTop, plotHeight);
+          const bodyY = Math.min(openY, closeY);
+          const bodyHeight = Math.max(Math.abs(closeY - openY), 1);
+          const candleClass = candle.close >= candle.open ? "bullish" : "bearish";
+          const changeRate = changeRateAt(chart.allCandles, absoluteIndex);
+
+          return [
+            '<line class="candle-wick ' + candleClass + '" x1="' + x + '" y1="' + highY + '" x2="' + x + '" y2="' + lowY + '" />',
+            '<rect class="candle-body ' + candleClass + '" x="' + (x - candleWidth / 2) + '" y="' + bodyY + '" width="' + candleWidth + '" height="' + bodyHeight + '" />',
+            '<rect class="candle-hover-area" x="' + (x - candleSlotWidth / 2) + '" y="' + plotTop + '" width="' + candleSlotWidth + '" height="' + plotHeight + '" fill="transparent" data-date="' + candle.date + '" data-open="' + candle.open + '" data-high="' + highPrice(candle) + '" data-low="' + lowPrice(candle) + '" data-close="' + candle.close + '" data-change-rate="' + (Number.isFinite(changeRate) ? changeRate.toFixed(2) : "") + '" />',
+          ].join("");
+        }).join("");
+        const lastClose = candles[candles.length - 1].close;
+        const lastCloseY = priceToY(lastClose, minPrice, maxPrice, plotTop, plotHeight);
+        const regressionX1 = regressionPoints[0]?.x ?? plotLeft;
+        const regressionX2 = regressionPoints[regressionPoints.length - 1]?.x ?? plotLeft + plotWidth;
+
+        return '<article class="chart-card" data-chart-index="' + chartIndex + '">' +
+          '<svg class="chart" viewBox="0 0 ' + chartWidth + ' ' + chartHeight + '" role="img">' +
+          '<rect x="0" y="0" width="' + chartWidth + '" height="' + chartHeight + '" class="chart-bg" />' +
+          '<rect x="' + plotLeft + '" y="' + plotTop + '" width="' + plotWidth + '" height="' + plotHeight + '" class="plot-bg" />' +
+          '<g class="grid">' + grid + '</g>' +
+          '<line class="axis-line" x1="' + (plotLeft + plotWidth) + '" y1="' + plotTop + '" x2="' + (plotLeft + plotWidth) + '" y2="' + (plotTop + plotHeight) + '" />' +
+          '<line class="axis-line" x1="' + plotLeft + '" y1="' + (plotTop + plotHeight) + '" x2="' + (plotLeft + plotWidth) + '" y2="' + (plotTop + plotHeight) + '" />' +
+          '<g class="axis-labels">' + labels + '</g>' +
+          '<g class="chart-title"><text x="' + plotLeft + '" y="24">' + chart.name + ' (' + chart.code + ')</text>' +
+          '<text x="' + (plotLeft + 360) + '" y="24">angle ' + formatNumber(angle, 2) + ' deg</text>' +
+          '<text x="' + (plotLeft + 580) + '" y="24">slope ' + formatNumber(regression.slope, 4) + '</text>' +
+          '<text x="' + (plotLeft + 780) + '" y="24">R2 ' + formatNumber(r2, 4) + '</text>' +
+          '<text x="' + (plotLeft + 940) + '" y="24">return ' + formatNumber(returnRate, 2) + '%</text></g>' +
+          '<text class="viewport-hint" x="' + (plotLeft + plotWidth) + '" y="24">wheel zoom, drag pan · ' + state.renderPeriod + ' bars</text>' +
+          '<g class="candles">' + candleElements + '</g>' +
+          (options.showSelectedPriceLine ? '<polyline class="selected-price-line" points="' + pointsToString(selectedPoints) + '" />' : '') +
+          '<line class="regression-line" x1="' + regressionX1 + '" y1="' + (regression.slope * regressionX1 + regression.intercept) + '" x2="' + regressionX2 + '" y2="' + (regression.slope * regressionX2 + regression.intercept) + '" />' +
+          '<line class="last-price-line" x1="' + plotLeft + '" y1="' + lastCloseY + '" x2="' + (plotLeft + plotWidth) + '" y2="' + lastCloseY + '" />' +
+          '<rect class="last-price-box" x="' + (plotLeft + plotWidth + 6) + '" y="' + (lastCloseY - 17) + '" width="78" height="34" rx="3" />' +
+          '<text class="last-price-text" x="' + (plotLeft + plotWidth + 45) + '" y="' + (lastCloseY + 6) + '">' + formatPrice(lastClose) + '</text>' +
+          '</svg></article>';
+      };
+      const renderAll = () => {
+        chartList.innerHTML = payload.charts.map((chart, index) =>
+          createChartSvg(chart, states[index], index)
+        ).join("");
       };
       const formatChangeRate = (value) => {
         const number = Number(value);
@@ -886,8 +1103,7 @@ export const generateChartHtml = (results, options = {}) => {
 
         return { text: "0.00%", className: "change-flat" };
       };
-      const showTooltip = (event) => {
-        const target = event.currentTarget;
+      const showTooltip = (target, event) => {
         const changeRate = formatChangeRate(target.dataset.changeRate);
 
         tooltip.innerHTML = [
@@ -906,10 +1122,69 @@ export const generateChartHtml = (results, options = {}) => {
         tooltip.style.display = "none";
       };
 
-      document.querySelectorAll(".candle-hover-area").forEach((element) => {
-        element.addEventListener("mousemove", showTooltip);
-        element.addEventListener("mouseleave", hideTooltip);
+      chartList.addEventListener("mousemove", (event) => {
+        const target = event.target.closest(".candle-hover-area");
+        if (target) {
+          showTooltip(target, event);
+        }
       });
+      chartList.addEventListener("mouseleave", hideTooltip);
+      chartList.addEventListener("wheel", (event) => {
+        const card = event.target.closest(".chart-card");
+        if (!card) return;
+        event.preventDefault();
+
+        const index = Number(card.dataset.chartIndex);
+        const state = states[index];
+        const chart = payload.charts[index];
+        const maxPeriod = Math.min(payload.options.maxRenderPeriod, chart.allCandles.length);
+        state.renderPeriod = clamp(
+          state.renderPeriod + (event.deltaY < 0 ? -5 : 5),
+          payload.options.minRenderPeriod,
+          maxPeriod,
+        );
+        state.endIndex = clamp(state.endIndex, state.renderPeriod, chart.allCandles.length);
+        hideTooltip();
+        renderAll();
+      }, { passive: false });
+      chartList.addEventListener("mousedown", (event) => {
+        const card = event.target.closest(".chart-card");
+        if (!card) return;
+
+        const index = Number(card.dataset.chartIndex);
+        states[index].isDragging = true;
+        states[index].dragStartX = event.clientX;
+        states[index].dragStartEndIndex = states[index].endIndex;
+      });
+      window.addEventListener("mousemove", (event) => {
+        states.forEach((state, index) => {
+          if (!state.isDragging) return;
+
+          const chart = payload.charts[index];
+          const plotWidth =
+            payload.options.chartWidth -
+            payload.options.margin.left -
+            payload.options.margin.right;
+          const slotWidth = plotWidth / state.renderPeriod;
+          const deltaBars = Math.trunc((event.clientX - state.dragStartX) / Math.max(slotWidth, 1));
+
+          if (deltaBars !== 0) {
+            state.endIndex = clamp(
+              state.dragStartEndIndex - deltaBars,
+              state.renderPeriod,
+              chart.allCandles.length,
+            );
+            hideTooltip();
+            renderAll();
+          }
+        });
+      });
+      window.addEventListener("mouseup", () => {
+        states.forEach((state) => {
+          state.isDragging = false;
+        });
+      });
+      renderAll();
     })();
   </script>
 </body>
@@ -924,7 +1199,7 @@ export const saveChartHtml = (html, filePath = DEFAULT_CHART_FILE_PATH) => {
 export const run = () => {
   const generatedStocks = generateSampleStocks({
     stockCount: 100,
-    candleCount: 60,
+    candleCount: 240,
     seed: 20260512,
   });
   const strictOptions = { ...DEFAULT_OPTIONS, minAngleDegree: 45 };
@@ -932,6 +1207,8 @@ export const run = () => {
     ...DEFAULT_OPTIONS,
     chartType: DEFAULT_CHART_TYPE,
     renderPeriod: 60,
+    minRenderPeriod: 30,
+    maxRenderPeriod: 200,
     scanMinPeriod: 10,
     scanMaxPeriod: 60,
     minAngleDegree: 29,
