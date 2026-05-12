@@ -15,8 +15,8 @@
       --price: #1f7a5a;
       --regression: #c4382b;
       --guide: #805ad5;
-      --bullish: #197a55;
-      --bearish: #c24135;
+      --bullish: #d92d20;
+      --bearish: #2563eb;
     }
 
     * {
@@ -164,18 +164,31 @@
       stroke-linecap: round;
     }
 
+    .candle-wick {
+      stroke-width: 4;
+      stroke-linecap: round;
+    }
+
+    .candle-wick.bullish {
+      stroke: var(--bullish);
+    }
+
+    .candle-wick.bearish {
+      stroke: var(--bearish);
+    }
+
     .candle-body {
       stroke-width: 3;
       rx: 2;
     }
 
     .candle-body.bullish {
-      fill: rgba(25, 122, 85, 0.82);
+      fill: var(--bullish);
       stroke: var(--bullish);
     }
 
     .candle-body.bearish {
-      fill: rgba(194, 65, 53, 0.82);
+      fill: var(--bearish);
       stroke: var(--bearish);
     }
 
@@ -266,14 +279,14 @@
     <article class="chart-card">
       <header class="card-header">
         <div>
-          <p class="code">STK0001</p>
-          <h2>SampleStock1</h2>
+          <p class="code">STK0006</p>
+          <h2>SampleStock6</h2>
         </div>
         <dl class="metrics">
-          <div><dt>Angle</dt><dd>29.39 deg</dd></div>
-          <div><dt>Slope</dt><dd>0.563</dd></div>
-          <div><dt>R2</dt><dd>0.949</dd></div>
-          <div><dt>Return</dt><dd>-67.77%</dd></div>
+          <div><dt>Angle</dt><dd>28.7 deg</dd></div>
+          <div><dt>Slope</dt><dd>0.548</dd></div>
+          <div><dt>R2</dt><dd>0.972</dd></div>
+          <div><dt>Return</dt><dd>-72.31%</dd></div>
         </dl>
       </header>
 
@@ -281,7 +294,7 @@
         class="chart"
         viewBox="0 0 1600 900"
         role="img"
-        aria-label="STK0001 SampleStock1 candlestick chart"
+        aria-label="STK0006 SampleStock6 candlestick chart"
       >
         <rect x="0" y="0" width="1600" height="900" class="plot-bg" />
         <g class="grid">
@@ -291,178 +304,318 @@
 
         <g class="candles">
           
+        <line
+          class="candle-wick bullish"
+          x1="0"
+          y1="0"
+          x2="0"
+          y2="88.10410957237457"
+        />
         <rect
           class="candle-body bullish"
           x="-24"
-          y="25.467514040289757"
+          y="34.320754085695285"
           width="48"
-          height="16.390817098141838"
+          height="35.119187027974135"
         />
       
-        <rect
-          class="candle-body bearish"
-          x="60.210526315789465"
-          y="0"
-          width="48"
-          height="133.7608435219248"
+        <line
+          class="candle-wick bullish"
+          x1="84.21052631578947"
+          y1="58.93073860370043"
+          x2="84.21052631578947"
+          y2="161.38109128293718"
         />
-      
         <rect
           class="candle-body bullish"
-          x="144.42105263157893"
-          y="181.16307127624316"
+          x="60.210526315789465"
+          y="79.8989564101239"
           width="48"
-          height="18.233684800802052"
+          height="56.12664211041772"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="168.42105263157893"
+          y1="86.75817975539064"
+          x2="168.42105263157893"
+          y2="175.08585055160313"
+        />
+        <rect
+          class="candle-body bearish"
+          x="144.42105263157893"
+          y="114.45422165715138"
+          width="48"
+          height="39.792072853584045"
+        />
+      
+        <line
+          class="candle-wick bearish"
+          x1="252.6315789473684"
+          y1="161.95140052742192"
+          x2="252.6315789473684"
+          y2="252.85230663474965"
+        />
         <rect
           class="candle-body bearish"
           x="228.6315789473684"
-          y="119.40023959829045"
+          y="192.2945898183832"
           width="48"
-          height="126.21349737036621"
+          height="48.59217261968115"
         />
       
+        <line
+          class="candle-wick bullish"
+          x1="336.84210526315786"
+          y1="318.6167187295639"
+          x2="336.84210526315786"
+          y2="355.35102153791877"
+        />
         <rect
-          class="candle-body bearish"
+          class="candle-body bullish"
           x="312.84210526315786"
-          y="297.6537209954373"
+          y="324.33806107023463"
           width="48"
-          height="39.56812832952426"
+          height="7.560931839680961"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="421.05263157894734"
+          y1="304.7422354297395"
+          x2="421.05263157894734"
+          y2="387.5648251507897"
+        />
         <rect
           class="candle-body bearish"
           x="397.05263157894734"
-          y="292.8439127590336"
+          y="314.71306601291485"
           width="48"
-          height="100.68863267542935"
+          height="57.19334852130203"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="505.2631578947368"
+          y1="332.6691385136676"
+          x2="505.2631578947368"
+          y2="427.0594247024506"
+        />
         <rect
           class="candle-body bearish"
           x="481.2631578947368"
-          y="440.17009779348655"
+          y="340.2455827647984"
           width="48"
-          height="21.36503054453391"
+          height="59.14973735358251"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="589.4736842105262"
+          y1="300.3586104529319"
+          x2="589.4736842105262"
+          y2="480.32448314774206"
+        />
         <rect
           class="candle-body bearish"
           x="565.4736842105262"
-          y="393.4140207481923"
+          y="319.8358117705744"
           width="48"
-          height="136.76601782543315"
+          height="150.08440576818384"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="673.6842105263157"
+          y1="508.7733332522227"
+          x2="673.6842105263157"
+          y2="552.1898354163561"
+        />
         <rect
           class="candle-body bearish"
           x="649.6842105263157"
-          y="458.95817225587723"
+          y="523.0584392080762"
           width="48"
-          height="128.3201780844032"
+          height="10.173404426816433"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="757.8947368421052"
+          y1="541.0172491932026"
+          x2="757.8947368421052"
+          y2="565.4182724040284"
+        />
         <rect
           class="candle-body bearish"
           x="733.8947368421052"
-          y="552.2409237278775"
+          y="552.7893444941585"
           width="48"
-          height="62.18340314536465"
+          height="2.6891221495943682"
         />
       
+        <line
+          class="candle-wick bullish"
+          x1="842.1052631578947"
+          y1="583.836067269116"
+          x2="842.1052631578947"
+          y2="619.9252362601096"
+        />
         <rect
-          class="candle-body bearish"
+          class="candle-body bullish"
           x="818.1052631578947"
-          y="643.9063867388293"
+          y="587.3519096995154"
           width="48"
-          height="14.47148185595222"
+          height="10.816713254595129"
         />
       
+        <line
+          class="candle-wick bullish"
+          x1="926.3157894736843"
+          y1="629.6159309423942"
+          x2="926.3157894736843"
+          y2="659.9919700458377"
+        />
         <rect
           class="candle-body bullish"
           x="902.3157894736843"
-          y="677.5635742627254"
+          y="639.0912768539613"
           width="48"
-          height="1.5140572826835523"
+          height="7.260721053384032"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="1010.5263157894736"
+          y1="632.9301120239438"
+          x2="1010.5263157894736"
+          y2="686.4771313597086"
+        />
         <rect
           class="candle-body bearish"
           x="986.5263157894736"
-          y="656.3361852893447"
+          y="647.613978203541"
           width="48"
-          height="50.8356202791914"
+          height="37.20332513101914"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="1094.7368421052631"
+          y1="684.0663201214227"
+          x2="1094.7368421052631"
+          y2="737.009267905429"
+        />
         <rect
           class="candle-body bearish"
           x="1070.7368421052631"
-          y="741.5439645870327"
+          y="699.6280062901308"
           width="48"
-          height="1.8352209487072741"
+          height="23.101630628191856"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="1178.9473684210525"
+          y1="684.3446310327312"
+          x2="1178.9473684210525"
+          y2="772.1029050792501"
+        />
         <rect
-          class="candle-body bullish"
+          class="candle-body bearish"
           x="1154.9473684210525"
-          y="776.7993236870948"
+          y="702.2514288147605"
           width="48"
-          height="5.956821329345644"
+          height="67.70711350522708"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="1263.157894736842"
+          y1="766.644361238438"
+          x2="1263.157894736842"
+          y2="824.4162314573455"
+        />
         <rect
           class="candle-body bearish"
           x="1239.157894736842"
-          y="784.7825348139714"
+          y="781.7525374959318"
           width="48"
-          height="23.999337281324074"
+          height="29.44803190081791"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="1347.3684210526314"
+          y1="799.9020588924138"
+          x2="1347.3684210526314"
+          y2="840.6440388236117"
+        />
         <rect
-          class="candle-body bullish"
+          class="candle-body bearish"
           x="1323.3684210526314"
-          y="823.1730630347417"
+          y="802.278195328635"
           width="48"
-          height="15.656728718658883"
+          height="36.19775587114361"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="1431.578947368421"
+          y1="813.2263078331595"
+          x2="1431.578947368421"
+          y2="869.0846764749718"
+        />
         <rect
           class="candle-body bearish"
           x="1407.578947368421"
-          y="845.4480572996763"
+          y="816.1134413524389"
           width="48"
-          height="17.988988674307734"
+          height="50.73106041019685"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="1515.7894736842104"
+          y1="861.8933050257172"
+          x2="1515.7894736842104"
+          y2="894.0833837740176"
+        />
         <rect
           class="candle-body bearish"
           x="1491.7894736842104"
-          y="839.8200463903073"
+          y="871.9088478536602"
           width="48"
-          height="47.51692906361245"
+          height="14.095307039288969"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="1600"
+          y1="883.9127168315748"
+          x2="1600"
+          y2="900"
+        />
         <rect
           class="candle-body bearish"
           x="1576"
-          y="857.0902401930381"
+          y="894.5551435810554"
           width="48"
-          height="42.909759806961915"
+          height="3.1170822066557093"
         />
       
         </g>
-        <polyline class="price-line" points="0,25.467514040289757 84.21052631578947,0 168.42105263157893,181.16307127624316 252.6315789473684,119.40023959829045 336.84210526315786,297.6537209954373 421.05263157894734,292.8439127590336 505.2631578947368,440.17009779348655 589.4736842105262,393.4140207481923 673.6842105263157,458.95817225587723 757.8947368421052,552.2409237278775 842.1052631578947,643.9063867388293 926.3157894736843,677.5635742627254 1010.5263157894736,656.3361852893447 1094.7368421052631,741.5439645870327 1178.9473684210525,776.7993236870948 1263.157894736842,784.7825348139714 1347.3684210526314,823.1730630347417 1431.578947368421,845.4480572996763 1515.7894736842104,839.8200463903073 1600,857.0902401930381" />
+        <polyline class="price-line" points="0,34.320754085695285 84.21052631578947,79.8989564101239 168.42105263157893,114.45422165715138 252.6315789473684,192.2945898183832 336.84210526315786,324.33806107023463 421.05263157894734,314.71306601291485 505.2631578947368,340.2455827647984 589.4736842105262,319.8358117705744 673.6842105263157,523.0584392080762 757.8947368421052,552.7893444941585 842.1052631578947,587.3519096995154 926.3157894736843,639.0912768539613 1010.5263157894736,647.613978203541 1094.7368421052631,699.6280062901308 1178.9473684210525,702.2514288147605 1263.157894736842,781.7525374959318 1347.3684210526314,802.278195328635 1431.578947368421,816.1134413524389 1515.7894736842104,871.9088478536602 1600,894.5551435810554" />
         <line
           class="regression-line"
           x1="0"
-          y1="69.84004325877886"
+          y1="73.925178903294"
           x2="1600"
-          y2="970.9374616903701"
+          y2="949.92418037328"
         />
 
-        <circle class="endpoint first" cx="0" cy="25.467514040289757" r="10" />
-        <circle class="endpoint last" cx="1600" cy="857.0902401930381" r="10" />
+        <circle class="endpoint first" cx="0" cy="34.320754085695285" r="10" />
+        <circle class="endpoint last" cx="1600" cy="894.5551435810554" r="10" />
 
         <g class="angle-guide">
           <line x1="90" y1="790" x2="260" y2="790" />
@@ -471,18 +624,18 @@
         </g>
 
         <g class="chart-labels">
-          <text x="34" y="48">max 3,276.24</text>
-          <text x="34" y="872">min 922.3</text>
-          <text x="1130" y="48">angle 29.39 deg</text>
-          <text x="1130" y="92">slopePixel 0.563</text>
-          <text x="1130" y="136">rSquared 0.949</text>
-          <text x="1130" y="180">returnRate -67.77%</text>
+          <text x="34" y="48">max 13,412.99</text>
+          <text x="34" y="872">min 3,549.92</text>
+          <text x="1130" y="48">angle 28.7 deg</text>
+          <text x="1130" y="92">slopePixel 0.548</text>
+          <text x="1130" y="136">rSquared 0.972</text>
+          <text x="1130" y="180">returnRate -72.31%</text>
         </g>
       </svg>
 
       <footer class="card-footer">
-        <span>firstPrice 3,209.63</span>
-        <span>lastPrice 1,034.53</span>
+        <span>firstPrice 13,036.87</span>
+        <span>lastPrice 3,609.59</span>
         <span>period 20</span>
         <span>type strongDowntrend</span>
       </footer>
@@ -491,14 +644,14 @@
     <article class="chart-card">
       <header class="card-header">
         <div>
-          <p class="code">STK0004</p>
-          <h2>SampleStock4</h2>
+          <p class="code">STK0021</p>
+          <h2>SampleStock21</h2>
         </div>
         <dl class="metrics">
-          <div><dt>Angle</dt><dd>29.42 deg</dd></div>
-          <div><dt>Slope</dt><dd>0.564</dd></div>
-          <div><dt>R2</dt><dd>0.982</dd></div>
-          <div><dt>Return</dt><dd>-75.19%</dd></div>
+          <div><dt>Angle</dt><dd>28.77 deg</dd></div>
+          <div><dt>Slope</dt><dd>0.549</dd></div>
+          <div><dt>R2</dt><dd>0.954</dd></div>
+          <div><dt>Return</dt><dd>-66.48%</dd></div>
         </dl>
       </header>
 
@@ -506,7 +659,7 @@
         class="chart"
         viewBox="0 0 1600 900"
         role="img"
-        aria-label="STK0004 SampleStock4 candlestick chart"
+        aria-label="STK0021 SampleStock21 candlestick chart"
       >
         <rect x="0" y="0" width="1600" height="900" class="plot-bg" />
         <g class="grid">
@@ -516,178 +669,318 @@
 
         <g class="candles">
           
+        <line
+          class="candle-wick bearish"
+          x1="0"
+          y1="0"
+          x2="0"
+          y2="94.07792173108953"
+        />
         <rect
           class="candle-body bearish"
           x="-24"
-          y="0"
+          y="32.222582012772136"
           width="48"
-          height="13.096120036709863"
+          height="33.826951131170404"
         />
       
+        <line
+          class="candle-wick bullish"
+          x1="84.21052631578947"
+          y1="90.88570789532548"
+          x2="84.21052631578947"
+          y2="162.6451727050279"
+        />
         <rect
           class="candle-body bullish"
           x="60.210526315789465"
-          y="73.73850179277042"
+          y="108.49471052253841"
           width="48"
-          height="6.0543319505161435"
+          height="15.49087485854102"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="168.42105263157893"
+          y1="75.02378512269809"
+          x2="168.42105263157893"
+          y2="199.76348407815544"
+        />
         <rect
-          class="candle-body bullish"
+          class="candle-body bearish"
           x="144.42105263157893"
-          y="145.0868440706895"
+          y="107.44465994785651"
           width="48"
-          height="28.51047768008368"
+          height="54.21055091351559"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="252.6315789473684"
+          y1="76.33672389561946"
+          x2="252.6315789473684"
+          y2="237.060559426086"
+        />
         <rect
           class="candle-body bearish"
           x="228.6315789473684"
-          y="42.14352416344923"
+          y="86.29492884492777"
           width="48"
-          height="213.8179526330656"
+          height="132.50316300403608"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="336.84210526315786"
+          y1="275.6840935114185"
+          x2="336.84210526315786"
+          y2="308.9717482816293"
+        />
         <rect
           class="candle-body bearish"
           x="312.84210526315786"
-          y="175.9030069489329"
+          y="295.0897491963133"
           width="48"
-          height="109.85754838268701"
+          height="2.735539479965496"
         />
       
+        <line
+          class="candle-wick bullish"
+          x1="421.05263157894734"
+          y1="355.89353612167315"
+          x2="421.05263157894734"
+          y2="410.17619351241996"
+        />
         <rect
-          class="candle-body bearish"
+          class="candle-body bullish"
           x="397.05263157894734"
-          y="255.8049674868746"
+          y="362.14426636666815"
           width="48"
-          height="87.70130344008874"
+          height="28.458023013984075"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="505.2631578947368"
+          y1="268.2706463210677"
+          x2="505.2631578947368"
+          y2="425.73917484819253"
+        />
         <rect
           class="candle-body bearish"
           x="481.2631578947368"
-          y="340.2764570594544"
+          y="285.08497548045955"
           width="48"
-          height="26.030528864759617"
+          height="126.22238839352781"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="589.4736842105262"
+          y1="414.18411187186416"
+          x2="589.4736842105262"
+          y2="516.0209909967052"
+        />
         <rect
           class="candle-body bearish"
           x="565.4736842105262"
-          y="366.9442185541435"
+          y="432.92879151547123"
           width="48"
-          height="37.699632298616166"
+          height="58.44380201430778"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="673.6842105263157"
+          y1="471.0400691688061"
+          x2="673.6842105263157"
+          y2="560.7405268446407"
+        />
         <rect
           class="candle-body bearish"
           x="649.6842105263157"
-          y="475.6115498241407"
+          y="476.15061574257993"
           width="48"
-          height="1.6452701921636503"
+          height="63.411637851894625"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="757.8947368421052"
+          y1="518.5311977353225"
+          x2="757.8947368421052"
+          y2="605.7304619821937"
+        />
         <rect
           class="candle-body bearish"
           x="733.8947368421052"
-          y="455.31385293351923"
+          y="520.8431116615536"
           width="48"
-          height="79.16634416568081"
+          height="67.20624121619585"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="842.1052631578947"
+          y1="582.9012508470842"
+          x2="842.1052631578947"
+          y2="643.514256051436"
+        />
         <rect
           class="candle-body bearish"
           x="818.1052631578947"
-          y="479.4111978038437"
+          y="589.9526634330028"
           width="48"
-          height="98.1972655602118"
+          height="49.83158463998495"
         />
       
+        <line
+          class="candle-wick bullish"
+          x1="926.3157894736843"
+          y1="673.590168148299"
+          x2="926.3157894736843"
+          y2="693.3293162903889"
+        />
         <rect
-          class="candle-body bearish"
+          class="candle-body bullish"
           x="902.3157894736843"
-          y="561.8364186206875"
+          y="679.0612471082298"
           width="48"
-          height="51.80311138899265"
+          height="1.4030718694605184"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="1010.5263157894736"
+          y1="658.9630687982587"
+          x2="1010.5263157894736"
+          y2="734.7409674953349"
+        />
         <rect
           class="candle-body bearish"
           x="986.5263157894736"
-          y="604.1581643679467"
+          y="675.6452027493933"
           width="48"
-          height="55.477122198890356"
+          height="50.39792092990649"
         />
       
+        <line
+          class="candle-wick bullish"
+          x1="1094.7368421052631"
+          y1="750.2243312624976"
+          x2="1094.7368421052631"
+          y2="774.5197074346452"
+        />
         <rect
-          class="candle-body bearish"
+          class="candle-body bullish"
           x="1070.7368421052631"
-          y="613.4342811679194"
+          y="751.8151804164149"
           width="48"
-          height="89.54164484549597"
+          height="15.291079827879116"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="1178.9473684210525"
+          y1="703.3896720824417"
+          x2="1178.9473684210525"
+          y2="777.9733072503731"
+        />
         <rect
           class="candle-body bearish"
           x="1154.9473684210525"
-          y="667.1084930173929"
+          y="714.6908601701847"
           width="48"
-          height="78.0218132965565"
+          height="59.34813741625135"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="1263.157894736842"
+          y1="729.6619675053496"
+          x2="1263.157894736842"
+          y2="812.8773488851871"
+        />
         <rect
           class="candle-body bearish"
           x="1239.157894736842"
-          y="732.0957043873872"
+          y="736.0719328875639"
           width="48"
-          height="37.378245406999554"
+          height="66.4446165504396"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="1347.3684210526314"
+          y1="759.428422637428"
+          x2="1347.3684210526314"
+          y2="834.4732388159849"
+        />
         <rect
           class="candle-body bearish"
           x="1323.3684210526314"
-          y="748.0282164070409"
+          y="761.4564173095605"
           width="48"
-          height="61.29782103255923"
+          height="67.62536011510326"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="1431.578947368421"
+          y1="838.8461962164129"
+          x2="1431.578947368421"
+          y2="859.6519193342168"
+        />
         <rect
           class="candle-body bearish"
           x="1407.578947368421"
-          y="823.2269817224869"
+          y="841.1055325029961"
           width="48"
-          height="25.188952071159974"
+          height="5.85564683849816"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="1515.7894736842104"
+          y1="856.1322219143602"
+          x2="1515.7894736842104"
+          y2="877.7070807892989"
+        />
         <rect
           class="candle-body bearish"
           x="1491.7894736842104"
-          y="881.1495618845048"
+          y="865.8861251781798"
           width="48"
-          height="1.1890862650766394"
+          height="6.198152605347218"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="1600"
+          y1="850.7227339037312"
+          x2="1600"
+          y2="900"
+        />
         <rect
           class="candle-body bearish"
           x="1576"
-          y="888.3474069412935"
+          y="855.6334854468431"
           width="48"
-          height="11.652593058706543"
+          height="41.72261038800639"
         />
       
         </g>
-        <polyline class="price-line" points="0,0 84.21052631578947,73.73850179277042 168.42105263157893,145.0868440706895 252.6315789473684,42.14352416344923 336.84210526315786,175.9030069489329 421.05263157894734,255.8049674868746 505.2631578947368,340.2764570594544 589.4736842105262,366.9442185541435 673.6842105263157,475.6115498241407 757.8947368421052,455.31385293351923 842.1052631578947,479.4111978038437 926.3157894736843,561.8364186206875 1010.5263157894736,604.1581643679467 1094.7368421052631,613.4342811679194 1178.9473684210525,667.1084930173929 1263.157894736842,732.0957043873872 1347.3684210526314,748.0282164070409 1431.578947368421,823.2269817224869 1515.7894736842104,881.1495618845048 1600,888.3474069412935" />
+        <polyline class="price-line" points="0,32.222582012772136 84.21052631578947,108.49471052253841 168.42105263157893,107.44465994785651 252.6315789473684,86.29492884492777 336.84210526315786,295.0897491963133 421.05263157894734,362.14426636666815 505.2631578947368,285.08497548045955 589.4736842105262,432.92879151547123 673.6842105263157,476.15061574257993 757.8947368421052,520.8431116615536 842.1052631578947,589.9526634330028 926.3157894736843,679.0612471082298 1010.5263157894736,675.6452027493933 1094.7368421052631,751.8151804164149 1178.9473684210525,714.6908601701847 1263.157894736842,736.0719328875639 1347.3684210526314,761.4564173095605 1431.578947368421,841.1055325029961 1515.7894736842104,865.8861251781798 1600,855.6334854468431" />
         <line
           class="regression-line"
           x1="0"
-          y1="15.38104125719783"
+          y1="69.7241951090632"
           x2="1600"
-          y2="917.5808936582498"
+          y2="948.077508740288"
         />
 
-        <circle class="endpoint first" cx="0" cy="0" r="10" />
-        <circle class="endpoint last" cx="1600" cy="888.3474069412935" r="10" />
+        <circle class="endpoint first" cx="0" cy="32.222582012772136" r="10" />
+        <circle class="endpoint last" cx="1600" cy="855.6334854468431" r="10" />
 
         <g class="angle-guide">
           <line x1="90" y1="790" x2="260" y2="790" />
@@ -696,243 +989,18 @@
         </g>
 
         <g class="chart-labels">
-          <text x="34" y="48">max 104,470.49</text>
-          <text x="34" y="872">min 24,884.17</text>
-          <text x="1130" y="48">angle 29.42 deg</text>
-          <text x="1130" y="92">slopePixel 0.564</text>
-          <text x="1130" y="136">rSquared 0.982</text>
-          <text x="1130" y="180">returnRate -75.19%</text>
+          <text x="34" y="48">max 8,460.03</text>
+          <text x="34" y="872">min 2,468.89</text>
+          <text x="1130" y="48">angle 28.77 deg</text>
+          <text x="1130" y="92">slopePixel 0.549</text>
+          <text x="1130" y="136">rSquared 0.954</text>
+          <text x="1130" y="180">returnRate -66.48%</text>
         </g>
       </svg>
 
       <footer class="card-footer">
-        <span>firstPrice 104,470.49</span>
-        <span>lastPrice 25,914.6</span>
-        <span>period 20</span>
-        <span>type surgeThenDrop</span>
-      </footer>
-    </article>
-  
-    <article class="chart-card">
-      <header class="card-header">
-        <div>
-          <p class="code">STK0011</p>
-          <h2>SampleStock11</h2>
-        </div>
-        <dl class="metrics">
-          <div><dt>Angle</dt><dd>29.4 deg</dd></div>
-          <div><dt>Slope</dt><dd>0.564</dd></div>
-          <div><dt>R2</dt><dd>0.976</dd></div>
-          <div><dt>Return</dt><dd>-71.05%</dd></div>
-        </dl>
-      </header>
-
-      <svg
-        class="chart"
-        viewBox="0 0 1600 900"
-        role="img"
-        aria-label="STK0011 SampleStock11 candlestick chart"
-      >
-        <rect x="0" y="0" width="1600" height="900" class="plot-bg" />
-        <g class="grid">
-          <line x1="0" y1="0" x2="1600" y2="0" /><line x1="0" y1="225" x2="1600" y2="225" /><line x1="0" y1="450" x2="1600" y2="450" /><line x1="0" y1="675" x2="1600" y2="675" /><line x1="0" y1="900" x2="1600" y2="900" />
-          <line x1="0" y1="0" x2="0" y2="900" /><line x1="200" y1="0" x2="200" y2="900" /><line x1="400" y1="0" x2="400" y2="900" /><line x1="600" y1="0" x2="600" y2="900" /><line x1="800" y1="0" x2="800" y2="900" /><line x1="1000" y1="0" x2="1000" y2="900" /><line x1="1200" y1="0" x2="1200" y2="900" /><line x1="1400" y1="0" x2="1400" y2="900" /><line x1="1600" y1="0" x2="1600" y2="900" />
-        </g>
-
-        <g class="candles">
-          
-        <rect
-          class="candle-body bullish"
-          x="-24"
-          y="31.66165008346354"
-          width="48"
-          height="35.29626319317572"
-        />
-      
-        <rect
-          class="candle-body bearish"
-          x="60.210526315789465"
-          y="0"
-          width="48"
-          height="117.35600872754037"
-        />
-      
-        <rect
-          class="candle-body bearish"
-          x="144.42105263157893"
-          y="154.8569945189996"
-          width="48"
-          height="43.42608535639624"
-        />
-      
-        <rect
-          class="candle-body bullish"
-          x="228.6315789473684"
-          y="259.4401033109448"
-          width="48"
-          height="5.207936278440229"
-        />
-      
-        <rect
-          class="candle-body bearish"
-          x="312.84210526315786"
-          y="220.46930245396345"
-          width="48"
-          height="69.77185499664847"
-        />
-      
-        <rect
-          class="candle-body bearish"
-          x="397.05263157894734"
-          y="301.27216387797216"
-          width="48"
-          height="53.90849883676606"
-        />
-      
-        <rect
-          class="candle-body bearish"
-          x="481.2631578947368"
-          y="294.6624321446877"
-          width="48"
-          height="138.74374022423478"
-        />
-      
-        <rect
-          class="candle-body bearish"
-          x="565.4736842105262"
-          y="376.510725411075"
-          width="48"
-          height="120.79691381553874"
-        />
-      
-        <rect
-          class="candle-body bearish"
-          x="649.6842105263157"
-          y="524.6707456526597"
-          width="48"
-          height="11.817668011724209"
-        />
-      
-        <rect
-          class="candle-body bearish"
-          x="733.8947368421052"
-          y="476.2097304188956"
-          width="48"
-          height="86.2237286576148"
-        />
-      
-        <rect
-          class="candle-body bearish"
-          x="818.1052631578947"
-          y="522.4571509312443"
-          width="48"
-          height="91.95216282646118"
-        />
-      
-        <rect
-          class="candle-body bearish"
-          x="902.3157894736843"
-          y="572.621613806338"
-          width="48"
-          height="78.81106978089133"
-        />
-      
-        <rect
-          class="candle-body bearish"
-          x="986.5263157894736"
-          y="631.0075774503489"
-          width="48"
-          height="71.42502727356373"
-        />
-      
-        <rect
-          class="candle-body bearish"
-          x="1070.7368421052631"
-          y="719.9151233553712"
-          width="48"
-          height="21.04911213049263"
-        />
-      
-        <rect
-          class="candle-body bearish"
-          x="1154.9473684210525"
-          y="757.4841287575084"
-          width="48"
-          height="6.757600452149632"
-        />
-      
-        <rect
-          class="candle-body bearish"
-          x="1239.157894736842"
-          y="784.1078915892273"
-          width="48"
-          height="17.288810609744814"
-        />
-      
-        <rect
-          class="candle-body bearish"
-          x="1323.3684210526314"
-          y="809.354996648309"
-          width="48"
-          height="17.611164416871475"
-        />
-      
-        <rect
-          class="candle-body bearish"
-          x="1407.578947368421"
-          y="838.7187668406041"
-          width="48"
-          height="17.059614095503548"
-        />
-      
-        <rect
-          class="candle-body bullish"
-          x="1491.7894736842104"
-          y="876.5849883676607"
-          width="48"
-          height="13.487105847714929"
-        />
-      
-        <rect
-          class="candle-body bearish"
-          x="1576"
-          y="876.9102995491647"
-          width="48"
-          height="23.089700450835267"
-        />
-      
-        </g>
-        <polyline class="price-line" points="0,31.66165008346354 84.21052631578947,0 168.42105263157893,154.8569945189996 252.6315789473684,259.4401033109448 336.84210526315786,220.46930245396345 421.05263157894734,301.27216387797216 505.2631578947368,294.6624321446877 589.4736842105262,376.510725411075 673.6842105263157,524.6707456526597 757.8947368421052,476.2097304188956 842.1052631578947,522.4571509312443 926.3157894736843,572.621613806338 1010.5263157894736,631.0075774503489 1094.7368421052631,719.9151233553712 1178.9473684210525,757.4841287575084 1263.157894736842,784.1078915892273 1347.3684210526314,809.354996648309 1431.578947368421,838.7187668406041 1515.7894736842104,876.5849883676607 1600,876.9102995491647" />
-        <line
-          class="regression-line"
-          x1="0"
-          y1="50.633143341588585"
-          x2="1600"
-          y2="952.2584951752552"
-        />
-
-        <circle class="endpoint first" cx="0" cy="31.66165008346354" r="10" />
-        <circle class="endpoint last" cx="1600" cy="876.9102995491647" r="10" />
-
-        <g class="angle-guide">
-          <line x1="90" y1="790" x2="260" y2="790" />
-          <line x1="90" y1="790" x2="260" y2="884.2325387469707" />
-          <text x="90" y="772">minAngleDegree 29 deg</text>
-        </g>
-
-        <g class="chart-labels">
-          <text x="34" y="48">max 8,259.16</text>
-          <text x="34" y="872">min 2,172.68</text>
-          <text x="1130" y="48">angle 29.4 deg</text>
-          <text x="1130" y="92">slopePixel 0.564</text>
-          <text x="1130" y="136">rSquared 0.976</text>
-          <text x="1130" y="180">returnRate -71.05%</text>
-        </g>
-      </svg>
-
-      <footer class="card-footer">
-        <span>firstPrice 8,045.04</span>
-        <span>lastPrice 2,328.83</span>
+        <span>firstPrice 8,245.53</span>
+        <span>lastPrice 2,764.23</span>
         <span>period 20</span>
         <span>type strongDowntrend</span>
       </footer>
@@ -941,14 +1009,14 @@
     <article class="chart-card">
       <header class="card-header">
         <div>
-          <p class="code">STK0016</p>
-          <h2>SampleStock16</h2>
+          <p class="code">STK0036</p>
+          <h2>SampleStock36</h2>
         </div>
         <dl class="metrics">
-          <div><dt>Angle</dt><dd>30.33 deg</dd></div>
-          <div><dt>Slope</dt><dd>0.585</dd></div>
-          <div><dt>R2</dt><dd>0.976</dd></div>
-          <div><dt>Return</dt><dd>-69.37%</dd></div>
+          <div><dt>Angle</dt><dd>27.37 deg</dd></div>
+          <div><dt>Slope</dt><dd>0.518</dd></div>
+          <div><dt>R2</dt><dd>0.959</dd></div>
+          <div><dt>Return</dt><dd>-62.76%</dd></div>
         </dl>
       </header>
 
@@ -956,7 +1024,7 @@
         class="chart"
         viewBox="0 0 1600 900"
         role="img"
-        aria-label="STK0016 SampleStock16 candlestick chart"
+        aria-label="STK0036 SampleStock36 candlestick chart"
       >
         <rect x="0" y="0" width="1600" height="900" class="plot-bg" />
         <g class="grid">
@@ -966,178 +1034,318 @@
 
         <g class="candles">
           
+        <line
+          class="candle-wick bearish"
+          x1="0"
+          y1="48.174551646149666"
+          x2="0"
+          y2="144.65909628374754"
+        />
         <rect
           class="candle-body bearish"
           x="-24"
-          y="0"
+          y="59.748982040047736"
           width="48"
-          height="15.77014620877253"
+          height="54.656387456841344"
         />
       
+        <line
+          class="candle-wick bullish"
+          x1="84.21052631578947"
+          y1="145.73488754068615"
+          x2="84.21052631578947"
+          y2="184.0996160345353"
+        />
         <rect
           class="candle-body bullish"
           x="60.210526315789465"
-          y="57.24583475008512"
+          y="151.0519277818148"
           width="48"
-          height="9.629377762665627"
+          height="19.224931526875366"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="168.42105263157893"
+          y1="0"
+          x2="168.42105263157893"
+          y2="234.77789769233732"
+        />
         <rect
           class="candle-body bearish"
           x="144.42105263157893"
-          y="83.7878272696363"
+          y="34.878081290605564"
           width="48"
-          height="53.7776266575994"
+          height="182.92321120680378"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="252.6315789473684"
+          y1="149.58142174715033"
+          x2="252.6315789473684"
+          y2="279.1407429065283"
+        />
         <rect
           class="candle-body bearish"
           x="228.6315789473684"
-          y="71.73070384223047"
+          y="177.80352835453812"
           width="48"
-          height="135.9129547772867"
+          height="98.96892588563594"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="336.84210526315786"
+          y1="300.18445821312014"
+          x2="336.84210526315786"
+          y2="349.8759529266081"
+        />
         <rect
           class="candle-body bearish"
           x="312.84210526315786"
-          y="175.59333560013613"
+          y="309.1855030463553"
           width="48"
-          height="103.80142808568485"
+          height="36.665907048539566"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="421.05263157894734"
+          y1="354.1558994380259"
+          x2="421.05263157894734"
+          y2="406.3162963886608"
+        />
         <rect
-          class="candle-body bullish"
+          class="candle-body bearish"
           x="397.05263157894734"
-          y="337.04862291737516"
+          y="369.4220739294758"
           width="48"
-          height="33.04998299897977"
+          height="15.13073314615201"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="505.2631578947368"
+          y1="310.95784979339817"
+          x2="505.2631578947368"
+          y2="444.9596470785517"
+        />
         <rect
           class="candle-body bearish"
           x="481.2631578947368"
-          y="346.2903774226454"
+          y="333.21666745494963"
           width="48"
-          height="30.214212852771084"
+          height="91.48482411973868"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="589.4736842105262"
+          y1="339.1257798626667"
+          x2="589.4736842105262"
+          y2="489.6939885541314"
+        />
         <rect
           class="candle-body bearish"
           x="565.4736842105262"
-          y="361.1424685481129"
+          y="343.62630227928435"
           width="48"
-          height="64.44746684801089"
+          height="119.76497701796848"
         />
       
+        <line
+          class="candle-wick bullish"
+          x1="673.6842105263157"
+          y1="488.5059744682314"
+          x2="673.6842105263157"
+          y2="504.5731877733012"
+        />
         <rect
-          class="candle-body bearish"
+          class="candle-body bullish"
           x="649.6842105263157"
-          y="375.0357021421287"
+          y="497.7430742175574"
           width="48"
-          height="90.70384223053372"
+          height="2.2289775683334483"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="757.8947368421052"
+          y1="453.09386730187947"
+          x2="757.8947368421052"
+          y2="599.6801004415818"
+        />
         <rect
           class="candle-body bearish"
           x="733.8947368421052"
-          y="501.7681060863651"
+          y="477.0631156669089"
           width="48"
-          height="23.134988099285977"
+          height="97.71899575617118"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="842.1052631578947"
+          y1="574.8285484557537"
+          x2="842.1052631578947"
+          y2="628.7032458625894"
+        />
         <rect
           class="candle-body bearish"
           x="818.1052631578947"
-          y="559.6667800068005"
+          y="585.2110950110289"
           width="48"
-          height="8.81332879972797"
+          height="24.08534094671336"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="926.3157894736843"
+          y1="617.0475506615128"
+          x2="926.3157894736843"
+          y2="650.7917944043376"
+        />
         <rect
           class="candle-body bearish"
           x="902.3157894736843"
-          y="503.9714382862972"
+          y="637.6152863832001"
           width="48"
-          height="130.40462427745655"
+          height="4.152244671565541"
         />
       
+        <line
+          class="candle-wick bullish"
+          x1="1010.5263157894736"
+          y1="651.774711595929"
+          x2="1010.5263157894736"
+          y2="718.9342701001406"
+        />
         <rect
-          class="candle-body bearish"
+          class="candle-body bullish"
           x="986.5263157894736"
-          y="678.0754845290717"
+          y="658.736396744248"
           width="48"
-          height="15.341720503230249"
+          height="47.51282393055078"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="1094.7368421052631"
+          y1="646.9684787142102"
+          x2="1094.7368421052631"
+          y2="706.1795651257884"
+        />
         <rect
           class="candle-body bearish"
           x="1070.7368421052631"
-          y="701.7817069024142"
+          y="667.5323446831748"
           width="48"
-          height="17.95307718463107"
+          height="25.822859919251073"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="1178.9473684210525"
+          y1="662.7183722960102"
+          x2="1178.9473684210525"
+          y2="768.6257648136284"
+        />
         <rect
           class="candle-body bearish"
           x="1154.9473684210525"
-          y="688.4597075824549"
+          y="671.2008702643901"
           width="48"
-          height="71.62869772186332"
+          height="77.98325686988596"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="1263.157894736842"
+          y1="706.752288528763"
+          x2="1263.157894736842"
+          y2="789.3908579241787"
+        />
         <rect
           class="candle-body bearish"
           x="1239.157894736842"
-          y="768.4529071744305"
+          y="724.6382856135492"
           width="48"
-          height="9.506970418225023"
+          height="56.726705163540146"
         />
       
+        <line
+          class="candle-wick bullish"
+          x1="1347.3684210526314"
+          y1="796.4531566432905"
+          x2="1347.3684210526314"
+          y2="823.2357152377963"
+        />
         <rect
-          class="candle-body bearish"
+          class="candle-body bullish"
           x="1323.3684210526314"
-          y="793.587215232914"
+          y="804.0881787653769"
           width="48"
-          height="32.19313158789521"
+          height="17.10430703478039"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="1431.578947368421"
+          y1="790.5595232464646"
+          x2="1431.578947368421"
+          y2="834.988154256943"
+        />
         <rect
           class="candle-body bearish"
           x="1407.578947368421"
-          y="821.2512750765046"
+          y="797.3045022423066"
           width="48"
-          height="37.497449846990776"
+          height="30.245987281412795"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="1515.7894736842104"
+          y1="827.4498759529266"
+          x2="1515.7894736842104"
+          y2="859.6965253920274"
+        />
         <rect
-          class="candle-body bullish"
+          class="candle-body bearish"
           x="1491.7894736842104"
-          y="877.7218633117988"
+          y="837.3951404505252"
           width="48"
-          height="14.627677660659629"
+          height="6.714020974059736"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="1600"
+          y1="839.4112816191046"
+          x2="1600"
+          y2="900"
+        />
         <rect
           class="candle-body bearish"
           x="1576"
-          y="891.4110846650799"
+          y="849.9370090251233"
           width="48"
-          height="8.588915334920102"
+          height="38.7052667334558"
         />
       
         </g>
-        <polyline class="price-line" points="0,0 84.21052631578947,57.24583475008512 168.42105263157893,83.7878272696363 252.6315789473684,71.73070384223047 336.84210526315786,175.59333560013613 421.05263157894734,337.04862291737516 505.2631578947368,346.2903774226454 589.4736842105262,361.1424685481129 673.6842105263157,375.0357021421287 757.8947368421052,501.7681060863651 842.1052631578947,559.6667800068005 926.3157894736843,503.9714382862972 1010.5263157894736,678.0754845290717 1094.7368421052631,701.7817069024142 1178.9473684210525,688.4597075824549 1263.157894736842,768.4529071744305 1347.3684210526314,793.587215232914 1431.578947368421,821.2512750765046 1515.7894736842104,877.7218633117988 1600,891.4110846650799" />
+        <polyline class="price-line" points="0,59.748982040047736 84.21052631578947,151.0519277818148 168.42105263157893,34.878081290605564 252.6315789473684,177.80352835453812 336.84210526315786,309.1855030463553 421.05263157894734,369.4220739294758 505.2631578947368,333.21666745494963 589.4736842105262,343.62630227928435 673.6842105263157,497.7430742175574 757.8947368421052,477.0631156669089 842.1052631578947,585.2110950110289 926.3157894736843,637.6152863832001 1010.5263157894736,658.736396744248 1094.7368421052631,667.5323446831748 1178.9473684210525,671.2008702643901 1263.157894736842,724.6382856135492 1347.3684210526314,804.0881787653769 1431.578947368421,797.3045022423066 1515.7894736842104,837.3951404505252 1600,849.9370090251233" />
         <line
           class="regression-line"
           x1="0"
-          y1="11.608587943847942"
+          y1="85.16264324995345"
           x2="1600"
-          y2="947.7936561908003"
+          y2="913.5771932744929"
         />
 
-        <circle class="endpoint first" cx="0" cy="0" r="10" />
-        <circle class="endpoint last" cx="1600" cy="891.4110846650799" r="10" />
+        <circle class="endpoint first" cx="0" cy="59.748982040047736" r="10" />
+        <circle class="endpoint last" cx="1600" cy="849.9370090251233" r="10" />
 
         <g class="angle-guide">
           <line x1="90" y1="790" x2="260" y2="790" />
@@ -1146,18 +1354,18 @@
         </g>
 
         <g class="chart-labels">
-          <text x="34" y="48">max 629.86</text>
-          <text x="34" y="872">min 188.71</text>
-          <text x="1130" y="48">angle 30.33 deg</text>
-          <text x="1130" y="92">slopePixel 0.585</text>
-          <text x="1130" y="136">rSquared 0.976</text>
-          <text x="1130" y="180">returnRate -69.37%</text>
+          <text x="34" y="48">max 3,407.75</text>
+          <text x="34" y="872">min 1,082.02</text>
+          <text x="1130" y="48">angle 27.37 deg</text>
+          <text x="1130" y="92">slopePixel 0.518</text>
+          <text x="1130" y="136">rSquared 0.959</text>
+          <text x="1130" y="180">returnRate -62.76%</text>
         </g>
       </svg>
 
       <footer class="card-footer">
-        <span>firstPrice 629.86</span>
-        <span>lastPrice 192.92</span>
+        <span>firstPrice 3,253.35</span>
+        <span>lastPrice 1,211.39</span>
         <span>period 20</span>
         <span>type strongDowntrend</span>
       </footer>
@@ -1166,14 +1374,14 @@
     <article class="chart-card">
       <header class="card-header">
         <div>
-          <p class="code">STK0024</p>
-          <h2>SampleStock24</h2>
+          <p class="code">STK0041</p>
+          <h2>SampleStock41</h2>
         </div>
         <dl class="metrics">
-          <div><dt>Angle</dt><dd>28.97 deg</dd></div>
-          <div><dt>Slope</dt><dd>0.554</dd></div>
-          <div><dt>R2</dt><dd>0.957</dd></div>
-          <div><dt>Return</dt><dd>-67.53%</dd></div>
+          <div><dt>Angle</dt><dd>29.16 deg</dd></div>
+          <div><dt>Slope</dt><dd>0.558</dd></div>
+          <div><dt>R2</dt><dd>0.961</dd></div>
+          <div><dt>Return</dt><dd>-64.13%</dd></div>
         </dl>
       </header>
 
@@ -1181,7 +1389,7 @@
         class="chart"
         viewBox="0 0 1600 900"
         role="img"
-        aria-label="STK0024 SampleStock24 candlestick chart"
+        aria-label="STK0041 SampleStock41 candlestick chart"
       >
         <rect x="0" y="0" width="1600" height="900" class="plot-bg" />
         <g class="grid">
@@ -1191,178 +1399,318 @@
 
         <g class="candles">
           
+        <line
+          class="candle-wick bearish"
+          x1="0"
+          y1="34.115874617871214"
+          x2="0"
+          y2="93.60510187663624"
+        />
         <rect
           class="candle-body bearish"
           x="-24"
-          y="78.42035279528022"
+          y="59.929498149691995"
           width="48"
-          height="13.65776430423341"
+          height="30.074451124080497"
         />
       
+        <line
+          class="candle-wick bullish"
+          x1="84.21052631578947"
+          y1="103.99607998010742"
+          x2="84.21052631578947"
+          y2="212.8483040063187"
+        />
         <rect
-          class="candle-body bearish"
+          class="candle-body bullish"
           x="60.210526315789465"
-          y="0"
+          y="125.74633960829033"
           width="48"
-          height="142.31601453387213"
+          height="74.45843755028034"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="168.42105263157893"
+          y1="0"
+          x2="168.42105263157893"
+          y2="197.51927099331544"
+        />
         <rect
           class="candle-body bearish"
           x="144.42105263157893"
-          y="156.46399471886423"
+          y="39.82330656603335"
           width="48"
-          height="15.301410348106288"
+          height="148.06412450451228"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="252.6315789473684"
+          y1="79.63052349817895"
+          x2="252.6315789473684"
+          y2="312.9463045036347"
+        />
         <rect
           class="candle-body bearish"
           x="228.6315789473684"
-          y="202.74155083205198"
+          y="103.99315459212767"
           width="48"
-          height="7.809031763398707"
+          height="174.82703643570733"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="336.84210526315786"
+          y1="203.9858411221786"
+          x2="336.84210526315786"
+          y2="365.0284493981013"
+        />
         <rect
-          class="candle-body bullish"
+          class="candle-body bearish"
           x="312.84210526315786"
-          y="292.29748666840135"
+          y="224.1198238916436"
           width="48"
-          height="17.817223077381186"
+          height="110.77712931677559"
         />
       
+        <line
+          class="candle-wick bullish"
+          x1="421.05263157894734"
+          y1="344.13825383591495"
+          x2="421.05263157894734"
+          y2="429.3255518013075"
+        />
         <rect
           class="candle-body bullish"
           x="397.05263157894734"
-          y="322.70191544181364"
+          y="364.83244840346936"
           width="48"
-          height="63.905980375779336"
+          height="35.24946245995886"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="505.2631578947368"
+          y1="347.228926236342"
+          x2="505.2631578947368"
+          y2="449.5721620079862"
+        />
         <rect
           class="candle-body bearish"
           x="481.2631578947368"
-          y="371.42732638467464"
+          y="352.9012535287492"
           width="48"
-          height="42.097701908723934"
+          height="82.18877528632231"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="589.4736842105262"
+          y1="365.24639080258"
+          x2="589.4736842105262"
+          y2="474.58276653941215"
+        />
         <rect
           class="candle-body bearish"
           x="565.4736842105262"
-          y="427.85866333341244"
+          y="379.02058010443625"
           width="48"
-          height="70.64090649944268"
+          height="82.26044729182212"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="673.6842105263157"
+          y1="451.84957655008986"
+          x2="673.6842105263157"
+          y2="535.1880293123875"
+        />
         <rect
           class="candle-body bearish"
           x="649.6842105263157"
-          y="529.8034129429927"
+          y="456.370763672532"
           width="48"
-          height="41.602165480665235"
+          height="62.97190164845608"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="757.8947368421052"
+          y1="457.9109804437813"
+          x2="757.8947368421052"
+          y2="599.8200886392557"
+        />
         <rect
           class="candle-body bearish"
           x="733.8947368421052"
-          y="573.5188030739149"
+          y="482.47400061433143"
           width="48"
-          height="24.285879992995433"
+          height="98.85909868796352"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="842.1052631578947"
+          y1="513.453859318092"
+          x2="842.1052631578947"
+          y2="662.114762970439"
+        />
         <rect
           class="candle-body bearish"
           x="818.1052631578947"
-          y="611.924770685755"
+          y="537.6043997835213"
           width="48"
-          height="53.25319669499049"
+          height="102.43099741103151"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="926.3157894736843"
+          y1="638.9968844618018"
+          x2="926.3157894736843"
+          y2="691.4958971433587"
+        />
         <rect
           class="candle-body bearish"
           x="902.3157894736843"
-          y="626.5904562458882"
+          y="650.0533883306273"
           width="48"
-          height="78.95498718455713"
+          height="25.310456799332997"
         />
       
+        <line
+          class="candle-wick bullish"
+          x1="1010.5263157894736"
+          y1="691.1272982579314"
+          x2="1010.5263157894736"
+          y2="739.071481855281"
+        />
         <rect
           class="candle-body bullish"
           x="986.5263157894736"
-          y="730.5553209279788"
+          y="707.7230242660933"
           width="48"
-          height="18.87705997663079"
+          height="23.868240525399642"
         />
       
+        <line
+          class="candle-wick bullish"
+          x1="1094.7368421052631"
+          y1="705.5787148770605"
+          x2="1094.7368421052631"
+          y2="750.4219872160545"
+        />
         <rect
-          class="candle-body bearish"
+          class="candle-body bullish"
           x="1070.7368421052631"
-          y="765.1549206329302"
+          y="724.4021238316732"
           width="48"
-          height="1.0721708952627296"
+          height="12.895110213992098"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="1178.9473684210525"
+          y1="675.002559714482"
+          x2="1178.9473684210525"
+          y2="764.787104889786"
+        />
         <rect
           class="candle-body bearish"
           x="1154.9473684210525"
-          y="764.4563166495959"
+          y="695.8693521728318"
           width="48"
-          height="33.67858072161482"
+          height="61.620372401889995"
         />
       
+        <line
+          class="candle-wick bullish"
+          x1="1263.157894736842"
+          y1="782.4725379203417"
+          x2="1263.157894736842"
+          y2="805.7805666476517"
+        />
         <rect
           class="candle-body bullish"
           x="1239.157894736842"
-          y="809.5749608236638"
+          y="786.057600889318"
           width="48"
-          height="11.211924833385751"
+          height="6.393435429373767"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="1347.3684210526314"
+          y1="725.582517881434"
+          x2="1347.3684210526314"
+          y2="834.3382041043194"
+        />
         <rect
           class="candle-body bearish"
           x="1323.3684210526314"
-          y="822.396351215239"
+          y="745.0392733336258"
           width="48"
-          height="15.686102040752417"
+          height="80.48473678821654"
         />
       
+        <line
+          class="candle-wick bullish"
+          x1="1431.578947368421"
+          y1="853.3766290754311"
+          x2="1431.578947368421"
+          y2="864.4945660918279"
+        />
         <rect
-          class="candle-body bearish"
+          class="candle-body bullish"
           x="1407.578947368421"
-          y="831.3551854958656"
+          y="862.0723448447351"
           width="48"
-          height="37.300906060542275"
+          height="1.2403645033422208"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="1515.7894736842104"
+          y1="859.7686018108152"
+          x2="1515.7894736842104"
+          y2="886.8357540918864"
+        />
         <rect
           class="candle-body bearish"
           x="1491.7894736842104"
-          y="862.3430203421362"
+          y="865.5052876387731"
           width="48"
-          height="24.911608601193166"
+          height="16.436292363274674"
         />
       
+        <line
+          class="candle-wick bearish"
+          x1="1600"
+          y1="851.2542600962453"
+          x2="1600"
+          y2="900"
+        />
         <rect
           class="candle-body bearish"
           x="1576"
-          y="863.2864501156145"
+          y="860.2176488656808"
           width="48"
-          height="36.71354988438554"
+          height="35.85501777173204"
         />
       
         </g>
-        <polyline class="price-line" points="0,78.42035279528022 84.21052631578947,0 168.42105263157893,156.46399471886423 252.6315789473684,202.74155083205198 336.84210526315786,292.29748666840135 421.05263157894734,322.70191544181364 505.2631578947368,371.42732638467464 589.4736842105262,427.85866333341244 673.6842105263157,529.8034129429927 757.8947368421052,573.5188030739149 842.1052631578947,611.924770685755 926.3157894736843,626.5904562458882 1010.5263157894736,730.5553209279788 1094.7368421052631,765.1549206329302 1178.9473684210525,764.4563166495959 1263.157894736842,809.5749608236638 1347.3684210526314,822.396351215239 1431.578947368421,831.3551854958656 1515.7894736842104,862.3430203421362 1600,863.2864501156145" />
+        <polyline class="price-line" points="0,59.929498149691995 84.21052631578947,125.74633960829033 168.42105263157893,39.82330656603335 252.6315789473684,103.99315459212767 336.84210526315786,224.1198238916436 421.05263157894734,364.83244840346936 505.2631578947368,352.9012535287492 589.4736842105262,379.02058010443625 673.6842105263157,456.370763672532 757.8947368421052,482.47400061433143 842.1052631578947,537.6043997835213 926.3157894736843,650.0533883306273 1010.5263157894736,707.7230242660933 1094.7368421052631,724.4021238316732 1178.9473684210525,695.8693521728318 1263.157894736842,786.057600889318 1347.3684210526314,745.0392733336258 1431.578947368421,862.0723448447351 1515.7894736842104,865.5052876387731 1600,860.2176488656808" />
         <line
           class="regression-line"
           x1="0"
-          y1="89.17675701381658"
+          y1="54.833806619317144"
           x2="1600"
-          y2="975.1103689187909"
+          y2="947.5417546895013"
         />
 
-        <circle class="endpoint first" cx="0" cy="78.42035279528022" r="10" />
-        <circle class="endpoint last" cx="1600" cy="863.2864501156145" r="10" />
+        <circle class="endpoint first" cx="0" cy="59.929498149691995" r="10" />
+        <circle class="endpoint last" cx="1600" cy="860.2176488656808" r="10" />
 
         <g class="angle-guide">
           <line x1="90" y1="790" x2="260" y2="790" />
@@ -1371,20 +1719,385 @@
         </g>
 
         <g class="chart-labels">
-          <text x="34" y="48">max 153,911.66</text>
-          <text x="34" y="872">min 42,269.01</text>
-          <text x="1130" y="48">angle 28.97 deg</text>
-          <text x="1130" y="92">slopePixel 0.554</text>
-          <text x="1130" y="136">rSquared 0.957</text>
-          <text x="1130" y="180">returnRate -67.53%</text>
+          <text x="34" y="48">max 8,941.97</text>
+          <text x="34" y="872">min 2,788.94</text>
+          <text x="1130" y="48">angle 29.16 deg</text>
+          <text x="1130" y="92">slopePixel 0.558</text>
+          <text x="1130" y="136">rSquared 0.961</text>
+          <text x="1130" y="180">returnRate -64.13%</text>
         </g>
       </svg>
 
       <footer class="card-footer">
-        <span>firstPrice 144,183.82</span>
-        <span>lastPrice 46,823.23</span>
+        <span>firstPrice 8,532.25</span>
+        <span>lastPrice 3,060.92</span>
         <span>period 20</span>
-        <span>type surgeThenDrop</span>
+        <span>type strongDowntrend</span>
+      </footer>
+    </article>
+  
+    <article class="chart-card">
+      <header class="card-header">
+        <div>
+          <p class="code">STK0071</p>
+          <h2>SampleStock71</h2>
+        </div>
+        <dl class="metrics">
+          <div><dt>Angle</dt><dd>28.35 deg</dd></div>
+          <div><dt>Slope</dt><dd>0.54</dd></div>
+          <div><dt>R2</dt><dd>0.968</dd></div>
+          <div><dt>Return</dt><dd>-66.66%</dd></div>
+        </dl>
+      </header>
+
+      <svg
+        class="chart"
+        viewBox="0 0 1600 900"
+        role="img"
+        aria-label="STK0071 SampleStock71 candlestick chart"
+      >
+        <rect x="0" y="0" width="1600" height="900" class="plot-bg" />
+        <g class="grid">
+          <line x1="0" y1="0" x2="1600" y2="0" /><line x1="0" y1="225" x2="1600" y2="225" /><line x1="0" y1="450" x2="1600" y2="450" /><line x1="0" y1="675" x2="1600" y2="675" /><line x1="0" y1="900" x2="1600" y2="900" />
+          <line x1="0" y1="0" x2="0" y2="900" /><line x1="200" y1="0" x2="200" y2="900" /><line x1="400" y1="0" x2="400" y2="900" /><line x1="600" y1="0" x2="600" y2="900" /><line x1="800" y1="0" x2="800" y2="900" /><line x1="1000" y1="0" x2="1000" y2="900" /><line x1="1200" y1="0" x2="1200" y2="900" /><line x1="1400" y1="0" x2="1400" y2="900" /><line x1="1600" y1="0" x2="1600" y2="900" />
+        </g>
+
+        <g class="candles">
+          
+        <line
+          class="candle-wick bearish"
+          x1="0"
+          y1="0"
+          x2="0"
+          y2="72.03487220130762"
+        />
+        <rect
+          class="candle-body bearish"
+          x="-24"
+          y="26.93085000990675"
+          width="48"
+          height="29.589855359619605"
+        />
+      
+        <line
+          class="candle-wick bullish"
+          x1="84.21052631578947"
+          y1="101.96156132355839"
+          x2="84.21052631578947"
+          y2="148.266296809986"
+        />
+        <rect
+          class="candle-body bullish"
+          x="60.210526315789465"
+          y="117.99484842480672"
+          width="48"
+          height="4.196552407370746"
+        />
+      
+        <line
+          class="candle-wick bearish"
+          x1="168.42105263157893"
+          y1="94.02021002575782"
+          x2="168.42105263157893"
+          y2="194.8880523083019"
+        />
+        <rect
+          class="candle-body bearish"
+          x="144.42105263157893"
+          y="119.33425797503469"
+          width="48"
+          height="40.92332078462448"
+        />
+      
+        <line
+          class="candle-wick bearish"
+          x1="252.6315789473684"
+          y1="118.56944719635419"
+          x2="252.6315789473684"
+          y2="220.0277392510402"
+        />
+        <rect
+          class="candle-body bearish"
+          x="228.6315789473684"
+          y="157.0675648900335"
+          width="48"
+          height="43.05924311472177"
+        />
+      
+        <line
+          class="candle-wick bearish"
+          x1="336.84210526315786"
+          y1="213.4852387556965"
+          x2="336.84210526315786"
+          y2="292.28452546066967"
+        />
+        <rect
+          class="candle-body bearish"
+          x="312.84210526315786"
+          y="229.39964335248658"
+          width="48"
+          height="48.30988706162077"
+        />
+      
+        <line
+          class="candle-wick bullish"
+          x1="421.05263157894734"
+          y1="271.10758866653464"
+          x2="421.05263157894734"
+          y2="404.51357241925905"
+        />
+        <rect
+          class="candle-body bullish"
+          x="397.05263157894734"
+          y="304.3788389142064"
+          width="48"
+          height="68.67842282544086"
+        />
+      
+        <line
+          class="candle-wick bearish"
+          x1="505.2631578947368"
+          y1="352.91856548444616"
+          x2="505.2631578947368"
+          y2="406.90707350901533"
+        />
+        <rect
+          class="candle-body bearish"
+          x="481.2631578947368"
+          y="372.49455121854567"
+          width="48"
+          height="25.032692688726"
+        />
+      
+        <line
+          class="candle-wick bearish"
+          x1="589.4736842105262"
+          y1="358.1493956806023"
+          x2="589.4736842105262"
+          y2="495.387358827026"
+        />
+        <rect
+          class="candle-body bearish"
+          x="565.4736842105262"
+          y="378.2445016841689"
+          width="48"
+          height="102.57578759659197"
+        />
+      
+        <line
+          class="candle-wick bearish"
+          x1="673.6842105263157"
+          y1="470.9807806617793"
+          x2="673.6842105263157"
+          y2="555.5617198335644"
+        />
+        <rect
+          class="candle-body bearish"
+          x="649.6842105263157"
+          y="486.56627699623544"
+          width="48"
+          height="65.99167822468786"
+        />
+      
+        <line
+          class="candle-wick bearish"
+          x1="757.8947368421052"
+          y1="560.5111947691698"
+          x2="757.8947368421052"
+          y2="588.3614028135526"
+        />
+        <rect
+          class="candle-body bearish"
+          x="733.8947368421052"
+          y="575.1694075688528"
+          width="48"
+          height="10.180305131761429"
+        />
+      
+        <line
+          class="candle-wick bearish"
+          x1="842.1052631578947"
+          y1="608.8408955815336"
+          x2="842.1052631578947"
+          y2="637.7293441648503"
+        />
+        <rect
+          class="candle-body bearish"
+          x="818.1052631578947"
+          y="627.2201307707548"
+          width="48"
+          height="7.049732514364905"
+        />
+      
+        <line
+          class="candle-wick bearish"
+          x1="926.3157894736843"
+          y1="548.4406578165247"
+          x2="926.3157894736843"
+          y2="689.0192193382206"
+        />
+        <rect
+          class="candle-body bearish"
+          x="902.3157894736843"
+          y="572.1379037051713"
+          width="48"
+          height="104.24014265900541"
+        />
+      
+        <line
+          class="candle-wick bearish"
+          x1="1010.5263157894736"
+          y1="642.6312660986725"
+          x2="1010.5263157894736"
+          y2="705.4408559540321"
+        />
+        <rect
+          class="candle-body bearish"
+          x="986.5263157894736"
+          y="650.8301961561324"
+          width="48"
+          height="41.450366554388665"
+        />
+      
+        <line
+          class="candle-wick bullish"
+          x1="1094.7368421052631"
+          y1="723.1662373687338"
+          x2="1094.7368421052631"
+          y2="738.3237566871409"
+        />
+        <rect
+          class="candle-body bullish"
+          x="1070.7368421052631"
+          y="728.2702595601347"
+          width="48"
+          height="4.299583911234436"
+        />
+      
+        <line
+          class="candle-wick bearish"
+          x1="1178.9473684210525"
+          y1="672.450960966911"
+          x2="1178.9473684210525"
+          y2="765.8371309688923"
+        />
+        <rect
+          class="candle-body bearish"
+          x="1154.9473684210525"
+          y="687.2003170200119"
+          width="48"
+          height="69.22131959579951"
+        />
+      
+        <line
+          class="candle-wick bullish"
+          x1="1263.157894736842"
+          y1="763.7249851396869"
+          x2="1263.157894736842"
+          y2="808.0126808004756"
+        />
+        <rect
+          class="candle-body bullish"
+          x="1239.157894736842"
+          y="781.0897562908658"
+          width="48"
+          height="22.880919358034475"
+        />
+      
+        <line
+          class="candle-wick bearish"
+          x1="1347.3684210526314"
+          y1="783.6378046364176"
+          x2="1347.3684210526314"
+          y2="837.0834158906281"
+        />
+        <rect
+          class="candle-body bearish"
+          x="1323.3684210526314"
+          y="795.775708341589"
+          width="48"
+          height="31.56726768377257"
+        />
+      
+        <line
+          class="candle-wick bearish"
+          x1="1431.578947368421"
+          y1="802.9007331087776"
+          x2="1431.578947368421"
+          y2="879.4293639786011"
+        />
+        <rect
+          class="candle-body bearish"
+          x="1407.578947368421"
+          y="809.375866851595"
+          width="48"
+          height="54.9910838121657"
+        />
+      
+        <line
+          class="candle-wick bearish"
+          x1="1515.7894736842104"
+          y1="820.5627105211016"
+          x2="1515.7894736842104"
+          y2="889.9108381216564"
+        />
+        <rect
+          class="candle-body bearish"
+          x="1491.7894736842104"
+          y="825.1040221914009"
+          width="48"
+          height="55.83911234396669"
+        />
+      
+        <line
+          class="candle-wick bearish"
+          x1="1600"
+          y1="865.9401624727561"
+          x2="1600"
+          y2="900"
+        />
+        <rect
+          class="candle-body bearish"
+          x="1576"
+          y="873.2989894987121"
+          width="48"
+          height="22.4886070933228"
+        />
+      
+        </g>
+        <polyline class="price-line" points="0,26.93085000990675 84.21052631578947,117.99484842480672 168.42105263157893,119.33425797503469 252.6315789473684,157.0675648900335 336.84210526315786,229.39964335248658 421.05263157894734,304.3788389142064 505.2631578947368,372.49455121854567 589.4736842105262,378.2445016841689 673.6842105263157,486.56627699623544 757.8947368421052,575.1694075688528 842.1052631578947,627.2201307707548 926.3157894736843,572.1379037051713 1010.5263157894736,650.8301961561324 1094.7368421052631,728.2702595601347 1178.9473684210525,687.2003170200119 1263.157894736842,781.0897562908658 1347.3684210526314,795.775708341589 1431.578947368421,809.375866851595 1515.7894736842104,825.1040221914009 1600,873.2989894987121" />
+        <line
+          class="regression-line"
+          x1="0"
+          y1="74.23855755894601"
+          x2="1600"
+          y2="937.5498315831185"
+        />
+
+        <circle class="endpoint first" cx="0" cy="26.93085000990675" r="10" />
+        <circle class="endpoint last" cx="1600" cy="873.2989894987121" r="10" />
+
+        <g class="angle-guide">
+          <line x1="90" y1="790" x2="260" y2="790" />
+          <line x1="90" y1="790" x2="260" y2="884.2325387469707" />
+          <text x="90" y="772">minAngleDegree 29 deg</text>
+        </g>
+
+        <g class="chart-labels">
+          <text x="34" y="48">max 3,272.22</text>
+          <text x="34" y="872">min 1,001.07</text>
+          <text x="1130" y="48">angle 28.35 deg</text>
+          <text x="1130" y="92">slopePixel 0.54</text>
+          <text x="1130" y="136">rSquared 0.968</text>
+          <text x="1130" y="180">returnRate -66.66%</text>
+        </g>
+      </svg>
+
+      <footer class="card-footer">
+        <span>firstPrice 3,204.26</span>
+        <span>lastPrice 1,068.45</span>
+        <span>period 20</span>
+        <span>type strongDowntrend</span>
       </footer>
     </article>
   

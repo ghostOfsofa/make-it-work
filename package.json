@@ -1,8 +1,9 @@
 {
   "type": "module",
   "scripts": {
-    "start": "node index.js",
-    "dev": "node index.js",
-    "generate": "node index.js"
+    "start": "npm run generate",
+    "dev": "npm run generate",
+    "generate": "node src/index.js",
+    "build": "npm run generate"
   }
 }

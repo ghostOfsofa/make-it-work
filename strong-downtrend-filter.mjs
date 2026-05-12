@@ -332,12 +332,18 @@ const createSampleCandlesFromSelectedPrices = (startDate, selectedPrices) =>
     date.setUTCDate(date.getUTCDate() + index);
 
     const isBearish = index % 3 === 0;
+    const open = isBearish ? selectedPrice : selectedPrice - 20;
+    const close = isBearish ? selectedPrice - 30 : selectedPrice;
+    const high = Math.max(open, close) + 80;
+    const low = Math.max(Math.min(open, close) - 80, 1);
 
     return {
       date: date.toISOString().slice(0, 10),
       // This keeps selectedPrice equal to selectedPrice under the requested rule.
-      open: isBearish ? selectedPrice : selectedPrice - 20,
-      close: isBearish ? selectedPrice - 30 : selectedPrice,
+      open,
+      high,
+      low,
+      close,
     };
   });
 
@@ -371,12 +377,18 @@ const generateCandlesByType = ({
 
     const open = normalizePrice(prevClose * (1 + openGapRate));
     const close = normalizePrice(prevClose * (1 + dailyChangeRate));
+    const upperShadowRate = randomInRange(random, 0.002, 0.035);
+    const lowerShadowRate = randomInRange(random, 0.002, 0.035);
+    const high = normalizePrice(Math.max(open, close) * (1 + upperShadowRate));
+    const low = normalizePrice(Math.min(open, close) * (1 - lowerShadowRate));
 
     return [
       ...candles,
       {
         date: createDateByOffset(startDate, index),
         open,
+        high,
+        low,
         close,
       },
     ];
@@ -389,7 +401,7 @@ const generateCandlesByType = ({
  * Constraints:
  * - close changes from previous close by -29% to +29%
  * - open can gap from previous close by -10% to +10%
- * - open and close are always at least 1
+ * - open, high, low, and close are always at least 1
  * - generated stocks cycle through multiple market behavior patterns
  */
 export const generateSampleStocks = ({
@@ -482,8 +494,12 @@ if (isDirectRun) {
       type: stock.type,
       candleCount: stock.prices.length,
       firstOpen: stock.prices[0]?.open,
+      firstHigh: stock.prices[0]?.high,
+      firstLow: stock.prices[0]?.low,
       firstClose: stock.prices[0]?.close,
       lastOpen: stock.prices.at(-1)?.open,
+      lastHigh: stock.prices.at(-1)?.high,
+      lastLow: stock.prices.at(-1)?.low,
       lastClose: stock.prices.at(-1)?.close,
     })),
   );
