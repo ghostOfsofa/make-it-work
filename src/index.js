@@ -13,6 +13,24 @@ import {
 const DEFAULT_CHART_FILE_PATH = "chart.html";
 const DEFAULT_DIST_CHART_FILE_PATH = "dist/chart.html";
 const DEFAULT_CHART_TYPE = "candlestick";
+const DEFAULT_MARGIN = Object.freeze({
+  top: 40,
+  right: 90,
+  bottom: 60,
+  left: 30,
+});
+const COLORS = Object.freeze({
+  background: "#0b1220",
+  grid: "#243044",
+  text: "#cbd5e1",
+  mutedText: "#94a3b8",
+  bullish: "#ef4444",
+  bearish: "#3b82f6",
+  regression: "#facc15",
+  selectedLine: "#a3e635",
+  axis: "#475569",
+  panel: "#111827",
+});
 
 const round = (value, digits = 2) => {
   const factor = 10 ** digits;
@@ -29,6 +47,14 @@ const escapeHtml = (value) =>
 
 const formatNumber = (value, digits = 2) =>
   Number.isFinite(value) ? round(value, digits).toLocaleString("ko-KR") : "-";
+
+export const formatPrice = (value) =>
+  Number.isFinite(value) ? Math.round(value).toLocaleString("ko-KR") : "-";
+
+export const formatDateLabel = (date) => {
+  const parts = String(date ?? "").split("-");
+  return parts.length === 3 ? `${parts[1]}/${parts[2]}` : String(date ?? "");
+};
 
 const toPolylinePoints = (points) =>
   points.map((point) => `${point.xPixel},${point.yPixel}`).join(" ");
@@ -86,44 +112,52 @@ export const priceToY = (price, minPrice, maxPrice, chartHeight) => {
   return chartHeight - ((price - minPrice) / (maxPrice - minPrice)) * chartHeight;
 };
 
+const priceToPlotY = (price, minPrice, maxPrice, plotTop, plotHeight) =>
+  plotTop + priceToY(price, minPrice, maxPrice, plotHeight);
+
 const createChartPointsByScale = ({
   selectedPrices,
   minPrice,
   maxPrice,
-  chartWidth,
-  chartHeight,
+  plotLeft,
+  plotTop,
+  plotWidth,
+  plotHeight,
 }) => {
   if (!Array.isArray(selectedPrices) || selectedPrices.length < 2) {
     return [];
   }
 
   return selectedPrices.map((selectedPrice, index) => ({
-    xPixel: (index / (selectedPrices.length - 1)) * chartWidth,
-    yPixel: priceToY(selectedPrice, minPrice, maxPrice, chartHeight),
+    xPixel: plotLeft + (index / (selectedPrices.length - 1)) * plotWidth,
+    yPixel: priceToPlotY(selectedPrice, minPrice, maxPrice, plotTop, plotHeight),
     selectedPrice,
     index,
   }));
 };
 
 const enrichResultForChart = (result, stocks, options) => {
+  const margin = { ...DEFAULT_MARGIN, ...options.margin };
+  const plotLeft = margin.left;
+  const plotTop = margin.top;
+  const plotWidth = options.chartWidth - margin.left - margin.right;
+  const plotHeight = options.chartHeight - margin.top - margin.bottom;
   const stock = stocks.find((item) => item.code === result.code);
   const candles = getRecentValidCandles(stock?.prices, options.period);
   const selectedPrices = candles.map(getSelectedPrice);
-  const chartScalePrices = candles.flatMap((candle, index) => [
-    candle.open,
-    getCandleHigh(candle),
-    getCandleLow(candle),
-    candle.close,
-    selectedPrices[index],
-  ]);
-  const minPrice = Math.min(...chartScalePrices);
-  const maxPrice = Math.max(...chartScalePrices);
+  const minRawPrice = Math.min(...candles.map(getCandleLow));
+  const maxRawPrice = Math.max(...candles.map(getCandleHigh));
+  const pricePadding = (maxRawPrice - minRawPrice) * 0.05 || maxRawPrice * 0.05;
+  const minPrice = Math.max(minRawPrice - pricePadding, 1);
+  const maxPrice = maxRawPrice + pricePadding;
   const points = createChartPointsByScale({
     selectedPrices,
     minPrice,
     maxPrice,
-    chartWidth: options.chartWidth,
-    chartHeight: options.chartHeight,
+    plotLeft,
+    plotTop,
+    plotWidth,
+    plotHeight,
   });
   const { slopePixel, intercept } = calculateLinearRegressionByPoints(points);
   const rSquared = calculateRSquaredByPoints(points, slopePixel, intercept);
@@ -138,6 +172,11 @@ const enrichResultForChart = (result, stocks, options) => {
     points,
     minPrice,
     maxPrice,
+    plotLeft,
+    plotTop,
+    plotWidth,
+    plotHeight,
+    margin,
     slopePixel,
     intercept,
     angleDegree,
@@ -148,23 +187,146 @@ const enrichResultForChart = (result, stocks, options) => {
   };
 };
 
+export const calculateNicePriceTicks = (minPrice, maxPrice, tickCount = 6) => {
+  if (
+    !Number.isFinite(minPrice) ||
+    !Number.isFinite(maxPrice) ||
+    maxPrice <= minPrice ||
+    tickCount < 2
+  ) {
+    return [];
+  }
+
+  const range = maxPrice - minPrice;
+  const roughStep = range / (tickCount - 1);
+  const basePower = 10 ** Math.floor(Math.log10(roughStep));
+  const multipliers = [0.1, 0.2, 0.25, 0.5, 1, 2, 2.5, 5, 10];
+  const candidates = multipliers.map((multiplier) => {
+    const step = multiplier * basePower;
+    const start = Math.ceil(minPrice / step) * step;
+    const ticks = [];
+
+    for (let value = start; value <= maxPrice + step * 0.5; value += step) {
+      if (value >= minPrice && value <= maxPrice) {
+        ticks.push(value);
+      }
+    }
+
+    return { step, ticks };
+  });
+  const preferred = candidates
+    .filter((candidate) => candidate.ticks.length >= 5 && candidate.ticks.length <= 8)
+    .sort((a, b) => Math.abs(a.ticks.length - tickCount) - Math.abs(b.ticks.length - tickCount))[0];
+
+  if (preferred) {
+    return preferred.ticks;
+  }
+
+  return Array.from({ length: tickCount }, (_, index) =>
+    minPrice + (range * index) / (tickCount - 1),
+  );
+};
+
+const getDateLabelIndexes = (candles, labelCount = 5) => {
+  if (!Array.isArray(candles) || candles.length === 0) {
+    return [];
+  }
+
+  const count = Math.min(labelCount, candles.length);
+  const indexes = new Set();
+
+  for (let index = 0; index < count; index += 1) {
+    indexes.add(Math.round((index / (count - 1 || 1)) * (candles.length - 1)));
+  }
+
+  return [...indexes].sort((a, b) => a - b);
+};
+
+export const createGridLines = ({
+  priceTicks,
+  dateLabelIndexes,
+  candles,
+  minPrice,
+  maxPrice,
+  plotLeft,
+  plotTop,
+  plotWidth,
+  plotHeight,
+}) => {
+  const horizontalLines = priceTicks
+    .map((price) => {
+      const y = priceToPlotY(price, minPrice, maxPrice, plotTop, plotHeight);
+      return `<line class="grid-line" x1="${plotLeft}" y1="${y}" x2="${plotLeft + plotWidth}" y2="${y}" />`;
+    })
+    .join("");
+  const verticalLines = dateLabelIndexes
+    .map((index) => {
+      const x = plotLeft + (index / (candles.length - 1 || 1)) * plotWidth;
+      return `<line class="grid-line" x1="${x}" y1="${plotTop}" x2="${x}" y2="${plotTop + plotHeight}" />`;
+    })
+    .join("");
+
+  return `${horizontalLines}${verticalLines}`;
+};
+
+export const createAxisLabels = ({
+  priceTicks,
+  dateLabelIndexes,
+  candles,
+  minPrice,
+  maxPrice,
+  plotLeft,
+  plotTop,
+  plotWidth,
+  plotHeight,
+}) => {
+  const priceLabels = priceTicks
+    .map((price) => {
+      const y = priceToPlotY(price, minPrice, maxPrice, plotTop, plotHeight);
+      return `<text class="axis-label price-label" x="${plotLeft + plotWidth + 12}" y="${y + 5}">${formatPrice(price)}</text>`;
+    })
+    .join("");
+  const dateLabels = dateLabelIndexes
+    .map((index) => {
+      const x = plotLeft + (index / (candles.length - 1 || 1)) * plotWidth;
+      return `<text class="axis-label date-label" x="${x}" y="${plotTop + plotHeight + 34}">${formatDateLabel(candles[index]?.date)}</text>`;
+    })
+    .join("");
+
+  return `${priceLabels}${dateLabels}`;
+};
+
 export const createCandleElements = (candles, options = {}) => {
   const {
-    chartWidth,
-    chartHeight,
     period,
     minPrice,
     maxPrice,
+    plotLeft,
+    plotTop,
+    plotWidth,
+    plotHeight,
   } = { ...DEFAULT_OPTIONS, ...options };
-  const candleWidth = (chartWidth / period) * 0.6;
+  const candleWidth = Math.max(3, Math.min(18, (plotWidth / period) * 0.55));
 
   return candles
     .map((candle, index) => {
-      const xCenter = (index / (period - 1)) * chartWidth;
-      const highY = priceToY(getCandleHigh(candle), minPrice, maxPrice, chartHeight);
-      const lowY = priceToY(getCandleLow(candle), minPrice, maxPrice, chartHeight);
-      const openY = priceToY(candle.open, minPrice, maxPrice, chartHeight);
-      const closeY = priceToY(candle.close, minPrice, maxPrice, chartHeight);
+      const xCenter = plotLeft + (index / (period - 1)) * plotWidth;
+      const highY = priceToPlotY(
+        getCandleHigh(candle),
+        minPrice,
+        maxPrice,
+        plotTop,
+        plotHeight,
+      );
+      const lowY = priceToPlotY(
+        getCandleLow(candle),
+        minPrice,
+        maxPrice,
+        plotTop,
+        plotHeight,
+      );
+      const openY = priceToPlotY(candle.open, minPrice, maxPrice, plotTop, plotHeight);
+      const closeY = priceToPlotY(candle.close, minPrice, maxPrice, plotTop, plotHeight);
       const bodyY = Math.min(openY, closeY);
       const rawBodyHeight = Math.abs(closeY - openY);
       const bodyHeight = Math.max(rawBodyHeight, 1);
@@ -198,65 +360,104 @@ export const createCandleElements = (candles, options = {}) => {
  * The SVG viewBox is exactly chartWidth x chartHeight, so plotted points use
  * the same xPixel/yPixel coordinates used by the regression calculation.
  */
-export const createCandlestickSvgChart = (stockResult, options = {}) => {
-  const config = { ...DEFAULT_OPTIONS, ...options };
+export const createKiwoomStyleCandlestickChart = (stockResult, options = {}) => {
+  const config = {
+    ...DEFAULT_OPTIONS,
+    margin: DEFAULT_MARGIN,
+    showSelectedPriceLine: true,
+    ...options,
+  };
   const { chartWidth, chartHeight, minAngleDegree } = config;
+  const {
+    candles,
+    plotLeft,
+    plotTop,
+    plotWidth,
+    plotHeight,
+    minPrice,
+    maxPrice,
+  } = stockResult;
   const priceLinePoints = toPolylinePoints(stockResult.points);
   const regressionLine = getRegressionLine({
     slopePixel: stockResult.slopePixel,
     intercept: stockResult.intercept,
-    chartWidth,
+    chartWidth: plotLeft + plotWidth,
   });
+  regressionLine.x1 = plotLeft;
+  regressionLine.y1 = stockResult.slopePixel * plotLeft + stockResult.intercept;
   const thresholdSlope = Math.tan((minAngleDegree * Math.PI) / 180);
-  const guideX = 90;
-  const guideY = chartHeight - 110;
-  const guideLength = 170;
-  const guideEndY = guideY + Math.min(thresholdSlope * guideLength, 130);
-  const firstPoint = stockResult.points[0];
-  const lastPoint = stockResult.points.at(-1);
+  const guideX = plotLeft + 28;
+  const guideY = plotTop + plotHeight - 44;
+  const guideLength = 120;
+  const guideEndY = guideY + Math.min(thresholdSlope * guideLength, 95);
+  const lastCandle = candles.at(-1);
+  const lastClose = lastCandle?.close;
+  const lastCloseY = priceToPlotY(lastClose, minPrice, maxPrice, plotTop, plotHeight);
+  const priceTicks = calculateNicePriceTicks(minPrice, maxPrice, 7);
+  const dateLabelIndexes = getDateLabelIndexes(candles, 5);
+  const gridLines = createGridLines({
+    priceTicks,
+    dateLabelIndexes,
+    candles,
+    minPrice,
+    maxPrice,
+    plotLeft,
+    plotTop,
+    plotWidth,
+    plotHeight,
+  });
+  const axisLabels = createAxisLabels({
+    priceTicks,
+    dateLabelIndexes,
+    candles,
+    minPrice,
+    maxPrice,
+    plotLeft,
+    plotTop,
+    plotWidth,
+    plotHeight,
+  });
   const candleElements = createCandleElements(stockResult.candles, {
     ...config,
     minPrice: stockResult.minPrice,
     maxPrice: stockResult.maxPrice,
+    plotLeft,
+    plotTop,
+    plotWidth,
+    plotHeight,
   });
 
   return `
     <article class="chart-card">
-      <header class="card-header">
-        <div>
-          <p class="code">${escapeHtml(stockResult.code)}</p>
-          <h2>${escapeHtml(stockResult.name)}</h2>
-        </div>
-        <dl class="metrics">
-          <div><dt>Angle</dt><dd>${formatNumber(stockResult.angleDegree)} deg</dd></div>
-          <div><dt>Slope</dt><dd>${formatNumber(stockResult.slopePixel, 4)}</dd></div>
-          <div><dt>R2</dt><dd>${formatNumber(stockResult.rSquared, 4)}</dd></div>
-          <div><dt>Return</dt><dd>${formatNumber(stockResult.returnRate)}%</dd></div>
-        </dl>
-      </header>
-
       <svg
         class="chart"
         viewBox="0 0 ${chartWidth} ${chartHeight}"
         role="img"
-        aria-label="${escapeHtml(stockResult.code)} ${escapeHtml(stockResult.name)} candlestick chart"
+        aria-label="${escapeHtml(stockResult.code)} ${escapeHtml(stockResult.name)} Kiwoom style candlestick chart"
       >
-        <rect x="0" y="0" width="${chartWidth}" height="${chartHeight}" class="plot-bg" />
-        <g class="grid">
-          ${Array.from({ length: 5 }, (_, index) => {
-            const y = (chartHeight / 4) * index;
-            return `<line x1="0" y1="${y}" x2="${chartWidth}" y2="${y}" />`;
-          }).join("")}
-          ${Array.from({ length: 9 }, (_, index) => {
-            const x = (chartWidth / 8) * index;
-            return `<line x1="${x}" y1="0" x2="${x}" y2="${chartHeight}" />`;
-          }).join("")}
+        <rect x="0" y="0" width="${chartWidth}" height="${chartHeight}" class="chart-bg" />
+        <rect x="${plotLeft}" y="${plotTop}" width="${plotWidth}" height="${plotHeight}" class="plot-bg" />
+        <g class="grid">${gridLines}</g>
+        <line class="axis-line" x1="${plotLeft + plotWidth}" y1="${plotTop}" x2="${plotLeft + plotWidth}" y2="${plotTop + plotHeight}" />
+        <line class="axis-line" x1="${plotLeft}" y1="${plotTop + plotHeight}" x2="${plotLeft + plotWidth}" y2="${plotTop + plotHeight}" />
+        <g class="axis-labels">${axisLabels}</g>
+
+        <g class="chart-title">
+          <text x="${plotLeft}" y="24">${escapeHtml(stockResult.name)} (${escapeHtml(stockResult.code)})</text>
+          <text x="${plotLeft + 360}" y="24">angle ${formatNumber(stockResult.angleDegree)} deg</text>
+          <text x="${plotLeft + 580}" y="24">slope ${formatNumber(stockResult.slopePixel, 4)}</text>
+          <text x="${plotLeft + 780}" y="24">R2 ${formatNumber(stockResult.rSquared, 4)}</text>
+          <text x="${plotLeft + 940}" y="24">return ${formatNumber(stockResult.returnRate)}%</text>
         </g>
 
         <g class="candles">
           ${candleElements}
         </g>
-        <polyline class="price-line" points="${priceLinePoints}" />
+        ${
+          config.showSelectedPriceLine
+            ? `<polyline class="selected-price-line" points="${priceLinePoints}" />`
+            : ""
+        }
         <line
           class="regression-line"
           x1="${regressionLine.x1}"
@@ -265,34 +466,21 @@ export const createCandlestickSvgChart = (stockResult, options = {}) => {
           y2="${regressionLine.y2}"
         />
 
-        <circle class="endpoint first" cx="${firstPoint.xPixel}" cy="${firstPoint.yPixel}" r="10" />
-        <circle class="endpoint last" cx="${lastPoint.xPixel}" cy="${lastPoint.yPixel}" r="10" />
-
         <g class="angle-guide">
           <line x1="${guideX}" y1="${guideY}" x2="${guideX + guideLength}" y2="${guideY}" />
           <line x1="${guideX}" y1="${guideY}" x2="${guideX + guideLength}" y2="${guideEndY}" />
-          <text x="${guideX}" y="${guideY - 18}">minAngleDegree ${formatNumber(minAngleDegree)} deg</text>
+          <text x="${guideX}" y="${guideY - 12}">min ${formatNumber(minAngleDegree)} deg</text>
         </g>
 
-        <g class="chart-labels">
-          <text x="34" y="48">max ${formatNumber(stockResult.maxPrice)}</text>
-          <text x="34" y="${chartHeight - 28}">min ${formatNumber(stockResult.minPrice)}</text>
-          <text x="${chartWidth - 470}" y="48">angle ${formatNumber(stockResult.angleDegree)} deg</text>
-          <text x="${chartWidth - 470}" y="92">slopePixel ${formatNumber(stockResult.slopePixel, 4)}</text>
-          <text x="${chartWidth - 470}" y="136">rSquared ${formatNumber(stockResult.rSquared, 4)}</text>
-          <text x="${chartWidth - 470}" y="180">returnRate ${formatNumber(stockResult.returnRate)}%</text>
-        </g>
+        <line class="last-price-line" x1="${plotLeft}" y1="${lastCloseY}" x2="${plotLeft + plotWidth}" y2="${lastCloseY}" />
+        <rect class="last-price-box" x="${plotLeft + plotWidth + 6}" y="${lastCloseY - 17}" width="78" height="34" rx="3" />
+        <text class="last-price-text" x="${plotLeft + plotWidth + 45}" y="${lastCloseY + 6}">${formatPrice(lastClose)}</text>
       </svg>
-
-      <footer class="card-footer">
-        <span>firstPrice ${formatNumber(stockResult.firstPrice)}</span>
-        <span>lastPrice ${formatNumber(stockResult.lastPrice)}</span>
-        <span>period ${config.period}</span>
-        <span>type ${escapeHtml(stockResult.type ?? "-")}</span>
-      </footer>
     </article>
   `;
 };
+
+export const createCandlestickSvgChart = createKiwoomStyleCandlestickChart;
 
 export const createSvgChart = (stockResult, options = {}) => {
   const config = {
@@ -302,8 +490,8 @@ export const createSvgChart = (stockResult, options = {}) => {
   };
 
   return config.chartType === "candlestick"
-    ? createCandlestickSvgChart(stockResult, config)
-    : createCandlestickSvgChart(stockResult, config);
+    ? createKiwoomStyleCandlestickChart(stockResult, config)
+    : createKiwoomStyleCandlestickChart(stockResult, config);
 };
 
 /**
@@ -325,17 +513,17 @@ export const generateChartHtml = (results, options = {}) => {
   <title>Strong Downtrend Charts</title>
   <style>
     :root {
-      color-scheme: light;
-      --bg: #f5f7f9;
-      --panel: #ffffff;
-      --ink: #18212f;
-      --muted: #637083;
-      --line: #d8dee8;
-      --price: #1f7a5a;
-      --regression: #c4382b;
-      --guide: #805ad5;
-      --bullish: #d92d20;
-      --bearish: #2563eb;
+      color-scheme: dark;
+      --bg: ${COLORS.background};
+      --panel: ${COLORS.panel};
+      --ink: ${COLORS.text};
+      --muted: ${COLORS.mutedText};
+      --grid: ${COLORS.grid};
+      --axis: ${COLORS.axis};
+      --selected-line: ${COLORS.selectedLine};
+      --regression: ${COLORS.regression};
+      --bullish: ${COLORS.bullish};
+      --bearish: ${COLORS.bearish};
     }
 
     * {
@@ -360,12 +548,12 @@ export const generateChartHtml = (results, options = {}) => {
       justify-content: space-between;
       gap: 20px;
       align-items: flex-end;
-      margin-bottom: 18px;
+      margin-bottom: 16px;
     }
 
     h1 {
       margin: 0 0 6px;
-      font-size: 28px;
+      font-size: 24px;
       line-height: 1.2;
     }
 
@@ -398,63 +586,15 @@ export const generateChartHtml = (results, options = {}) => {
 
     .chart-list {
       display: grid;
-      gap: 18px;
+      gap: 16px;
     }
 
     .chart-card {
       overflow: hidden;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: var(--panel);
-      box-shadow: 0 10px 24px rgba(24, 33, 47, 0.06);
-    }
-
-    .card-header {
-      display: flex;
-      justify-content: space-between;
-      gap: 18px;
-      align-items: flex-start;
-      padding: 18px 20px 14px;
-      border-bottom: 1px solid var(--line);
-    }
-
-    .code {
-      margin: 0 0 4px;
-      color: var(--muted);
-      font-size: 13px;
-      font-weight: 700;
-    }
-
-    h2 {
-      margin: 0;
-      font-size: 21px;
-      line-height: 1.2;
-    }
-
-    .metrics {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(92px, 1fr));
-      gap: 10px;
-      margin: 0;
-      min-width: min(620px, 100%);
-    }
-
-    .metrics div {
-      padding: 8px 10px;
-      border: 1px solid var(--line);
+      border: 1px solid #1f2937;
       border-radius: 6px;
-      background: #fafbfc;
-    }
-
-    dt {
-      color: var(--muted);
-      font-size: 12px;
-    }
-
-    dd {
-      margin: 3px 0 0;
-      font-size: 16px;
-      font-weight: 700;
+      background: var(--panel);
+      box-shadow: 0 14px 30px rgba(0, 0, 0, 0.24);
     }
 
     .chart {
@@ -462,29 +602,55 @@ export const generateChartHtml = (results, options = {}) => {
       width: 100%;
       aspect-ratio: ${config.chartWidth} / ${config.chartHeight};
       max-height: 900px;
-      background: #ffffff;
+      background: var(--bg);
+    }
+
+    .chart-bg {
+      fill: var(--bg);
     }
 
     .plot-bg {
-      fill: #ffffff;
+      fill: #0f172a;
     }
 
-    .grid line {
-      stroke: #e8edf3;
+    .grid-line {
+      stroke: var(--grid);
       stroke-width: 1;
+      shape-rendering: crispEdges;
     }
 
-    .price-line {
+    .axis-line {
+      stroke: var(--axis);
+      stroke-width: 1.5;
+      shape-rendering: crispEdges;
+    }
+
+    .axis-label {
+      fill: var(--muted);
+      font-size: 20px;
+      dominant-baseline: middle;
+    }
+
+    .price-label {
+      text-anchor: start;
+    }
+
+    .date-label {
+      text-anchor: middle;
+    }
+
+    .selected-price-line {
       fill: none;
-      stroke: var(--price);
-      stroke-width: 5;
-      stroke-dasharray: 14 12;
+      stroke: var(--selected-line);
+      stroke-width: 2.5;
+      stroke-dasharray: 9 9;
       stroke-linejoin: round;
       stroke-linecap: round;
+      opacity: 0.9;
     }
 
     .candle-wick {
-      stroke-width: 4;
+      stroke-width: 2.2;
       stroke-linecap: round;
     }
 
@@ -497,8 +663,9 @@ export const generateChartHtml = (results, options = {}) => {
     }
 
     .candle-body {
-      stroke-width: 3;
-      rx: 2;
+      stroke-width: 1;
+      rx: 1;
+      shape-rendering: crispEdges;
     }
 
     .candle-body.bullish {
@@ -513,45 +680,53 @@ export const generateChartHtml = (results, options = {}) => {
 
     .regression-line {
       stroke: var(--regression);
-      stroke-width: 6;
-      stroke-dasharray: 20 14;
+      stroke-width: 3.2;
       stroke-linecap: round;
-    }
-
-    .endpoint {
-      stroke: #ffffff;
-      stroke-width: 4;
-    }
-
-    .endpoint.first {
-      fill: #2b6cb0;
-    }
-
-    .endpoint.last {
-      fill: #c4382b;
+      opacity: 0.95;
     }
 
     .angle-guide line {
-      stroke: var(--guide);
-      stroke-width: 5;
+      stroke: var(--regression);
+      stroke-width: 2;
       stroke-linecap: round;
+      opacity: 0.8;
     }
 
-    .angle-guide text,
-    .chart-labels text {
-      fill: #263445;
-      font-size: 30px;
+    .angle-guide text {
+      fill: var(--muted);
+      font-size: 18px;
+    }
+
+    .chart-title text {
+      fill: var(--ink);
+      font-size: 20px;
       font-weight: 700;
     }
 
-    .card-footer {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px 18px;
-      padding: 12px 20px 16px;
-      border-top: 1px solid var(--line);
-      color: var(--muted);
-      font-size: 13px;
+    .chart-title text:not(:first-child) {
+      fill: var(--muted);
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .last-price-line {
+      stroke: var(--bullish);
+      stroke-width: 1.5;
+      stroke-dasharray: 5 6;
+      opacity: 0.8;
+    }
+
+    .last-price-box {
+      fill: var(--bullish);
+      stroke: var(--bullish);
+    }
+
+    .last-price-text {
+      fill: #ffffff;
+      font-size: 18px;
+      font-weight: 700;
+      text-anchor: middle;
+      dominant-baseline: middle;
     }
 
     @media (max-width: 820px) {
@@ -561,7 +736,7 @@ export const generateChartHtml = (results, options = {}) => {
       }
 
       .page-header,
-      .card-header {
+      .chart-card {
         display: block;
       }
 
@@ -570,11 +745,6 @@ export const generateChartHtml = (results, options = {}) => {
         flex-wrap: wrap;
       }
 
-      .metrics {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        min-width: 0;
-        margin-top: 14px;
-      }
     }
   </style>
 </head>
@@ -588,9 +758,9 @@ export const generateChartHtml = (results, options = {}) => {
       <div class="legend" aria-label="chart legend">
         <span><i style="background: var(--bullish)"></i>bullish candle</span>
         <span><i style="background: var(--bearish)"></i>bearish candle</span>
-        <span><i style="background: var(--price)"></i>selectedPrice</span>
+        <span><i style="background: var(--selected-line)"></i>selectedPrice</span>
         <span><i style="background: var(--regression)"></i>linear regression</span>
-        <span><i style="background: var(--guide)"></i>min angle guide</span>
+        <span><i style="background: var(--axis)"></i>price/date axis</span>
       </div>
     </header>
     <section class="chart-list">
