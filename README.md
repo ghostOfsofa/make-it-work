@@ -126,6 +126,9 @@ https://ghostOfsofa.github.io/make-it-work/chart.html
 ```js
 {
   period: 20,
+  renderPeriod: 60,
+  scanMinPeriod: 10,
+  scanMaxPeriod: 60,
   chartWidth: 1600,
   chartHeight: 900,
   chartType: "candlestick",
@@ -141,5 +144,9 @@ https://ghostOfsofa.github.io/make-it-work/chart.html
 ```js
 selectedPrice = close >= open ? close : open;
 ```
+
+우하향 검색은 가장 최근 거래일을 종료점으로 고정하고, 최근 `scanMinPeriod`봉부터 `scanMaxPeriod`봉까지 구간을 하루씩 확장하며 검사합니다. 예를 들어 `scanMinPeriod: 10`, `scanMaxPeriod: 60`이면 최근 10봉, 11봉, 12봉, ..., 60봉을 순서대로 검사합니다.
+
+조건을 만족하는 구간이 여러 개면 angleDegree, rSquared, returnRate, matchedPeriod 순으로 가장 강한 구간을 선택합니다.
 
 차트 y축 스케일은 최근 N일의 `high`, `low` min/max에 위아래 약 5% 여백을 더해 잡습니다. 필터링 로직은 기존 요구대로 `selectedPrice` 기준 좌표 변환을 사용하고, 시각화용 각도와 회귀선은 실제 plot 영역 좌표 기준으로 다시 계산합니다.

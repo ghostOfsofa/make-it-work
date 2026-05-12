@@ -126,16 +126,18 @@ const createChartPointsByScale = ({
   plotTop,
   plotWidth,
   plotHeight,
+  startIndex = 0,
+  totalCount = selectedPrices.length,
 }) => {
   if (!Array.isArray(selectedPrices) || selectedPrices.length < 2) {
     return [];
   }
 
   return selectedPrices.map((selectedPrice, index) => ({
-    xPixel: plotLeft + (index / (selectedPrices.length - 1)) * plotWidth,
+    xPixel: plotLeft + ((startIndex + index) / (totalCount - 1 || 1)) * plotWidth,
     yPixel: priceToPlotY(selectedPrice, minPrice, maxPrice, plotTop, plotHeight),
     selectedPrice,
-    index,
+    index: startIndex + index,
   }));
 };
 
@@ -146,7 +148,8 @@ const enrichResultForChart = (result, stocks, options) => {
   const plotWidth = options.chartWidth - margin.left - margin.right;
   const plotHeight = options.chartHeight - margin.top - margin.bottom;
   const stock = stocks.find((item) => item.code === result.code);
-  const candles = getRecentValidCandles(stock?.prices, options.period);
+  const renderPeriod = options.renderPeriod ?? options.period;
+  const candles = getRecentValidCandles(stock?.prices, renderPeriod);
   const selectedPrices = candles.map(getSelectedPrice);
   const minRawPrice = Math.min(...candles.map(getCandleLow));
   const maxRawPrice = Math.max(...candles.map(getCandleHigh));
@@ -162,10 +165,26 @@ const enrichResultForChart = (result, stocks, options) => {
     plotWidth,
     plotHeight,
   });
-  const { slopePixel, intercept } = calculateLinearRegressionByPoints(points);
-  const rSquared = calculateRSquaredByPoints(points, slopePixel, intercept);
+  const matchedPeriod = result.matchedPeriod ?? candles.length;
+  const scanCandles = candles.slice(-matchedPeriod);
+  const scanSelectedPrices = scanCandles.map(getSelectedPrice);
+  const scanStartIndex = candles.length - scanCandles.length;
+  const regressionPoints = createChartPointsByScale({
+    selectedPrices: scanSelectedPrices,
+    minPrice,
+    maxPrice,
+    plotLeft,
+    plotTop,
+    plotWidth,
+    plotHeight,
+    startIndex: scanStartIndex,
+    totalCount: candles.length,
+  });
+  const { slopePixel, intercept } =
+    calculateLinearRegressionByPoints(regressionPoints);
+  const rSquared = calculateRSquaredByPoints(regressionPoints, slopePixel, intercept);
   const angleDegree = calculateAngleDegree(slopePixel);
-  const returnRate = calculateReturnRate(selectedPrices);
+  const returnRate = calculateReturnRate(scanSelectedPrices);
 
   return {
     ...result,
@@ -173,6 +192,7 @@ const enrichResultForChart = (result, stocks, options) => {
     candles,
     selectedPrices,
     points,
+    regressionPoints,
     minPrice,
     maxPrice,
     plotLeft,
@@ -185,8 +205,8 @@ const enrichResultForChart = (result, stocks, options) => {
     angleDegree,
     rSquared,
     returnRate,
-    firstPrice: selectedPrices[0],
-    lastPrice: selectedPrices.at(-1),
+    firstPrice: scanSelectedPrices[0],
+    lastPrice: scanSelectedPrices.at(-1),
   };
 };
 
@@ -301,7 +321,6 @@ export const createAxisLabels = ({
 
 export const createCandleElements = (candles, options = {}) => {
   const {
-    period,
     minPrice,
     maxPrice,
     plotLeft,
@@ -309,8 +328,9 @@ export const createCandleElements = (candles, options = {}) => {
     plotWidth,
     plotHeight,
   } = { ...DEFAULT_OPTIONS, ...options };
-  const candleWidth = Math.max(3, Math.min(18, (plotWidth / period) * 0.55));
-  const candleSlotWidth = plotWidth / period;
+  const candleCount = candles.length;
+  const candleWidth = Math.max(3, Math.min(18, (plotWidth / candleCount) * 0.55));
+  const candleSlotWidth = plotWidth / candleCount;
 
   return candles
     .map((candle, index) => {
@@ -319,7 +339,7 @@ export const createCandleElements = (candles, options = {}) => {
         Number.isFinite(prevClose) && prevClose > 0
           ? ((candle.close - prevClose) / prevClose) * 100
           : Number.NaN;
-      const xCenter = plotLeft + (index / (period - 1)) * plotWidth;
+      const xCenter = plotLeft + (index / (candleCount - 1 || 1)) * plotWidth;
       const highY = priceToPlotY(
         getCandleHigh(candle),
         minPrice,
@@ -401,13 +421,16 @@ export const createKiwoomStyleCandlestickChart = (stockResult, options = {}) => 
     maxPrice,
   } = stockResult;
   const priceLinePoints = toPolylinePoints(stockResult.points);
+  const regressionStartPoint = stockResult.regressionPoints[0];
+  const regressionEndPoint = stockResult.regressionPoints.at(-1);
   const regressionLine = getRegressionLine({
     slopePixel: stockResult.slopePixel,
     intercept: stockResult.intercept,
-    chartWidth: plotLeft + plotWidth,
+    chartWidth: regressionEndPoint?.xPixel ?? plotLeft + plotWidth,
   });
-  regressionLine.x1 = plotLeft;
-  regressionLine.y1 = stockResult.slopePixel * plotLeft + stockResult.intercept;
+  regressionLine.x1 = regressionStartPoint?.xPixel ?? plotLeft;
+  regressionLine.y1 =
+    stockResult.slopePixel * regressionLine.x1 + stockResult.intercept;
   const thresholdSlope = Math.tan((minAngleDegree * Math.PI) / 180);
   const guideX = plotLeft + 28;
   const guideY = plotTop + plotHeight - 44;
@@ -908,6 +931,9 @@ export const run = () => {
   const demoOptions = {
     ...DEFAULT_OPTIONS,
     chartType: DEFAULT_CHART_TYPE,
+    renderPeriod: 60,
+    scanMinPeriod: 10,
+    scanMaxPeriod: 60,
     minAngleDegree: 29,
   };
   const strictResults = filterStrongDowntrendStocks(generatedStocks, strictOptions);

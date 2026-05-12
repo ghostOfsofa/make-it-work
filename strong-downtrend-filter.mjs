@@ -12,6 +12,9 @@
 
 export const DEFAULT_OPTIONS = Object.freeze({
   period: 20,
+  renderPeriod: 60,
+  scanMinPeriod: 10,
+  scanMaxPeriod: 60,
   chartWidth: 1600,
   chartHeight: 900,
   minAngleDegree: 45,
@@ -53,6 +56,16 @@ export const getRecentValidPrices = (prices, period) => {
   }
 
   return validCandles.slice(-period).map(getSelectedPrice);
+};
+
+export const getValidCandlesSortedByDate = (prices) => {
+  if (!Array.isArray(prices)) {
+    return [];
+  }
+
+  return [...prices]
+    .filter(isValidCandle)
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)));
 };
 
 /**
@@ -197,6 +210,73 @@ const randomInRange = (random, min, max) => min + (max - min) * random();
 
 const normalizePrice = (price) => Math.max(round(price, 2), 1);
 
+const isBetterScanMatch = (candidate, currentBest) => {
+  if (currentBest == null) {
+    return true;
+  }
+
+  if (candidate.angleDegree !== currentBest.angleDegree) {
+    return candidate.angleDegree > currentBest.angleDegree;
+  }
+
+  if (candidate.rSquared !== currentBest.rSquared) {
+    return candidate.rSquared > currentBest.rSquared;
+  }
+
+  if (candidate.returnRate !== currentBest.returnRate) {
+    return candidate.returnRate < currentBest.returnRate;
+  }
+
+  return candidate.matchedPeriod > currentBest.matchedPeriod;
+};
+
+const analyzeScanCandles = (candles, config) => {
+  const selectedPrices = candles.map(getSelectedPrice);
+  const points = convertToChartPoints(
+    selectedPrices,
+    config.chartWidth,
+    config.chartHeight,
+  );
+
+  if (points.length === 0) {
+    return null;
+  }
+
+  const { slopePixel, intercept } = calculateLinearRegressionByPoints(points);
+  const rSquared = calculateRSquaredByPoints(points, slopePixel, intercept);
+  const angleDegree = calculateAngleDegree(slopePixel);
+  const returnRate = calculateReturnRate(selectedPrices);
+  const hasValidMetrics = [slopePixel, angleDegree, rSquared, returnRate].every(
+    Number.isFinite,
+  );
+
+  if (!hasValidMetrics) {
+    return null;
+  }
+
+  const isStrongDowntrend =
+    slopePixel > 0 &&
+    angleDegree >= config.minAngleDegree &&
+    rSquared >= config.minRSquared &&
+    returnRate <= config.minReturnRate;
+
+  if (!isStrongDowntrend) {
+    return null;
+  }
+
+  return {
+    matchedPeriod: candles.length,
+    scanStartDate: candles[0]?.date,
+    scanEndDate: candles.at(-1)?.date,
+    slopePixel,
+    angleDegree,
+    rSquared,
+    returnRate,
+    firstPrice: selectedPrices[0],
+    lastPrice: selectedPrices.at(-1),
+  };
+};
+
 /**
  * Small deterministic pseudo-random generator.
  *
@@ -225,48 +305,34 @@ export const createSeededRandom = (seed) => {
  */
 export const filterStrongDowntrendStocks = (stocks, options = {}) => {
   const config = { ...DEFAULT_OPTIONS, ...options };
+  const scanMinPeriod = Math.max(2, config.scanMinPeriod);
+  const scanMaxPeriod = Math.max(scanMinPeriod, config.scanMaxPeriod);
 
   if (!Array.isArray(stocks)) {
     return [];
   }
 
   return stocks.flatMap((stock) => {
-    const selectedPrices = getRecentValidPrices(stock.prices, config.period);
+    const validCandles = getValidCandlesSortedByDate(stock.prices);
+    const maxPeriod = Math.min(scanMaxPeriod, validCandles.length);
 
-    if (selectedPrices.length < config.period) {
+    if (maxPeriod < scanMinPeriod) {
       return [];
     }
 
-    const points = convertToChartPoints(
-      selectedPrices,
-      config.chartWidth,
-      config.chartHeight,
-    );
+    const bestMatch = Array.from(
+      { length: maxPeriod - scanMinPeriod + 1 },
+      (_, index) => scanMinPeriod + index,
+    ).reduce((best, matchedPeriod) => {
+      const scanCandles = validCandles.slice(-matchedPeriod);
+      const candidate = analyzeScanCandles(scanCandles, config);
 
-    if (points.length === 0) {
-      return [];
-    }
+      return candidate != null && isBetterScanMatch(candidate, best)
+        ? candidate
+        : best;
+    }, null);
 
-    const { slopePixel, intercept } = calculateLinearRegressionByPoints(points);
-    const rSquared = calculateRSquaredByPoints(points, slopePixel, intercept);
-    const angleDegree = calculateAngleDegree(slopePixel);
-    const returnRate = calculateReturnRate(selectedPrices);
-
-    const hasValidMetrics = [slopePixel, angleDegree, rSquared, returnRate].every(
-      Number.isFinite,
-    );
-
-    if (!hasValidMetrics) {
-      return [];
-    }
-
-    const isStrongDowntrend =
-      slopePixel > 0 &&
-      angleDegree >= config.minAngleDegree &&
-      rSquared >= config.minRSquared &&
-      returnRate <= config.minReturnRate;
-
-    if (!isStrongDowntrend) {
+    if (bestMatch == null) {
       return [];
     }
 
@@ -274,12 +340,15 @@ export const filterStrongDowntrendStocks = (stocks, options = {}) => {
       {
         code: stock.code,
         name: stock.name,
-        slopePixel: round(slopePixel, 4),
-        angleDegree: round(angleDegree, 2),
-        rSquared: round(rSquared, 4),
-        returnRate: round(returnRate, 2),
-        firstPrice: selectedPrices[0],
-        lastPrice: selectedPrices[selectedPrices.length - 1],
+        matchedPeriod: bestMatch.matchedPeriod,
+        scanStartDate: bestMatch.scanStartDate,
+        scanEndDate: bestMatch.scanEndDate,
+        slopePixel: round(bestMatch.slopePixel, 4),
+        angleDegree: round(bestMatch.angleDegree, 2),
+        rSquared: round(bestMatch.rSquared, 4),
+        returnRate: round(bestMatch.returnRate, 2),
+        firstPrice: bestMatch.firstPrice,
+        lastPrice: bestMatch.lastPrice,
       },
     ];
   });
