@@ -187,6 +187,7 @@ previousPrice <= ma5Price && currentPrice > ma5Price
 6. `dist`를 GitHub Pages에 배포
 
 스케줄/수동 실행에서는 실제 KRX 수집을 먼저 시도하고, 실패하거나 DB가 없으면 샘플 DB로 fallback합니다.
+스케줄/수동 실행의 실제 DB는 GitHub Actions cache로 `data/stocks.db`를 복원한 뒤 갱신합니다. 캐시가 없으면 최초 수집으로 `--days 180` 범위를 받고, 캐시가 있으면 종목별 기존 row를 확인해 `--incremental-days 10` 범위만 UPSERT합니다.
 
 GitHub Pages 설정에서 Source를 **GitHub Actions**로 지정하세요.
 
