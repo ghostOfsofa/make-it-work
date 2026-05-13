@@ -44,7 +44,10 @@ jobs:
         if: github.event_name != 'push'
         uses: actions/cache@v4
         with:
-          path: data/stocks.db
+          path: |
+            data/stocks.db
+            data/stocks.db-shm
+            data/stocks.db-wal
           key: krx-sqlite-${{ github.run_id }}
           restore-keys: |
             krx-sqlite-

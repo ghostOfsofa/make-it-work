@@ -6,12 +6,24 @@ const dbPath = process.env.DB_PATH ?? "data/stocks.db";
 const stockCount = Number(process.env.SAMPLE_STOCK_COUNT ?? 300);
 const candleCount = Number(process.env.SAMPLE_CANDLE_COUNT ?? 120);
 const reset = process.argv.includes("--reset") || process.env.RESET_SAMPLE_DB === "1";
+const force = process.argv.includes("--force") || process.env.FORCE_SAMPLE_DB === "1";
 
 if (reset && existsSync(dbPath)) {
   unlinkSync(dbPath);
 }
 
 const db = openDatabase(dbPath);
+const existingPriceCount =
+  db.prepare("SELECT COUNT(*) AS count FROM stock_prices").get()?.count ?? 0;
+
+if (!force && existingPriceCount > 0) {
+  console.log(`sample DB creation skipped: ${dbPath}`);
+  console.log(`existing stock_prices rows: ${existingPriceCount}`);
+  console.log("Use --force or RESET_SAMPLE_DB=1 only when you intentionally want sample data.");
+  db.close();
+  process.exit(0);
+}
+
 const stocks = generateSampleStocks({
   stockCount,
   candleCount,

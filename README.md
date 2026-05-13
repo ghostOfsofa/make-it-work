@@ -56,6 +56,12 @@ npm run generate
 open dist/chart.html
 ```
 
+`npm run create:sample-db`는 기존 `stock_prices` row가 있으면 기본적으로 건너뜁니다. 기존 DB를 지우고 샘플을 다시 만들 때만 아래처럼 실행하세요.
+
+```bash
+npm run create:sample-db -- --reset
+```
+
 ## 실제 데이터 실행
 
 ```bash
