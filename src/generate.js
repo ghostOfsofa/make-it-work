@@ -12,6 +12,7 @@ import { calculateMA5 } from "./buySignal.js";
 
 const dbPath = process.env.DB_PATH ?? "data/stocks.db";
 const outputPath = process.env.OUTPUT_PATH ?? "dist/chart.html";
+const indexPath = process.env.INDEX_OUTPUT_PATH ?? "dist/index.html";
 
 const createEmptyHtml = () =>
   generateChartHtml([], DEFAULT_OPTIONS, {
@@ -24,10 +25,15 @@ const createEmptyHtml = () =>
 
 const db = openDatabase(dbPath);
 
+const saveHtmlOutputs = (html) => {
+  saveChartHtml(html, outputPath);
+  saveChartHtml(html, indexPath);
+};
+
 try {
   const latestRun = getLatestScreeningRun(db);
   if (!latestRun) {
-    saveChartHtml(createEmptyHtml(), outputPath);
+    saveHtmlOutputs(createEmptyHtml());
     console.log("no screening run found. Empty chart generated.");
     process.exit(0);
   }
@@ -68,8 +74,9 @@ try {
     runAt: latestRun.run_at,
   };
   const html = generateChartHtml(results, options, summary);
-  saveChartHtml(html, outputPath);
+  saveHtmlOutputs(html);
   console.log(`chart generated: ${outputPath}`);
+  console.log(`index generated: ${indexPath}`);
   console.log(`run id: ${latestRun.run_id}`);
   console.log(`filtered stocks: ${results.length}`);
   console.log(`buy signals: ${buySignals.length}`);
