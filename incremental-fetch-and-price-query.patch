@@ -1,0 +1,391 @@
+diff --git a/README.md b/README.md
+index ce98113..63569d7 100644
+--- a/README.md
++++ b/README.md
+@@ -33,10 +33,17 @@ python3 scripts/fetch-krx-data.py --days 180
+ 옵션:
+ 
+ - `--days`: 수집할 최근 거래일 범위
++- `--incremental-days`: 이미 DB에 가격 데이터가 있는 종목의 재수집 범위, 기본값 `10`
+ - `--max-stocks`: 테스트용 종목 수 제한
+ - `--db-path`: SQLite DB 경로, 기본값 `data/stocks.db`
+ - `--sleep`: 종목별 요청 간격
+ 
++수집 방식:
++
++- 종목별 `stock_prices` row가 없으면 초기 수집으로 `--days` 기준 넓은 기간을 가져옵니다.
++- 이미 가격 데이터가 있으면 최신 저장일을 확인하고, 기준 종료일 전 최근 `--incremental-days` 범위만 다시 가져와 UPSERT합니다.
++- 최신 저장일이 기준 종료일 이상이면 해당 종목은 건너뜁니다.
++
+ ## 샘플 DB 실행
+ 
+ 실제 데이터 없이도 전체 흐름을 확인할 수 있습니다.
+@@ -82,6 +89,17 @@ npm run check:db
+ python3 scripts/check-db.py --code 005930
+ ```
+ 
++## 종목별 일봉 조회
++
++로컬 `data/stocks.db`에서 종목별/일자별 OHLCV를 조회할 수 있습니다.
++
++```bash
++npm run prices -- --code 005930 --limit 20
++npm run prices -- --code 005930 --from-date 2026-05-01 --to-date 2026-05-13
++npm run prices -- --name 삼성 --latest --limit 10
++python3 scripts/query-prices.py --code 005930 --csv --output samsung.csv
++```
++
+ ## 주요 npm scripts
+ 
+ - `npm run fetch:krx`: FinanceDataReader로 KRX OHLCV를 SQLite에 저장
+@@ -91,6 +109,7 @@ python3 scripts/check-db.py --code 005930
+ - `npm run generate`: DB에서 읽어 `dist/chart.html` 생성
+ - `npm run build`: Pages 배포용 HTML 생성
+ - `npm run check:db`: DB 상태 확인
++- `npm run prices`: 종목별 일봉 OHLCV 조회
+ 
+ ## 필터 조건
+ 
+diff --git a/package.json b/package.json
+index 5dae833..04a40dd 100644
+--- a/package.json
++++ b/package.json
+@@ -6,6 +6,7 @@
+   "scripts": {
+     "fetch:krx": "python3 scripts/fetch-krx-data.py",
+     "check:db": "python3 scripts/check-db.py",
++    "prices": "python3 scripts/query-prices.py",
+     "create:sample-db": "node src/createSampleDb.js",
+     "screen": "node src/screen.js",
+     "watch:buy": "node src/watchBuySignals.js",
+diff --git a/scripts/fetch-krx-data.py b/scripts/fetch-krx-data.py
+index 176e206..32bc2d7 100644
+--- a/scripts/fetch-krx-data.py
++++ b/scripts/fetch-krx-data.py
+@@ -242,7 +242,7 @@ def normalize_price_row(date, row):
+ 
+ def fetch_ohlcv(code, start_date, end_date):
+     fdr = require_finance_datareader()
+-    frame = fdr.DataReader(code, start_date, end_date)
++    frame = fdr.DataReader(code, str(start_date), str(end_date))
+     if frame is None or frame.empty:
+         return []
+     rows = []
+@@ -253,13 +253,69 @@ def fetch_ohlcv(code, start_date, end_date):
+     return rows
+ 
+ 
+-def save_stocks_to_database(stocks, db_path, start_date, end_date, sleep_seconds):
++def get_latest_price_date(conn, code):
++    row = conn.execute(
++        "SELECT MAX(date) AS latest_date FROM stock_prices WHERE code = ?",
++        (code,),
++    ).fetchone()
++    return row[0] if row and row[0] else None
++
++
++def get_price_row_count(conn, code):
++    row = conn.execute(
++        "SELECT COUNT(*) FROM stock_prices WHERE code = ?",
++        (code,),
++    ).fetchone()
++    return int(row[0]) if row else 0
++
++
++def calculate_fetch_start_date(conn, code, end_date, initial_days, incremental_days):
++    row_count = get_price_row_count(conn, code)
++    if row_count == 0:
++        # First collection uses a wider calendar range so about 180 trading days fit.
++        calendar_days = max(initial_days * 2, initial_days + 30)
++        return end_date - timedelta(days=calendar_days), "initial"
++
++    latest_date_text = get_latest_price_date(conn, code)
++    latest_date = datetime.strptime(latest_date_text, "%Y-%m-%d").date()
++    if latest_date >= end_date:
++        return None, "up-to-date"
++
++    # Subsequent runs intentionally collect only the recent window and upsert it.
++    # This keeps daily batch runs light while correcting recently revised rows.
++    return end_date - timedelta(days=max(1, incremental_days - 1)), "incremental"
++
++
++def save_stocks_to_database(
++    stocks,
++    db_path,
++    end_date,
++    initial_days,
++    incremental_days,
++    sleep_seconds,
++):
+     conn = init_database(db_path)
+     saved = 0
++    skipped = 0
+     failed = 0
+     try:
+         for index, stock in enumerate(stocks, start=1):
+             try:
++                start_date, fetch_mode = calculate_fetch_start_date(
++                    conn,
++                    stock["code"],
++                    end_date,
++                    initial_days,
++                    incremental_days,
++                )
++                if start_date is None:
++                    upsert_stock(conn, stock)
++                    conn.commit()
++                    skipped += 1
++                    print(
++                        f"[{index}/{len(stocks)}] skip {stock['code']} {stock['name']} - up to date"
++                    )
++                    continue
+                 prices = fetch_ohlcv(stock["code"], start_date, end_date)
+                 if not prices:
+                     print(f"[{index}/{len(stocks)}] skip {stock['code']} {stock['name']} - no OHLCV")
+@@ -268,7 +324,10 @@ def save_stocks_to_database(stocks, db_path, start_date, end_date, sleep_seconds
+                 upsert_price_rows(conn, stock["code"], prices)
+                 conn.commit()
+                 saved += 1
+-                print(f"[{index}/{len(stocks)}] saved {stock['code']} {stock['name']} rows={len(prices)}")
++                print(
++                    f"[{index}/{len(stocks)}] saved {stock['code']} {stock['name']} "
++                    f"mode={fetch_mode} range={start_date}~{end_date} rows={len(prices)}"
++                )
+             except Exception as error:
+                 conn.rollback()
+                 failed += 1
+@@ -277,12 +336,18 @@ def save_stocks_to_database(stocks, db_path, start_date, end_date, sleep_seconds
+                 time.sleep(sleep_seconds)
+     finally:
+         conn.close()
+-    return saved, failed
++    return saved, skipped, failed
+ 
+ 
+ def parse_args():
+     parser = argparse.ArgumentParser(description="Fetch KRX OHLCV data into SQLite")
+-    parser.add_argument("--days", type=int, default=180)
++    parser.add_argument("--days", type=int, default=180, help="Initial collection window")
++    parser.add_argument(
++        "--incremental-days",
++        type=int,
++        default=10,
++        help="Collection window for stocks that already have price rows",
++    )
+     parser.add_argument("--max-stocks", type=int, default=None)
+     parser.add_argument("--db-path", default="data/stocks.db")
+     parser.add_argument("--sleep", type=float, default=0.1)
+@@ -297,20 +362,22 @@ def main():
+         if args.end_date
+         else (datetime.now() - timedelta(days=1)).date()
+     )
+-    start_date = end_date - timedelta(days=max(args.days * 2, args.days + 30))
+     stocks = fetch_stock_list()
+     if args.max_stocks:
+         stocks = stocks[: args.max_stocks]
+     print(f"target stocks: {len(stocks)}")
+-    print(f"date range: {start_date} ~ {end_date}")
+-    saved, failed = save_stocks_to_database(
++    print(f"end date: {end_date}")
++    print(f"initial days: {args.days}")
++    print(f"incremental days: {args.incremental_days}")
++    saved, skipped, failed = save_stocks_to_database(
+         stocks,
+         args.db_path,
+-        start_date.strftime("%Y-%m-%d"),
+-        end_date.strftime("%Y-%m-%d"),
++        end_date,
++        args.days,
++        args.incremental_days,
+         args.sleep,
+     )
+-    print(f"done. saved={saved}, failed={failed}, db={args.db_path}")
++    print(f"done. saved={saved}, skipped={skipped}, failed={failed}, db={args.db_path}")
+ 
+ 
+ if __name__ == "__main__":
+diff --git a/scripts/query-prices.py b/scripts/query-prices.py
+new file mode 100644
+index 0000000..a89f0aa
+--- /dev/null
++++ b/scripts/query-prices.py
+@@ -0,0 +1,179 @@
++#!/usr/bin/env python3
++import argparse
++import csv
++import sqlite3
++import sys
++from pathlib import Path
++
++
++COLUMNS = [
++    "code",
++    "name",
++    "market",
++    "date",
++    "open",
++    "high",
++    "low",
++    "close",
++    "volume",
++]
++
++
++def parse_args():
++    parser = argparse.ArgumentParser(
++        description="Query per-stock daily OHLCV rows from local SQLite DB"
++    )
++    parser.add_argument("--db-path", default="data/stocks.db")
++    parser.add_argument(
++        "--code",
++        action="append",
++        help="Stock code. Repeatable. Example: --code 005930 --code 000660",
++    )
++    parser.add_argument(
++        "--name",
++        help="Partial stock name search. Example: --name 삼성",
++    )
++    parser.add_argument("--date", help="Exact date YYYY-MM-DD")
++    parser.add_argument("--from-date", dest="from_date", help="Start date YYYY-MM-DD")
++    parser.add_argument("--to-date", dest="to_date", help="End date YYYY-MM-DD")
++    parser.add_argument("--latest", action="store_true", help="Show latest row per stock")
++    parser.add_argument("--limit", type=int, default=50)
++    parser.add_argument("--csv", action="store_true", help="Print CSV instead of table")
++    parser.add_argument("--output", help="Write CSV to file path")
++    return parser.parse_args()
++
++
++def build_query(args):
++    where = []
++    params = []
++
++    if args.code:
++        codes = [str(code).zfill(6) for code in args.code]
++        placeholders = ",".join("?" for _ in codes)
++        where.append(f"s.code IN ({placeholders})")
++        params.extend(codes)
++
++    if args.name:
++        where.append("s.name LIKE ?")
++        params.append(f"%{args.name}%")
++
++    if args.date:
++        where.append("p.date = ?")
++        params.append(args.date)
++
++    if args.from_date:
++        where.append("p.date >= ?")
++        params.append(args.from_date)
++
++    if args.to_date:
++        where.append("p.date <= ?")
++        params.append(args.to_date)
++
++    where_sql = f"WHERE {' AND '.join(where)}" if where else ""
++
++    if args.latest:
++        query = f"""
++            WITH ranked AS (
++              SELECT
++                s.code,
++                s.name,
++                s.market,
++                p.date,
++                p.open,
++                p.high,
++                p.low,
++                p.close,
++                p.volume,
++                ROW_NUMBER() OVER (
++                  PARTITION BY s.code
++                  ORDER BY p.date DESC
++                ) AS row_no
++              FROM stock_prices p
++              JOIN stocks s ON s.code = p.code
++              {where_sql}
++            )
++            SELECT {", ".join(COLUMNS)}
++            FROM ranked
++            WHERE row_no = 1
++            ORDER BY code
++            LIMIT ?
++        """
++    else:
++        query = f"""
++            SELECT
++              s.code,
++              s.name,
++              s.market,
++              p.date,
++              p.open,
++              p.high,
++              p.low,
++              p.close,
++              p.volume
++            FROM stock_prices p
++            JOIN stocks s ON s.code = p.code
++            {where_sql}
++            ORDER BY s.code, p.date DESC
++            LIMIT ?
++        """
++
++    params.append(max(1, args.limit))
++    return query, params
++
++
++def print_table(rows):
++    if not rows:
++        print("no price rows found")
++        return
++
++    widths = {
++        column: max(
++            len(column),
++            *(len(str(row[column])) for row in rows),
++        )
++        for column in COLUMNS
++    }
++    header = "  ".join(column.ljust(widths[column]) for column in COLUMNS)
++    divider = "  ".join("-" * widths[column] for column in COLUMNS)
++    print(header)
++    print(divider)
++    for row in rows:
++        print("  ".join(str(row[column]).ljust(widths[column]) for column in COLUMNS))
++
++
++def write_csv(rows, output=None):
++    target = open(output, "w", newline="", encoding="utf-8-sig") if output else sys.stdout
++    try:
++        writer = csv.DictWriter(target, fieldnames=COLUMNS)
++        writer.writeheader()
++        for row in rows:
++            writer.writerow({column: row[column] for column in COLUMNS})
++    finally:
++        if output:
++            target.close()
++            print(f"csv written: {output}")
++
++
++def main():
++    args = parse_args()
++    db_path = Path(args.db_path)
++    if not db_path.exists():
++        print(f"DB not found: {db_path}", file=sys.stderr)
++        print("Create it with `npm run create:sample-db` or `npm run fetch:krx`.", file=sys.stderr)
++        sys.exit(1)
++
++    conn = sqlite3.connect(db_path)
++    conn.row_factory = sqlite3.Row
++    try:
++        query, params = build_query(args)
++        rows = conn.execute(query, params).fetchall()
++        if args.csv or args.output:
++            write_csv(rows, args.output)
++        else:
++            print_table(rows)
++    finally:
++        conn.close()
++
++
++if __name__ == "__main__":
++    main()

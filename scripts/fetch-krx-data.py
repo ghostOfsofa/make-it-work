@@ -242,7 +242,7 @@ def normalize_price_row(date, row):
 
 def fetch_ohlcv(code, start_date, end_date):
     fdr = require_finance_datareader()
-    frame = fdr.DataReader(code, start_date, end_date)
+    frame = fdr.DataReader(code, str(start_date), str(end_date))
     if frame is None or frame.empty:
         return []
     rows = []
@@ -253,13 +253,69 @@ def fetch_ohlcv(code, start_date, end_date):
     return rows
 
 
-def save_stocks_to_database(stocks, db_path, start_date, end_date, sleep_seconds):
+def get_latest_price_date(conn, code):
+    row = conn.execute(
+        "SELECT MAX(date) AS latest_date FROM stock_prices WHERE code = ?",
+        (code,),
+    ).fetchone()
+    return row[0] if row and row[0] else None
+
+
+def get_price_row_count(conn, code):
+    row = conn.execute(
+        "SELECT COUNT(*) FROM stock_prices WHERE code = ?",
+        (code,),
+    ).fetchone()
+    return int(row[0]) if row else 0
+
+
+def calculate_fetch_start_date(conn, code, end_date, initial_days, incremental_days):
+    row_count = get_price_row_count(conn, code)
+    if row_count == 0:
+        # First collection uses a wider calendar range so about 180 trading days fit.
+        calendar_days = max(initial_days * 2, initial_days + 30)
+        return end_date - timedelta(days=calendar_days), "initial"
+
+    latest_date_text = get_latest_price_date(conn, code)
+    latest_date = datetime.strptime(latest_date_text, "%Y-%m-%d").date()
+    if latest_date >= end_date:
+        return None, "up-to-date"
+
+    # Subsequent runs intentionally collect only the recent window and upsert it.
+    # This keeps daily batch runs light while correcting recently revised rows.
+    return end_date - timedelta(days=max(1, incremental_days - 1)), "incremental"
+
+
+def save_stocks_to_database(
+    stocks,
+    db_path,
+    end_date,
+    initial_days,
+    incremental_days,
+    sleep_seconds,
+):
     conn = init_database(db_path)
     saved = 0
+    skipped = 0
     failed = 0
     try:
         for index, stock in enumerate(stocks, start=1):
             try:
+                start_date, fetch_mode = calculate_fetch_start_date(
+                    conn,
+                    stock["code"],
+                    end_date,
+                    initial_days,
+                    incremental_days,
+                )
+                if start_date is None:
+                    upsert_stock(conn, stock)
+                    conn.commit()
+                    skipped += 1
+                    print(
+                        f"[{index}/{len(stocks)}] skip {stock['code']} {stock['name']} - up to date"
+                    )
+                    continue
                 prices = fetch_ohlcv(stock["code"], start_date, end_date)
                 if not prices:
                     print(f"[{index}/{len(stocks)}] skip {stock['code']} {stock['name']} - no OHLCV")
@@ -268,7 +324,10 @@ def save_stocks_to_database(stocks, db_path, start_date, end_date, sleep_seconds
                 upsert_price_rows(conn, stock["code"], prices)
                 conn.commit()
                 saved += 1
-                print(f"[{index}/{len(stocks)}] saved {stock['code']} {stock['name']} rows={len(prices)}")
+                print(
+                    f"[{index}/{len(stocks)}] saved {stock['code']} {stock['name']} "
+                    f"mode={fetch_mode} range={start_date}~{end_date} rows={len(prices)}"
+                )
             except Exception as error:
                 conn.rollback()
                 failed += 1
@@ -277,12 +336,18 @@ def save_stocks_to_database(stocks, db_path, start_date, end_date, sleep_seconds
                 time.sleep(sleep_seconds)
     finally:
         conn.close()
-    return saved, failed
+    return saved, skipped, failed
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Fetch KRX OHLCV data into SQLite")
-    parser.add_argument("--days", type=int, default=180)
+    parser.add_argument("--days", type=int, default=180, help="Initial collection window")
+    parser.add_argument(
+        "--incremental-days",
+        type=int,
+        default=10,
+        help="Collection window for stocks that already have price rows",
+    )
     parser.add_argument("--max-stocks", type=int, default=None)
     parser.add_argument("--db-path", default="data/stocks.db")
     parser.add_argument("--sleep", type=float, default=0.1)
@@ -297,20 +362,22 @@ def main():
         if args.end_date
         else (datetime.now() - timedelta(days=1)).date()
     )
-    start_date = end_date - timedelta(days=max(args.days * 2, args.days + 30))
     stocks = fetch_stock_list()
     if args.max_stocks:
         stocks = stocks[: args.max_stocks]
     print(f"target stocks: {len(stocks)}")
-    print(f"date range: {start_date} ~ {end_date}")
-    saved, failed = save_stocks_to_database(
+    print(f"end date: {end_date}")
+    print(f"initial days: {args.days}")
+    print(f"incremental days: {args.incremental_days}")
+    saved, skipped, failed = save_stocks_to_database(
         stocks,
         args.db_path,
-        start_date.strftime("%Y-%m-%d"),
-        end_date.strftime("%Y-%m-%d"),
+        end_date,
+        args.days,
+        args.incremental_days,
         args.sleep,
     )
-    print(f"done. saved={saved}, failed={failed}, db={args.db_path}")
+    print(f"done. saved={saved}, skipped={skipped}, failed={failed}, db={args.db_path}")
 
 
 if __name__ == "__main__":

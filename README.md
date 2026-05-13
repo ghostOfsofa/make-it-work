@@ -33,9 +33,16 @@ python3 scripts/fetch-krx-data.py --days 180
 옵션:
 
 - `--days`: 수집할 최근 거래일 범위
+- `--incremental-days`: 이미 DB에 가격 데이터가 있는 종목의 재수집 범위, 기본값 `10`
 - `--max-stocks`: 테스트용 종목 수 제한
 - `--db-path`: SQLite DB 경로, 기본값 `data/stocks.db`
 - `--sleep`: 종목별 요청 간격
+
+수집 방식:
+
+- 종목별 `stock_prices` row가 없으면 초기 수집으로 `--days` 기준 넓은 기간을 가져옵니다.
+- 이미 가격 데이터가 있으면 최신 저장일을 확인하고, 기준 종료일 전 최근 `--incremental-days` 범위만 다시 가져와 UPSERT합니다.
+- 최신 저장일이 기준 종료일 이상이면 해당 종목은 건너뜁니다.
 
 ## 샘플 DB 실행
 
@@ -82,6 +89,17 @@ npm run check:db
 python3 scripts/check-db.py --code 005930
 ```
 
+## 종목별 일봉 조회
+
+로컬 `data/stocks.db`에서 종목별/일자별 OHLCV를 조회할 수 있습니다.
+
+```bash
+npm run prices -- --code 005930 --limit 20
+npm run prices -- --code 005930 --from-date 2026-05-01 --to-date 2026-05-13
+npm run prices -- --name 삼성 --latest --limit 10
+python3 scripts/query-prices.py --code 005930 --csv --output samsung.csv
+```
+
 ## 주요 npm scripts
 
 - `npm run fetch:krx`: FinanceDataReader로 KRX OHLCV를 SQLite에 저장
@@ -91,6 +109,7 @@ python3 scripts/check-db.py --code 005930
 - `npm run generate`: DB에서 읽어 `dist/chart.html` 생성
 - `npm run build`: Pages 배포용 HTML 생성
 - `npm run check:db`: DB 상태 확인
+- `npm run prices`: 종목별 일봉 OHLCV 조회
 
 ## 필터 조건
 

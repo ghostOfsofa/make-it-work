@@ -6,6 +6,7 @@
   "scripts": {
     "fetch:krx": "python3 scripts/fetch-krx-data.py",
     "check:db": "python3 scripts/check-db.py",
+    "prices": "python3 scripts/query-prices.py",
     "create:sample-db": "node src/createSampleDb.js",
     "screen": "node src/screen.js",
     "watch:buy": "node src/watchBuySignals.js",
