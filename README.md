@@ -1,159 +1,180 @@
-# Strong Downtrend Stock Chart Filter
+# 우하향 추세 종목 필터링 + MA5 돌파 감시
 
-Node.js로 여러 종목의 일봉 데이터를 분석해, 16:9 차트 좌표계에서 강하게 우하향하는 종목을 필터링하고 SVG 봉차트 HTML을 생성하는 예제입니다.
+SQLite를 단일 데이터 원본으로 사용하는 JavaScript 기반 한국 주식 스크리너입니다. 일봉 OHLCV를 DB에 저장한 뒤, 최근일을 종료점으로 고정하고 최근 10~60봉 구간을 확장 스캔해 강한 우하향 종목을 찾습니다. 필터링된 종목만 장중 현재가 감시 대상으로 삼고, 현재가가 완료된 일봉 기준 MA5를 상향 돌파하면 `buy_signals`에 매수 신호만 저장합니다.
 
-## 설치 방법
+## 데이터 흐름
 
-이 프로젝트는 외부 라이브러리를 사용하지 않습니다. Node.js만 있으면 실행할 수 있습니다.
+1. `scripts/fetch-krx-data.py` 또는 샘플 생성으로 `data/stocks.db`에 일봉 저장
+2. `npm run screen`으로 DB 일봉 기준 우하향 종목 필터링
+3. 필터링 결과를 `screening_runs`, `filtered_stocks`에 저장
+4. `npm run watch:buy`로 `filtered_stocks` 종목만 현재가 조회
+5. 현재가는 저장하지 않고 MA5 상향 돌파 시 `buy_signals`만 저장
+6. `npm run generate`로 DB 내용을 읽어 `dist/chart.html` 생성
+
+## 설치
 
 ```bash
-git clone https://github.com/ghostOfsofa/make-it-work.git
-cd make-it-work
+npm install
+pip install finance-datareader
 ```
 
-의존성이 없으므로 `npm install`은 필수는 아닙니다.
-
-## 실행 방법
+## 실제 데이터 수집
 
 ```bash
-npm start
+python3 scripts/fetch-krx-data.py --days 180 --max-stocks 100
 ```
 
-또는 직접 Node.js로 실행할 수 있습니다.
+전체 종목 수집:
 
 ```bash
-node index.js
+python3 scripts/fetch-krx-data.py --days 180
 ```
 
-실행하면 콘솔에 두 가지 결과가 `console.table`로 출력됩니다.
+옵션:
 
-- `strictResults`: `minAngleDegree = 45`
-- `demoResults`: `minAngleDegree = 29`
+- `--days`: 수집할 최근 거래일 범위
+- `--max-stocks`: 테스트용 종목 수 제한
+- `--db-path`: SQLite DB 경로, 기본값 `data/stocks.db`
+- `--sleep`: 종목별 요청 간격
 
-`minAngleDegree = 45`는 1600x900 좌표계와 현실적인 일봉 변동 제한에서는 결과가 거의 없을 수 있습니다. 그래서 차트 확인용으로 `minAngleDegree = 29` 데모 결과도 함께 생성합니다.
+## 샘플 DB 실행
 
-## chart.html 확인 방법
-
-실행 후 루트 디렉터리에 `chart.html`이 생성됩니다.
+실제 데이터 없이도 전체 흐름을 확인할 수 있습니다.
 
 ```bash
+npm run create:sample-db
+npm run screen
+node src/watchBuySignals.js --once
 npm run generate
+open dist/chart.html
 ```
 
-생성된 파일을 브라우저에서 열면 `demoResults` 상위 5개 종목의 키움 HTS 스타일 SVG 봉차트를 확인할 수 있습니다.
+## 실제 데이터 실행
 
 ```bash
-open chart.html
+npm run fetch:krx
+npm run screen
+npm run watch:buy
+npm run generate
+open dist/chart.html
 ```
 
-macOS가 아니라면 파일 탐색기에서 `chart.html`을 더블클릭하거나 브라우저 주소창에 파일 경로를 입력하면 됩니다.
+`npm run watch:buy`는 반복 감시 프로세스입니다. 테스트로 한 번만 실행하려면:
 
-차트에는 다음 정보가 표시됩니다.
-
-- open/high/low/close 기준 캔들 봉차트
-- selectedPrice 라인
-- 선형회귀 추세선
-- 회귀선 각도
-- slopePixel
-- rSquared
-- returnRate
-- minAngleDegree 기준선
-
-차트 조작:
-
-- 마우스 휠 위: 봉 확대, 표시 봉 개수 감소
-- 마우스 휠 아래: 봉 축소, 표시 봉 개수 증가
-- 드래그: viewport를 과거/최근 방향으로 이동
-- 렌더링 범위: 최소 30봉, 최대 200봉
-
-봉차트는 실제 `open`, `high`, `low`, `close` 값을 사용합니다. `selectedPrice`는 추세선 계산과 점선 라인 표시에만 사용됩니다. 고가와 저가는 캔들 위아래 꼬리로 표시됩니다. 양봉은 빨간색, 음봉은 파란색으로 표시합니다.
-
-차트 렌더링은 전체 `1600x900` SVG 안에서 아래 margin을 제외한 plot 영역을 기준으로 계산합니다. 화면에 표시되는 기울기와 회귀선 각도 계산이 일치하도록 selectedPrice 회귀도 plot 좌표계에서 수행합니다.
-
-```js
-margin = {
-  top: 40,
-  right: 90,
-  bottom: 60,
-  left: 30
-};
+```bash
+node src/watchBuySignals.js --once
 ```
 
-## GitHub Pages 배포 방법
+## DB 구조
 
-이 저장소는 GitHub Actions로 `chart.html`을 자동 생성하고 GitHub Pages에 배포하도록 구성되어 있습니다.
+- `stocks`: 종목 기본 정보
+- `stock_prices`: 일봉 OHLCV
+- `screening_runs`: 우하향 필터링 실행 이력
+- `filtered_stocks`: 필터링된 감시 대상 종목
+- `buy_signals`: MA5 상향 돌파 매수 신호
 
-1. GitHub 저장소로 이동합니다.
-2. `Settings`를 엽니다.
-3. 왼쪽 메뉴에서 `Pages`를 선택합니다.
-4. `Build and deployment`의 `Source`를 `GitHub Actions`로 설정합니다.
-5. `main` 브랜치에 push합니다.
-6. `.github/workflows/deploy.yml`이 `npm run build`를 실행합니다.
-7. 빌드 과정에서 `dist/chart.html`이 생성되고 Pages artifact로 업로드됩니다.
-8. 배포가 완료될 때까지 Actions 탭에서 `Deploy Charts` workflow를 확인합니다.
+실시간 현재가는 DB에 저장하지 않습니다. 현재가는 quote provider에서 조회해 메모리에서만 판단하고, 조건 충족 이벤트인 `buy_signals`만 저장합니다.
 
-배포 후 아래 형식의 URL에서 확인할 수 있습니다.
+## DB 확인
 
-```text
-https://ghostOfsofa.github.io/make-it-work/chart.html
+```bash
+npm run check:db
+python3 scripts/check-db.py --code 005930
 ```
 
-## 예제 스크린샷
+## 주요 npm scripts
 
-아래 영역에 GitHub Pages 또는 로컬 브라우저에서 확인한 차트 스크린샷을 추가할 수 있습니다.
+- `npm run fetch:krx`: FinanceDataReader로 KRX OHLCV를 SQLite에 저장
+- `npm run create:sample-db`: 테스트용 SQLite DB 생성
+- `npm run screen`: 우하향 종목 필터링 후 DB 저장
+- `npm run watch:buy`: filtered stocks 대상 MA5 돌파 감시
+- `npm run generate`: DB에서 읽어 `dist/chart.html` 생성
+- `npm run build`: Pages 배포용 HTML 생성
+- `npm run check:db`: DB 상태 확인
 
-```md
-![Example chart screenshot](./docs/example-chart.png)
-```
+## 필터 조건
 
-현재 저장소에는 별도 스크린샷 파일을 포함하지 않았습니다.
-
-## npm scripts
-
-| Script | Command | Description |
-| --- | --- | --- |
-| `npm start` | `npm run generate` | 샘플 주가 데이터를 생성하고 필터 결과와 `chart.html`을 생성합니다. |
-| `npm run dev` | `npm run generate` | 개발 중 같은 생성 과정을 실행합니다. 별도 dev server는 사용하지 않습니다. |
-| `npm run generate` | `node src/index.js` | 정적 배포용 `chart.html`과 `dist/chart.html`을 다시 생성합니다. |
-| `npm run build` | `npm run generate` | GitHub Pages 배포용 `dist/chart.html`을 생성합니다. |
-
-## 주요 파일
-
-| File | Description |
-| --- | --- |
-| `strong-downtrend-filter.mjs` | selectedPrice 계산, 좌표 변환, 선형회귀, 필터링, 샘플 데이터 생성 로직 |
-| `src/index.js` | 실행 진입점, SVG 봉차트 HTML 생성 및 저장 |
-| `index.js` | 기존 `node index.js` 실행을 유지하는 wrapper |
-| `chart.html` | 생성된 봉차트 확인용 정적 HTML |
-
-## 필터 기준
-
-기본 필터 옵션은 다음과 같습니다.
+기본 옵션:
 
 ```js
 {
-  period: 20,
-  renderPeriod: 60,
+  renderPeriod: 80,
   scanMinPeriod: 10,
   scanMaxPeriod: 60,
   chartWidth: 1600,
   chartHeight: 900,
-  chartType: "candlestick",
-  showSelectedPriceLine: true,
-  minAngleDegree: 45,
-  minReturnRate: -10,
-  minRSquared: 0.6
+  minAngleDegree: 29,
+  minReturnRate: -5,
+  minRSquared: 0.5
 }
 ```
 
-가격 선택 규칙은 다음과 같습니다.
+조건:
+
+- `slopePixel > 0`
+- `angleDegree >= minAngleDegree`
+- `rSquared >= minRSquared`
+- `returnRate <= minReturnRate`
+
+검색 종료일은 항상 가장 최근 거래일입니다. 최근 10봉, 11봉, 12봉처럼 시작점만 과거로 확장하며 검사합니다.
+
+## selectedPrice 규칙
+
+추세 계산에는 캔들 방향에 따라 선택 가격을 사용합니다.
 
 ```js
-selectedPrice = close >= open ? close : open;
+selectedPrice = close >= open ? close : open
 ```
 
-우하향 검색은 가장 최근 거래일을 종료점으로 고정하고, 최근 `scanMinPeriod`봉부터 `scanMaxPeriod`봉까지 구간을 하루씩 확장하며 검사합니다. 예를 들어 `scanMinPeriod: 10`, `scanMaxPeriod: 60`이면 최근 10봉, 11봉, 12봉, ..., 60봉을 순서대로 검사합니다.
+봉차트 렌더링은 실제 `open/high/low/close`를 사용하고, 회귀 추세선 계산만 `selectedPrice`를 사용합니다.
 
-조건을 만족하는 구간이 여러 개면 angleDegree, rSquared, returnRate, matchedPeriod 순으로 가장 강한 구간을 선택합니다.
+## 각도 계산
 
-차트 y축 스케일은 최근 N일의 `high`, `low` min/max에 위아래 약 5% 여백을 더해 잡습니다. 필터링 로직은 기존 요구대로 `selectedPrice` 기준 좌표 변환을 사용하고, 시각화용 각도와 회귀선은 실제 plot 영역 좌표 기준으로 다시 계산합니다.
+가격 변화율이 아니라 실제 16:9 차트 plot 영역에 표시되는 좌표 기울기를 기준으로 계산합니다.
+
+```js
+xPixel = margin.left + (index / (period - 1)) * plotWidth
+yPixel = margin.top + (maxPrice - price) / (maxPrice - minPrice) * plotHeight
+angleDegree = Math.atan(slopePixel) * 180 / Math.PI
+```
+
+화면 좌표에서는 아래로 갈수록 y가 커지므로 `slopePixel > 0`이면 우하향입니다.
+
+## MA5 돌파 감시
+
+MA5는 DB에 저장된 완료된 최근 5거래일 `close` 평균입니다. 실시간 현재가는 MA5 계산에 포함하지 않습니다.
+
+상향 돌파 조건:
+
+```js
+previousPrice <= ma5Price && currentPrice > ma5Price
+```
+
+첫 조회 시 `previousPrice`가 없으면 최근 완료 일봉의 `previousClose`를 사용합니다. 같은 종목, 같은 기준일, 같은 `CROSS_ABOVE_MA5` 신호는 하루 1회만 저장됩니다.
+
+## Quote Provider
+
+현재 구현은 `src/quoteProviders/mockQuoteProvider.js`를 사용합니다. 실제 키움 OpenAPI, KIS API 등은 `fetchQuotes(codes, context)` 인터페이스를 맞춰 교체하면 됩니다.
+
+## GitHub Pages 배포
+
+`.github/workflows/deploy.yml`은 `main` push 시 실행됩니다.
+
+1. Node 20 설치
+2. `npm install`
+3. `data/stocks.db`가 없으면 샘플 DB 생성
+4. `npm run screen`
+5. `npm run generate`
+6. `dist`를 GitHub Pages에 배포
+
+스케줄/수동 실행에서는 실제 KRX 수집을 먼저 시도하고, 실패하거나 DB가 없으면 샘플 DB로 fallback합니다.
+
+GitHub Pages 설정에서 Source를 **GitHub Actions**로 지정하세요.
+
+## 주의사항
+
+- JSON 저장 방식은 사용하지 않습니다.
+- DB가 단일 데이터 원본입니다.
+- `chart.html`은 브라우저에서 SQLite를 직접 읽지 않고, `generate` 시점의 DB 데이터를 HTML 안에 포함합니다.
+- 매수 주문 실행은 구현하지 않았습니다.
+- 실거래 적용 전 실제 quote provider, 장 운영 시간, 중복 신호 정책, 리스크 조건을 별도로 검증해야 합니다.
