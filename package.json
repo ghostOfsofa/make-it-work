@@ -2,7 +2,7 @@
   "type": "module",
   "scripts": {
     "start": "npm run generate",
-    "dev": "npm run generate",
+    "fetch:krx": "python3 scripts/fetch-krx-data.py",
     "generate": "node src/index.js",
     "build": "npm run generate"
   }

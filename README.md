@@ -1,159 +1,184 @@
-# Strong Downtrend Stock Chart Filter
+# 실제 주가 데이터 기반 우하향 추세 종목 스크리너
 
-Node.js로 여러 종목의 일봉 데이터를 분석해, 16:9 차트 좌표계에서 강하게 우하향하는 종목을 필터링하고 SVG 봉차트 HTML을 생성하는 예제입니다.
+한국 주식 OHLCV 데이터에서 최근일을 종료점으로 고정한 강한 우하향 종목을 찾고, 키움 HTS 느낌의 SVG 봉차트 대시보드로 보여주는 정적 웹 프로그램입니다. `data/stocks.json`에 실제 데이터가 있으면 실제 데이터를 사용하고, 파일이 없거나 비어 있으면 샘플 데이터를 자동 생성합니다.
 
-## 설치 방법
-
-이 프로젝트는 외부 라이브러리를 사용하지 않습니다. Node.js만 있으면 실행할 수 있습니다.
+## 설치
 
 ```bash
-git clone https://github.com/ghostOfsofa/make-it-work.git
-cd make-it-work
+npm install
 ```
 
-의존성이 없으므로 `npm install`은 필수는 아닙니다.
+외부 차트 라이브러리는 사용하지 않습니다. 빌드와 차트 생성은 순수 Node.js/JavaScript로 동작합니다.
 
-## 실행 방법
+## 샘플 데이터 실행
 
-```bash
-npm start
-```
-
-또는 직접 Node.js로 실행할 수 있습니다.
-
-```bash
-node index.js
-```
-
-실행하면 콘솔에 두 가지 결과가 `console.table`로 출력됩니다.
-
-- `strictResults`: `minAngleDegree = 45`
-- `demoResults`: `minAngleDegree = 29`
-
-`minAngleDegree = 45`는 1600x900 좌표계와 현실적인 일봉 변동 제한에서는 결과가 거의 없을 수 있습니다. 그래서 차트 확인용으로 `minAngleDegree = 29` 데모 결과도 함께 생성합니다.
-
-## chart.html 확인 방법
-
-실행 후 루트 디렉터리에 `chart.html`이 생성됩니다.
+`data/stocks.json`이 비어 있거나 유효 데이터가 없으면 샘플 데이터 300종목, 120봉을 생성합니다.
 
 ```bash
 npm run generate
+open dist/chart.html
 ```
 
-생성된 파일을 브라우저에서 열면 `demoResults` 상위 5개 종목의 키움 HTS 스타일 SVG 봉차트를 확인할 수 있습니다.
+실행 시 `dataSource`, 종목 수, `strictResults`, `demoResults`가 콘솔에 출력됩니다.
+
+## 실제 데이터 수집
+
+FinanceDataReader를 설치한 뒤 KOSPI/KOSDAQ OHLCV를 수집할 수 있습니다. 기본 종료일은 전일입니다. 장중 미완성 캔들이 섞이지 않도록 오늘 데이터는 기본으로 가져오지 않습니다.
 
 ```bash
-open chart.html
+pip install finance-datareader
+python3 scripts/fetch-krx-data.py --days 180
+npm run generate
+open dist/chart.html
 ```
 
-macOS가 아니라면 파일 탐색기에서 `chart.html`을 더블클릭하거나 브라우저 주소창에 파일 경로를 입력하면 됩니다.
+테스트용으로 일부 종목만 수집하려면 `--max-stocks`를 사용합니다.
 
-차트에는 다음 정보가 표시됩니다.
-
-- open/high/low/close 기준 캔들 봉차트
-- selectedPrice 라인
-- 선형회귀 추세선
-- 회귀선 각도
-- slopePixel
-- rSquared
-- returnRate
-- minAngleDegree 기준선
-
-차트 조작:
-
-- 마우스 휠 위: 봉 확대, 표시 봉 개수 감소
-- 마우스 휠 아래: 봉 축소, 표시 봉 개수 증가
-- 드래그: viewport를 과거/최근 방향으로 이동
-- 렌더링 범위: 최소 30봉, 최대 200봉
-
-봉차트는 실제 `open`, `high`, `low`, `close` 값을 사용합니다. `selectedPrice`는 추세선 계산과 점선 라인 표시에만 사용됩니다. 고가와 저가는 캔들 위아래 꼬리로 표시됩니다. 양봉은 빨간색, 음봉은 파란색으로 표시합니다.
-
-차트 렌더링은 전체 `1600x900` SVG 안에서 아래 margin을 제외한 plot 영역을 기준으로 계산합니다. 화면에 표시되는 기울기와 회귀선 각도 계산이 일치하도록 selectedPrice 회귀도 plot 좌표계에서 수행합니다.
-
-```js
-margin = {
-  top: 40,
-  right: 90,
-  bottom: 60,
-  left: 30
-};
+```bash
+python3 scripts/fetch-krx-data.py --days 180 --max-stocks 100
 ```
 
-## GitHub Pages 배포 방법
+특정 종료일을 지정하려면 `--end-date`를 사용합니다.
 
-이 저장소는 GitHub Actions로 `chart.html`을 자동 생성하고 GitHub Pages에 배포하도록 구성되어 있습니다.
+```bash
+python3 scripts/fetch-krx-data.py --days 180 --end-date 2026-05-12
+```
 
-1. GitHub 저장소로 이동합니다.
-2. `Settings`를 엽니다.
-3. 왼쪽 메뉴에서 `Pages`를 선택합니다.
-4. `Build and deployment`의 `Source`를 `GitHub Actions`로 설정합니다.
-5. `main` 브랜치에 push합니다.
-6. `.github/workflows/deploy.yml`이 `npm run build`를 실행합니다.
-7. 빌드 과정에서 `dist/chart.html`이 생성되고 Pages artifact로 업로드됩니다.
-8. 배포가 완료될 때까지 Actions 탭에서 `Deploy Charts` workflow를 확인합니다.
-
-배포 후 아래 형식의 URL에서 확인할 수 있습니다.
+수집 실패 종목은 건너뛰고 계속 진행합니다. 결과는 날짜가 붙은 스냅샷과 최신 메타데이터로 저장됩니다.
 
 ```text
-https://ghostOfsofa.github.io/make-it-work/chart.html
+data/stocks-YYYY-MM-DD.json
+data/latest.json
+data/stocks.json
 ```
 
-## 예제 스크린샷
+`data/stocks.json`은 기존 호환용 복사본입니다. 앱은 `data/latest.json`이 있으면 해당 날짜의 `stocks-YYYY-MM-DD.json`을 우선 읽습니다.
 
-아래 영역에 GitHub Pages 또는 로컬 브라우저에서 확인한 차트 스크린샷을 추가할 수 있습니다.
+## data/stocks.json 형식
 
-```md
-![Example chart screenshot](./docs/example-chart.png)
+```json
+[
+  {
+    "code": "005930",
+    "name": "삼성전자",
+    "market": "KOSPI",
+    "prices": [
+      {
+        "date": "2026-01-02",
+        "open": 72000,
+        "high": 73500,
+        "low": 71000,
+        "close": 71500,
+        "volume": 12345678
+      }
+    ]
+  }
+]
 ```
 
-현재 저장소에는 별도 스크린샷 파일을 포함하지 않았습니다.
+내부 로더는 날짜 오름차순 정렬, OHLC 숫자 검증, `high/low` 보정, 유효 캔들 부족 종목 제외를 수행합니다.
 
 ## npm scripts
 
-| Script | Command | Description |
+| Script | Command | 설명 |
 | --- | --- | --- |
-| `npm start` | `npm run generate` | 샘플 주가 데이터를 생성하고 필터 결과와 `chart.html`을 생성합니다. |
-| `npm run dev` | `npm run generate` | 개발 중 같은 생성 과정을 실행합니다. 별도 dev server는 사용하지 않습니다. |
-| `npm run generate` | `node src/index.js` | 정적 배포용 `chart.html`과 `dist/chart.html`을 다시 생성합니다. |
-| `npm run build` | `npm run generate` | GitHub Pages 배포용 `dist/chart.html`을 생성합니다. |
+| `npm run fetch:krx` | `python3 scripts/fetch-krx-data.py` | FinanceDataReader로 KRX 전체 데이터를 전일 기준으로 수집합니다. |
+| `npm run generate` | `node src/index.js` | 데이터 로딩, 분석, `chart.html`/`dist/chart.html` 생성을 실행합니다. |
+| `npm run build` | `npm run generate` | GitHub Pages 배포용 정적 파일을 생성합니다. |
+| `npm start` | `npm run generate` | 로컬 실행 alias입니다. |
 
-## 주요 파일
-
-| File | Description |
-| --- | --- |
-| `strong-downtrend-filter.mjs` | selectedPrice 계산, 좌표 변환, 선형회귀, 필터링, 샘플 데이터 생성 로직 |
-| `src/index.js` | 실행 진입점, SVG 봉차트 HTML 생성 및 저장 |
-| `index.js` | 기존 `node index.js` 실행을 유지하는 wrapper |
-| `chart.html` | 생성된 봉차트 확인용 정적 HTML |
-
-## 필터 기준
-
-기본 필터 옵션은 다음과 같습니다.
+## 주요 옵션
 
 ```js
 {
-  period: 20,
-  renderPeriod: 60,
+  renderPeriod: 80,
   scanMinPeriod: 10,
   scanMaxPeriod: 60,
   chartWidth: 1600,
   chartHeight: 900,
-  chartType: "candlestick",
+  minAngleDegree: 29,
+  minReturnRate: -5,
+  minRSquared: 0.5,
   showSelectedPriceLine: true,
+  showRegressionLine: true,
+  showMatchedArea: true,
+  showCandleWick: true
+}
+```
+
+strict 조건도 함께 실행합니다.
+
+```js
+{
   minAngleDegree: 45,
   minReturnRate: -10,
   minRSquared: 0.6
 }
 ```
 
-가격 선택 규칙은 다음과 같습니다.
+## 필터 조건
+
+검색 종료일은 항상 가장 최근 거래일입니다. 최근 10봉, 11봉, 12봉처럼 시작일만 과거로 확장해 최대 60봉까지 검사합니다.
+
+우하향 판정:
+
+```js
+slopePixel > 0 &&
+angleDegree >= minAngleDegree &&
+rSquared >= minRSquared &&
+returnRate <= minReturnRate
+```
+
+여러 구간이 조건을 만족하면 각도, R², 수익률, 구간 길이 순으로 대표 구간을 고릅니다.
+
+## selectedPrice 규칙
+
+추세 계산에는 `selectedPrice`를 사용합니다.
 
 ```js
 selectedPrice = close >= open ? close : open;
 ```
 
-우하향 검색은 가장 최근 거래일을 종료점으로 고정하고, 최근 `scanMinPeriod`봉부터 `scanMaxPeriod`봉까지 구간을 하루씩 확장하며 검사합니다. 예를 들어 `scanMinPeriod: 10`, `scanMaxPeriod: 60`이면 최근 10봉, 11봉, 12봉, ..., 60봉을 순서대로 검사합니다.
+봉차트 렌더링은 실제 `open/high/low/close` 전체를 사용합니다.
 
-조건을 만족하는 구간이 여러 개면 angleDegree, rSquared, returnRate, matchedPeriod 순으로 가장 강한 구간을 선택합니다.
+## 차트 각도 계산
 
-차트 y축 스케일은 최근 N일의 `high`, `low` min/max에 위아래 약 5% 여백을 더해 잡습니다. 필터링 로직은 기존 요구대로 `selectedPrice` 기준 좌표 변환을 사용하고, 시각화용 각도와 회귀선은 실제 plot 영역 좌표 기준으로 다시 계산합니다.
+가격 변화율이 아니라 실제 16:9 SVG plot 영역에 그렸을 때 보이는 기울기를 계산합니다.
+
+```js
+xPixel = margin.left + (index / (period - 1)) * plotWidth
+yPixel = margin.top + (maxPrice - price) / (maxPrice - minPrice) * plotHeight
+angleDegree = Math.atan(slopePixel) * 180 / Math.PI
+```
+
+화면 좌표계에서는 오른쪽으로 갈수록 `yPixel`이 증가하면 우하향이므로 `slopePixel > 0`입니다.
+
+## 화면 기능
+
+- 검색 조건 변경 후 재검색
+- 검색 결과/전체 종목 보기 전환
+- 정렬
+- CSV 다운로드
+- 키움 HTS 스타일 봉차트
+- selectedPrice 라인
+- 회귀 추세선
+- 검색 구간 강조
+- 이동평균선 5/20/60/120
+- 마우스 오버 툴팁
+- `Ctrl + 휠` 또는 `Alt + 휠` 차트 확대/축소
+- 드래그로 차트 viewport 이동
+- 맨 위/맨 끝 이동 버튼
+
+## GitHub Pages 배포
+
+ GitHub 저장소 `Settings > Pages`에서 Source를 `GitHub Actions`로 설정합니다. `main` 브랜치에 push하면 `.github/workflows/deploy.yml`이 실행되어 `npm run build` 후 `dist` 폴더를 Pages에 배포합니다.
+
+워크플로는 매일 08:00 KST에도 자동 실행됩니다. 스케줄 실행과 수동 실행에서는 FinanceDataReader를 설치하고 전체 KRX 데이터를 전일 기준으로 다시 수집한 뒤 `dist`를 배포합니다. 생성된 날짜별 데이터 파일과 `latest.json`도 `dist/data`에 함께 복사됩니다.
+
+## 주의사항
+
+- `data/latest.json` 또는 `data/stocks-YYYY-MM-DD.json`이 있으면 최신 날짜 스냅샷을 우선 사용합니다.
+- 날짜별 스냅샷이 없고 `data/stocks.json`도 비어 있으면 샘플 데이터로 fallback됩니다.
+- 실제 데이터 수집은 FinanceDataReader와 네트워크 상태에 따라 실패할 수 있습니다.
+- GitHub Actions push 빌드는 저장소 데이터를 사용하고, 매일 배치/수동 실행은 데이터를 새로 수집합니다.
+- 샘플 데이터는 테스트용이며 투자 판단용 데이터가 아닙니다.
