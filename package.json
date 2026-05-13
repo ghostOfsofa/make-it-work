@@ -1,9 +1,19 @@
 {
   "type": "module",
+  "engines": {
+    "node": "20.x || 22.x || 24.x"
+  },
   "scripts": {
-    "start": "npm run generate",
     "fetch:krx": "python3 scripts/fetch-krx-data.py",
-    "generate": "node src/index.js",
-    "build": "npm run generate"
+    "check:db": "python3 scripts/check-db.py",
+    "create:sample-db": "node src/createSampleDb.js",
+    "screen": "node src/screen.js",
+    "watch:buy": "node src/watchBuySignals.js",
+    "generate": "node src/generate.js",
+    "build": "npm run generate",
+    "start": "npm run generate"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.10.0"
   }
 }

@@ -42,7 +42,17 @@ jobs:
 
       - name: Fetch KRX Data
         if: github.event_name != 'push'
+        continue-on-error: true
         run: python scripts/fetch-krx-data.py --days 180 --sleep 0.08
+
+      - name: Create Sample DB When Missing
+        run: |
+          if [ ! -f data/stocks.db ]; then
+            npm run create:sample-db
+          fi
+
+      - name: Run Downtrend Screening
+        run: npm run screen
 
       - name: Build
         run: npm run build
