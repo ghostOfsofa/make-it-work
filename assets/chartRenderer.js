@@ -17,7 +17,7 @@ const COLORS = {
 };
 
 const DEFAULT_MARGIN = { top: 40, right: 90, bottom: 60, left: 30 };
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 1;
 const DEFAULT_CHART_MODE = "detail";
 
 const MINI_CHART_OPTIONS = {
