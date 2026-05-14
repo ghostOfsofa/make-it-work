@@ -57,13 +57,17 @@ jobs:
         continue-on-error: true
         run: python scripts/fetch-krx-data.py --days 180 --incremental-days 10 --sleep 0.08
 
-      - name: Create Sample DB When Missing
+      - name: Check SQLite DB
+        id: check-db
         run: |
-          if [ ! -f data/stocks.db ]; then
-            npm run create:sample-db
+          if [ -f data/stocks.db ] || [ -f dist/stocks.db ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Run Downtrend Screening
+        if: steps.check-db.outputs.exists == 'true'
         run: npm run screen
 
       - name: Build

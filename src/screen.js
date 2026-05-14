@@ -6,6 +6,7 @@ import {
   loadStocksFromDatabase,
   openDatabase,
 } from "./db.js";
+import { hasReadableDb, resolveDbPath } from "./config.js";
 
 export const SCREEN_OPTIONS = Object.freeze({
   ...DEFAULT_OPTIONS,
@@ -17,8 +18,14 @@ export const SCREEN_OPTIONS = Object.freeze({
   minRSquared: Number(process.env.MIN_R_SQUARED ?? DEFAULT_OPTIONS.minRSquared),
 });
 
-const dbPath = process.env.DB_PATH ?? "data/stocks.db";
+const dbPath = resolveDbPath();
 const candleLimit = Number(process.env.CANDLE_LIMIT ?? 180);
+
+if (!hasReadableDb(dbPath)) {
+  console.log(`DB not found: ${dbPath}`);
+  console.log("screen skipped. Run fetch locally or upload a prepared DB first.");
+  process.exit(0);
+}
 
 const stocks = loadStocksFromDatabase({
   dbPath,

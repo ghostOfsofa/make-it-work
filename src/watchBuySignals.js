@@ -9,9 +9,10 @@ import {
 import { MockQuoteProvider } from "./quoteProviders/mockQuoteProvider.js";
 import { buildBuySignal, calculateMA5, isCrossAboveMA } from "./buySignal.js";
 import { round } from "./utils.js";
+import { resolveDbPath } from "./config.js";
 
 const options = {
-  dbPath: process.env.DB_PATH ?? "data/stocks.db",
+  dbPath: resolveDbPath(),
   intervalSeconds: Number(process.env.INTERVAL_SECONDS ?? 10),
   maxAboveMa5Rate: Number(process.env.MAX_ABOVE_MA5_RATE ?? 3),
   useMockQuoteProvider: process.env.USE_MOCK_QUOTE_PROVIDER !== "0",

@@ -1,8 +1,9 @@
 import { existsSync, unlinkSync } from "node:fs";
 import { generateSampleStocks } from "./sampleData.js";
 import { openDatabase, upsertPriceRows, upsertStock } from "./db.js";
+import { DEFAULT_DB_PATH } from "./config.js";
 
-const dbPath = process.env.DB_PATH ?? "data/stocks.db";
+const dbPath = process.env.DB_PATH ?? DEFAULT_DB_PATH;
 const stockCount = Number(process.env.SAMPLE_STOCK_COUNT ?? 300);
 const candleCount = Number(process.env.SAMPLE_CANDLE_COUNT ?? 120);
 const reset = process.argv.includes("--reset") || process.env.RESET_SAMPLE_DB === "1";

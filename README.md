@@ -24,6 +24,18 @@ pip install finance-datareader
 python3 scripts/fetch-krx-data.py --days 180 --max-stocks 100
 ```
 
+로컬 Python 환경까지 한 번에 준비하려면:
+
+```bash
+bash scripts/setup-local-fetch.sh
+```
+
+테스트로 일부 종목만 수집:
+
+```bash
+MAX_STOCKS=100 bash scripts/setup-local-fetch.sh
+```
+
 전체 종목 수집:
 
 ```bash
@@ -72,6 +84,33 @@ npm run generate
 open dist/chart.html
 ```
 
+## 로컬 수집 후 서버 업로드
+
+로컬에서 KRX 데이터를 수집한 뒤 서버에서 같은 DB를 사용하려면 업로드용 DB 사본을 만든 후 서버의 `data/stocks.db` 위치에 복사합니다.
+
+```bash
+python3 scripts/fetch-krx-data.py --days 180 --incremental-days 10
+npm run screen
+npm run prepare:db-upload
+scp dist/stocks.db user@server:/path/to/app/data/stocks.db
+```
+
+서버에서는 업로드된 DB를 기준으로 HTML만 다시 만들면 됩니다.
+
+```bash
+npm install
+npm run generate
+```
+
+Node 프로그램은 기본적으로 `data/stocks.db`를 읽습니다. `data/stocks.db`가 없고 `dist/stocks.db`가 있으면 업로드용 DB를 자동으로 읽습니다. 다른 경로를 쓰려면 `DB_PATH`를 지정하세요.
+
+```bash
+DB_PATH=/path/to/stocks.db npm run generate
+DB_PATH=/path/to/stocks.db npm run screen
+```
+
+`stocks.db`를 실행 중인 상태에서 직접 복사하면 WAL 파일 때문에 일부 최신 row가 빠질 수 있습니다. `npm run prepare:db-upload`는 WAL checkpoint와 SQLite backup을 거쳐 `dist/stocks.db`를 생성하므로 이 파일을 올리는 방식이 안전합니다.
+
 `npm run watch:buy`는 반복 감시 프로세스입니다. 테스트로 한 번만 실행하려면:
 
 ```bash
@@ -116,6 +155,7 @@ python3 scripts/query-prices.py --code 005930 --csv --output samsung.csv
 - `npm run build`: Pages 배포용 HTML 생성
 - `npm run check:db`: DB 상태 확인
 - `npm run prices`: 종목별 일봉 OHLCV 조회
+- `npm run prepare:db-upload`: 서버 업로드용 SQLite DB 사본 생성
 
 ## 필터 조건
 
@@ -187,12 +227,12 @@ previousPrice <= ma5Price && currentPrice > ma5Price
 
 1. Node 20 설치
 2. `npm install`
-3. `data/stocks.db`가 없으면 샘플 DB 생성
-4. `npm run screen`
+3. `data/stocks.db` 또는 `dist/stocks.db` 존재 여부 확인
+4. DB가 있으면 `npm run screen`
 5. `npm run generate`
 6. `dist`를 GitHub Pages에 배포
 
-스케줄/수동 실행에서는 실제 KRX 수집을 먼저 시도하고, 실패하거나 DB가 없으면 샘플 DB로 fallback합니다.
+배포 과정에서는 샘플 DB를 생성하지 않습니다. DB가 없으면 안내용 빈 HTML만 생성됩니다.
 스케줄/수동 실행의 실제 DB는 GitHub Actions cache로 `data/stocks.db`를 복원한 뒤 갱신합니다. 캐시가 없으면 최초 수집으로 `--days 180` 범위를 받고, 캐시가 있으면 종목별 기존 row를 확인해 `--incremental-days 10` 범위만 UPSERT합니다.
 
 GitHub Pages 설정에서 Source를 **GitHub Actions**로 지정하세요.

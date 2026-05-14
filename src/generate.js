@@ -9,8 +9,9 @@ import {
 } from "./db.js";
 import { generateChartHtml, saveChartHtml } from "./chart.js";
 import { calculateMA5 } from "./buySignal.js";
+import { hasReadableDb, resolveDbPath } from "./config.js";
 
-const dbPath = process.env.DB_PATH ?? "data/stocks.db";
+const dbPath = resolveDbPath();
 const outputPath = process.env.OUTPUT_PATH ?? "dist/chart.html";
 const indexPath = process.env.INDEX_OUTPUT_PATH ?? "dist/index.html";
 
@@ -23,12 +24,19 @@ const createEmptyHtml = () =>
     buySignalCount: 0,
   });
 
-const db = openDatabase(dbPath);
-
 const saveHtmlOutputs = (html) => {
   saveChartHtml(html, outputPath);
   saveChartHtml(html, indexPath);
 };
+
+if (!hasReadableDb(dbPath)) {
+  saveHtmlOutputs(createEmptyHtml());
+  console.log(`DB not found: ${dbPath}`);
+  console.log("Empty chart generated without creating a database.");
+  process.exit(0);
+}
+
+const db = openDatabase(dbPath);
 
 try {
   const latestRun = getLatestScreeningRun(db);
