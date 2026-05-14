@@ -51,8 +51,10 @@ const MINI_CHART_OPTIONS = {
   highlightLongEma: true,
   longEmaPeriods: [112, 224, 448],
   shortEmaPeriods: [5, 20, 60],
-  showEmaLegend: false,
+  showEmaLegend: true,
+  emaLegendPlacement: "header",
   showEmaRightLabels: false,
+  emaRightLabelsPlacement: "axis-margin",
   showLongEmaGlow: true,
   miniChartLongEmaOnly: true,
   showRegressionLine: true,
@@ -79,7 +81,9 @@ const DETAIL_CHART_OPTIONS = {
   longEmaPeriods: [112, 224, 448],
   shortEmaPeriods: [5, 20, 60],
   showEmaLegend: true,
+  emaLegendPlacement: "header",
   showEmaRightLabels: true,
+  emaRightLabelsPlacement: "axis-margin",
   showLongEmaGlow: true,
   miniChartLongEmaOnly: false,
   showRegressionLine: true,
@@ -265,31 +269,30 @@ const createRightSideEmaLabels = ({ emaValues, scale, chartWidth, margin, plotHe
     .join("");
 };
 
-const createEmaLegend = ({ result, emaValues, options }) => {
+const createEmaLegendHtml = (result, options = DETAIL_CHART_OPTIONS) => {
   if (!options.showEmaLegend) return "";
+  const emaValues = appData?.emaData?.[result.code] ?? {};
   const periods = getVisibleEmaPeriods(options);
   const items = periods
     .map((period) => {
       const value = latestFiniteValue(emaValues[`ema${period}`]);
       const isLong = options.longEmaPeriods.includes(period);
       return `
-        <span class="ema-legend-item ${isLong ? "strong" : ""}">
-          <i style="background:${COLORS[`ema${period}`]}"></i>
+        <span class="ema-legend-item ${isLong ? "long-ema" : ""}">
+          <i class="ema-color-chip" style="background:${COLORS[`ema${period}`]}"></i>
           EMA${period} ${formatPrice(value)}
         </span>
       `;
     })
     .join("");
   const bearish = result.isLongEmaBearish
-    ? `<span class="ema-legend-status on">장기 EMA 역배열: YES · 112 &lt; 224 &lt; 448</span>`
-    : `<span class="ema-legend-status">장기 EMA 역배열: NO</span>`;
+    ? `<span class="ema-bearish-badge">장기 역배열 YES · 112 &lt; 224 &lt; 448</span>`
+    : `<span class="ema-bearish-badge off">장기 역배열 NO</span>`;
   return `
-    <foreignObject x="42" y="42" width="880" height="88">
-      <div xmlns="http://www.w3.org/1999/xhtml" class="ema-legend">
-        ${bearish}
-        <div>${items}</div>
-      </div>
-    </foreignObject>
+    <div class="ema-legend" aria-label="EMA 범례">
+      ${bearish}
+      ${items}
+    </div>
   `;
 };
 
@@ -432,7 +435,6 @@ const createCandlestickSvgChart = (result, rawCandles, optionOverrides) => {
       <text x="${chartWidth - margin.right + 45}" y="${lastY + 6}" fill="white" font-size="20" text-anchor="middle">${formatPrice(lastCandle.close)}</text>
       <text x="${margin.left + 4}" y="30" fill="${COLORS.text}" font-size="22">${escapeHtml(result.name)} ${escapeHtml(result.code)} | 각도 ${formatNumber(result.angleDegree)}° | R² ${formatNumber(result.rSquared, 3)} | 수익률 ${formatPercent(result.returnRate)}</text>` : ""}
       ${createRightSideEmaLabels({ emaValues, scale, chartWidth, margin, plotHeight, options })}
-      ${createEmaLegend({ result, emaValues, options })}
       ${createHoverAreas({ candles, margin, plotHeight, candleSlotWidth, scale, showTooltip: options.showTooltip })}
     </svg>
   `;
@@ -488,6 +490,8 @@ const renderResultCard = (result, visibleIndex, absoluteIndex) => {
       : mode === "detail"
         ? createCandlestickSvgChart(result, candles, DETAIL_CHART_OPTIONS)
         : `<div class="empty-chart compact">차트 보기 버튼으로 렌더링</div>`;
+  const legendOptions = mode === "mini" ? MINI_CHART_OPTIONS : DETAIL_CHART_OPTIONS;
+  const legend = mode === "none" ? "" : createEmaLegendHtml(result, legendOptions);
 
   return `
     <article class="result-card ${signalClass}" data-code="${escapeHtml(result.code)}">
@@ -502,6 +506,7 @@ const renderResultCard = (result, visibleIndex, absoluteIndex) => {
           <span class="${result.dailyChangeRate >= 0 ? "up" : "down"}">${formatPercent(result.dailyChangeRate)}</span>
         </div>
       </header>
+      ${legend ? `<div class="chart-card-header">${legend}</div>` : ""}
       <div class="chart-controls">
         <button type="button" data-action="mini" data-code="${escapeHtml(result.code)}">미니 차트 보기</button>
         <button type="button" data-action="detail" data-code="${escapeHtml(result.code)}">상세 차트 보기</button>

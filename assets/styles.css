@@ -225,53 +225,63 @@ button {
   user-select: none;
 }
 
-.ema-legend {
-  display: inline-grid;
-  gap: 7px;
-  max-width: 860px;
-  border: 1px solid rgba(71, 85, 105, 0.72);
-  border-radius: 6px;
-  background: rgba(15, 23, 42, 0.78);
-  padding: 9px 11px;
-  color: #e5e7eb;
-  font-size: 16px;
-  line-height: 1.25;
-  backdrop-filter: blur(4px);
+.chart-card-header {
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 10px 16px 0;
+  border-top: 1px solid rgba(36, 48, 68, 0.7);
 }
 
-.ema-legend > div {
+.ema-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 13px;
+  justify-content: flex-end;
+  gap: 6px 10px;
+  max-width: 760px;
+  color: #cbd5e1;
+  font-size: 12px;
+  line-height: 1.25;
 }
 
 .ema-legend-item {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  color: rgba(226, 232, 240, 0.72);
+  gap: 4px;
+  white-space: nowrap;
+  opacity: 0.75;
   font-weight: 500;
 }
 
-.ema-legend-item.strong {
+.ema-legend-item.long-ema {
   color: #f8fafc;
   font-weight: 800;
+  opacity: 1;
 }
 
-.ema-legend-item i {
-  width: 18px;
-  height: 5px;
+.ema-color-chip {
+  display: inline-block;
+  width: 14px;
+  height: 3px;
   border-radius: 999px;
-  box-shadow: 0 0 10px currentColor;
 }
 
-.ema-legend-status {
+.ema-bearish-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(248, 113, 113, 0.18);
+  color: #fecaca;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.ema-bearish-badge.off {
+  background: rgba(148, 163, 184, 0.14);
   color: #cbd5e1;
-  font-weight: 700;
-}
-
-.ema-legend-status.on {
-  color: #fbbf24;
 }
 
 .metrics {
@@ -407,6 +417,15 @@ button {
 
   .actions {
     flex-wrap: wrap;
+  }
+
+  .chart-card-header {
+    justify-content: flex-start;
+  }
+
+  .ema-legend {
+    justify-content: flex-start;
+    max-width: none;
   }
 
   .metrics {
