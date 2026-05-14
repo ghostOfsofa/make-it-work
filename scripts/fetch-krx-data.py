@@ -6,6 +6,7 @@ import sys
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
+import re
 
 
 SCHEMA = """
@@ -13,6 +14,17 @@ CREATE TABLE IF NOT EXISTS stocks (
   code TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   market TEXT,
+  is_etf INTEGER DEFAULT 0,
+  is_etn INTEGER DEFAULT 0,
+  is_spac INTEGER DEFAULT 0,
+  is_reit INTEGER DEFAULT 0,
+  is_preferred INTEGER DEFAULT 0,
+  is_trading_halt INTEGER DEFAULT 0,
+  is_administrative INTEGER DEFAULT 0,
+  is_investment_warning INTEGER DEFAULT 0,
+  is_attention INTEGER DEFAULT 0,
+  stock_type TEXT DEFAULT 'COMMON',
+  exclude_reason TEXT,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
@@ -50,6 +62,17 @@ CREATE TABLE IF NOT EXISTS screening_runs (
   min_angle_degree REAL NOT NULL,
   min_return_rate REAL NOT NULL,
   min_r_squared REAL NOT NULL,
+  excluded_stock_count INTEGER DEFAULT 0,
+  screening_target_count INTEGER DEFAULT 0,
+  exclude_etf INTEGER DEFAULT 1,
+  exclude_etn INTEGER DEFAULT 1,
+  exclude_spac INTEGER DEFAULT 1,
+  exclude_reit INTEGER DEFAULT 1,
+  exclude_preferred INTEGER DEFAULT 1,
+  exclude_trading_halt INTEGER DEFAULT 1,
+  exclude_administrative INTEGER DEFAULT 1,
+  exclude_attention INTEGER DEFAULT 1,
+  exclude_investment_warning INTEGER DEFAULT 0,
   note TEXT
 );
 
@@ -125,12 +148,64 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_buy_signals_unique_daily
 ON buy_signals(code, base_date, cross_type);
 """
 
+STOCK_META_COLUMNS = {
+    "is_etf": "INTEGER DEFAULT 0",
+    "is_etn": "INTEGER DEFAULT 0",
+    "is_spac": "INTEGER DEFAULT 0",
+    "is_reit": "INTEGER DEFAULT 0",
+    "is_preferred": "INTEGER DEFAULT 0",
+    "is_trading_halt": "INTEGER DEFAULT 0",
+    "is_administrative": "INTEGER DEFAULT 0",
+    "is_investment_warning": "INTEGER DEFAULT 0",
+    "is_attention": "INTEGER DEFAULT 0",
+    "stock_type": "TEXT DEFAULT 'COMMON'",
+    "exclude_reason": "TEXT",
+}
+
+SCREENING_RUN_EXTRA_COLUMNS = {
+    "excluded_stock_count": "INTEGER DEFAULT 0",
+    "screening_target_count": "INTEGER DEFAULT 0",
+    "exclude_etf": "INTEGER DEFAULT 1",
+    "exclude_etn": "INTEGER DEFAULT 1",
+    "exclude_spac": "INTEGER DEFAULT 1",
+    "exclude_reit": "INTEGER DEFAULT 1",
+    "exclude_preferred": "INTEGER DEFAULT 1",
+    "exclude_trading_halt": "INTEGER DEFAULT 1",
+    "exclude_administrative": "INTEGER DEFAULT 1",
+    "exclude_attention": "INTEGER DEFAULT 1",
+    "exclude_investment_warning": "INTEGER DEFAULT 0",
+}
+
+ETF_KEYWORDS = (
+    "ETF",
+    "KODEX",
+    "TIGER",
+    "ACE",
+    "SOL",
+    "KBSTAR",
+    "HANARO",
+    "ARIRANG",
+    "KOSEF",
+    "TIMEFOLIO",
+    "TREX",
+    "PLUS",
+)
+
+
+def ensure_columns(conn, table_name, columns):
+    existing = {row[1] for row in conn.execute(f"PRAGMA table_info({table_name})")}
+    for name, definition in columns.items():
+        if name not in existing:
+            conn.execute(f"ALTER TABLE {table_name} ADD COLUMN {name} {definition}")
+
 
 def init_database(db_path):
     Path(db_path).parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(db_path)
     conn.execute("PRAGMA foreign_keys = ON")
     conn.executescript(SCHEMA)
+    ensure_columns(conn, "stocks", STOCK_META_COLUMNS)
+    ensure_columns(conn, "screening_runs", SCREENING_RUN_EXTRA_COLUMNS)
     conn.commit()
     return conn
 
@@ -138,14 +213,45 @@ def init_database(db_path):
 def upsert_stock(conn, stock):
     conn.execute(
         """
-        INSERT INTO stocks (code, name, market, updated_at)
-        VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+        INSERT INTO stocks (
+          code, name, market,
+          is_etf, is_etn, is_spac, is_reit, is_preferred,
+          is_trading_halt, is_administrative, is_investment_warning, is_attention,
+          stock_type, exclude_reason, updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         ON CONFLICT(code) DO UPDATE SET
           name = excluded.name,
           market = excluded.market,
+          is_etf = excluded.is_etf,
+          is_etn = excluded.is_etn,
+          is_spac = excluded.is_spac,
+          is_reit = excluded.is_reit,
+          is_preferred = excluded.is_preferred,
+          is_trading_halt = excluded.is_trading_halt,
+          is_administrative = excluded.is_administrative,
+          is_investment_warning = excluded.is_investment_warning,
+          is_attention = excluded.is_attention,
+          stock_type = excluded.stock_type,
+          exclude_reason = excluded.exclude_reason,
           updated_at = CURRENT_TIMESTAMP
         """,
-        (stock["code"], stock["name"], stock.get("market")),
+        (
+            stock["code"],
+            stock["name"],
+            stock.get("market"),
+            int(stock.get("is_etf", 0)),
+            int(stock.get("is_etn", 0)),
+            int(stock.get("is_spac", 0)),
+            int(stock.get("is_reit", 0)),
+            int(stock.get("is_preferred", 0)),
+            int(stock.get("is_trading_halt", 0)),
+            int(stock.get("is_administrative", 0)),
+            int(stock.get("is_investment_warning", 0)),
+            int(stock.get("is_attention", 0)),
+            stock.get("stock_type", "COMMON"),
+            stock.get("exclude_reason"),
+        ),
     )
 
 
@@ -192,21 +298,115 @@ def require_finance_datareader():
         raise
 
 
+def row_text(row, key):
+    value = row.get(key, "")
+    if value is None:
+        return ""
+    try:
+        if math.isnan(value):
+            return ""
+    except TypeError:
+        pass
+    return str(value).strip()
+
+
+def has_any_keyword(text, keywords):
+    upper = text.upper()
+    return any(keyword.upper() in upper for keyword in keywords)
+
+
+def is_preferred_name(name):
+    normalized = re.sub(r"\s+", "", name)
+    return bool(
+        re.search(r"(우|우B|우C|[1-9]우|[1-9]우B|전환우|종류주)$", normalized)
+    )
+
+
+def classify_stock(row, default_market=""):
+    name = row_text(row, "Name")
+    market = row_text(row, "Market") or default_market
+    market_id = row_text(row, "MarketId")
+    dept = row_text(row, "Dept")
+    combined = " ".join([name, market, market_id, dept])
+    upper_combined = combined.upper()
+
+    flags = {
+        "is_etf": int(market.upper() == "ETF" or "ETF" in upper_combined or has_any_keyword(name, ETF_KEYWORDS)),
+        "is_etn": int(market.upper() == "ETN" or "ETN" in upper_combined),
+        "is_spac": int(has_any_keyword(combined, ("스팩", "SPAC", "기업인수목적"))),
+        "is_reit": int(has_any_keyword(combined, ("리츠", "REIT"))),
+        "is_preferred": int(is_preferred_name(name)),
+        "is_trading_halt": int(has_any_keyword(dept, ("거래정지", "매매거래정지", "정지"))),
+        "is_administrative": int(has_any_keyword(dept, ("관리종목", "관리"))),
+        "is_investment_warning": int(has_any_keyword(dept, ("투자주의", "투자경고", "투자위험"))),
+        "is_attention": int(has_any_keyword(dept, ("투자주의환기", "환기"))),
+    }
+
+    if flags["is_etf"]:
+        stock_type = "ETF"
+    elif flags["is_etn"]:
+        stock_type = "ETN"
+    elif flags["is_spac"]:
+        stock_type = "SPAC"
+    elif flags["is_reit"]:
+        stock_type = "REIT"
+    elif flags["is_preferred"]:
+        stock_type = "PREFERRED"
+    elif market and market.upper() not in ("KOSPI", "KOSDAQ", "KONEX", "SAMPLE"):
+        stock_type = "OTHER"
+    else:
+        stock_type = "COMMON"
+
+    reasons = []
+    reason_map = [
+        ("is_etf", "ETF"),
+        ("is_etn", "ETN"),
+        ("is_spac", "SPAC"),
+        ("is_reit", "REIT"),
+        ("is_preferred", "PREFERRED"),
+        ("is_trading_halt", "TRADING_HALT"),
+        ("is_administrative", "ADMINISTRATIVE"),
+        ("is_attention", "ATTENTION"),
+        ("is_investment_warning", "INVESTMENT_WARNING"),
+    ]
+    for flag_name, reason in reason_map:
+        if flags[flag_name]:
+            reasons.append(reason)
+    if stock_type == "OTHER":
+        reasons.append("OTHER")
+
+    return {
+        **flags,
+        "stock_type": stock_type,
+        "exclude_reason": ",".join(reasons) if reasons else None,
+    }
+
+
 def fetch_stock_list():
     fdr = require_finance_datareader()
-    frames = []
-    for market in ("KOSPI", "KOSDAQ"):
-        frame = fdr.StockListing(market)
-        frame["Market"] = market
-        frames.append(frame)
+    try:
+        frames = [fdr.StockListing("KRX")]
+    except Exception:
+        frames = []
+        for market in ("KOSPI", "KOSDAQ"):
+            frame = fdr.StockListing(market)
+            frame["Market"] = market
+            frames.append(frame)
     stock_list = []
     for frame in frames:
         for _, row in frame.iterrows():
             code = str(row.get("Code", "")).zfill(6)
-            name = str(row.get("Name", "")).strip()
-            market = str(row.get("Market", "")).strip()
+            name = row_text(row, "Name")
+            market = row_text(row, "Market")
             if len(code) == 6 and name:
-                stock_list.append({"code": code, "name": name, "market": market})
+                stock_list.append(
+                    {
+                        "code": code,
+                        "name": name,
+                        "market": market,
+                        **classify_stock(row, market),
+                    }
+                )
     return stock_list
 
 

@@ -156,7 +156,7 @@ node src/watchBuySignals.js --once
 
 ## DB 구조
 
-- `stocks`: 종목 기본 정보
+- `stocks`: 종목 기본 정보와 ETF/ETN/스팩/리츠/우선주/거래정지/환기종목 제외용 메타 정보
 - `stock_prices`: 일봉 OHLCV
 - `screening_runs`: 우하향 필터링 실행 이력
 - `filtered_stocks`: 필터링된 감시 대상 종목
@@ -219,6 +219,33 @@ python3 scripts/query-prices.py --code 005930 --csv --output samsung.csv
 - `returnRate <= minReturnRate`
 
 검색 종료일은 항상 가장 최근 거래일입니다. 최근 10봉, 11봉, 12봉처럼 시작점만 과거로 확장하며 검사합니다.
+
+### 종목 universe 제외 규칙
+
+`npm run screen`은 기본적으로 일반 개별 보통주 위주로만 우하향 패턴을 검사합니다. `stocks` 테이블의 메타 컬럼과 종목명 기반 보정값을 사용해 아래 대상은 제외합니다.
+
+- ETF, ETN
+- SPAC
+- REITs
+- 우선주
+- 거래정지 종목
+- 관리종목
+- 투자주의환기종목
+- 기타 `stock_type = 'OTHER'` 종목
+
+투자주의/경고/위험 종목은 기본 제외하지 않습니다. 필요하면 실행 시 켤 수 있습니다.
+
+```bash
+EXCLUDE_INVESTMENT_WARNING=1 npm run screen
+```
+
+각 제외 조건은 환경변수로 끌 수 있습니다.
+
+```bash
+EXCLUDE_ETF=0 EXCLUDE_ETN=0 EXCLUDE_PREFERRED=0 npm run screen
+```
+
+`scripts/check-db.py`는 ETF/ETN/우선주/스팩/리츠/환기종목 등 제외 현황과 실제 screening target 수를 함께 출력합니다.
 
 ## selectedPrice 규칙
 

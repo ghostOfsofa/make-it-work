@@ -7,6 +7,176 @@ const toNumber = (value) => {
   return Number.isFinite(number) ? number : Number.NaN;
 };
 
+const toFlag = (value) => (Number(value) === 1 || value === true ? 1 : 0);
+
+export const DEFAULT_STOCK_EXCLUSION_OPTIONS = Object.freeze({
+  excludeEtf: true,
+  excludeEtn: true,
+  excludeSpac: true,
+  excludeReit: true,
+  excludePreferred: true,
+  excludeTradingHalt: true,
+  excludeAdministrative: true,
+  excludeAttention: true,
+  excludeInvestmentWarning: false,
+  excludeOther: true,
+});
+
+const STOCK_META_COLUMNS = [
+  ["is_etf", "INTEGER DEFAULT 0"],
+  ["is_etn", "INTEGER DEFAULT 0"],
+  ["is_spac", "INTEGER DEFAULT 0"],
+  ["is_reit", "INTEGER DEFAULT 0"],
+  ["is_preferred", "INTEGER DEFAULT 0"],
+  ["is_trading_halt", "INTEGER DEFAULT 0"],
+  ["is_administrative", "INTEGER DEFAULT 0"],
+  ["is_investment_warning", "INTEGER DEFAULT 0"],
+  ["is_attention", "INTEGER DEFAULT 0"],
+  ["stock_type", "TEXT DEFAULT 'COMMON'"],
+  ["exclude_reason", "TEXT"],
+];
+
+const SCREENING_RUN_EXTRA_COLUMNS = [
+  ["excluded_stock_count", "INTEGER DEFAULT 0"],
+  ["screening_target_count", "INTEGER DEFAULT 0"],
+  ["exclude_etf", "INTEGER DEFAULT 1"],
+  ["exclude_etn", "INTEGER DEFAULT 1"],
+  ["exclude_spac", "INTEGER DEFAULT 1"],
+  ["exclude_reit", "INTEGER DEFAULT 1"],
+  ["exclude_preferred", "INTEGER DEFAULT 1"],
+  ["exclude_trading_halt", "INTEGER DEFAULT 1"],
+  ["exclude_administrative", "INTEGER DEFAULT 1"],
+  ["exclude_attention", "INTEGER DEFAULT 1"],
+  ["exclude_investment_warning", "INTEGER DEFAULT 0"],
+];
+
+const ensureColumns = (db, tableName, columns) => {
+  const existing = new Set(
+    db.prepare(`PRAGMA table_info(${tableName})`).all().map((column) => column.name),
+  );
+  for (const [name, definition] of columns) {
+    if (!existing.has(name)) {
+      db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${name} ${definition}`);
+    }
+  }
+};
+
+const ETF_NAME_KEYWORDS = [
+  "ETF",
+  "KODEX",
+  "TIGER",
+  "ACE",
+  "SOL",
+  "KBSTAR",
+  "HANARO",
+  "ARIRANG",
+  "KOSEF",
+  "TIMEFOLIO",
+  "TREX",
+  "PLUS",
+];
+
+const hasKeyword = (text, keywords) => {
+  const upper = String(text ?? "").toUpperCase();
+  return keywords.some((keyword) => upper.includes(keyword.toUpperCase()));
+};
+
+const isPreferredName = (name) =>
+  /(우|우B|우C|[1-9]우|[1-9]우B|전환우|종류주)$/.test(String(name ?? "").replace(/\s+/g, ""));
+
+const inferStockMeta = (stock) => {
+  const name = String(stock.name ?? "");
+  const market = String(stock.market ?? "");
+  const combined = `${name} ${market}`;
+  const isEtf = market.toUpperCase() === "ETF" || hasKeyword(name, ETF_NAME_KEYWORDS);
+  const isEtn = market.toUpperCase() === "ETN" || hasKeyword(combined, ["ETN"]);
+  const isSpac = hasKeyword(combined, ["스팩", "SPAC", "기업인수목적"]);
+  const isReit = hasKeyword(combined, ["리츠", "REIT"]);
+  const isPreferred = isPreferredName(name);
+  const stockType = isEtf
+    ? "ETF"
+    : isEtn
+      ? "ETN"
+      : isSpac
+        ? "SPAC"
+        : isReit
+          ? "REIT"
+          : isPreferred
+            ? "PREFERRED"
+            : market && !["KOSPI", "KOSDAQ", "KONEX", "SAMPLE"].includes(market.toUpperCase())
+              ? "OTHER"
+              : "COMMON";
+  const reasons = [
+    isEtf && "ETF",
+    isEtn && "ETN",
+    isSpac && "SPAC",
+    isReit && "REIT",
+    isPreferred && "PREFERRED",
+    stockType === "OTHER" && "OTHER",
+  ].filter(Boolean);
+
+  return {
+    is_etf: isEtf ? 1 : 0,
+    is_etn: isEtn ? 1 : 0,
+    is_spac: isSpac ? 1 : 0,
+    is_reit: isReit ? 1 : 0,
+    is_preferred: isPreferred ? 1 : 0,
+    stock_type: stockType,
+    exclude_reason: reasons.length ? reasons.join(",") : null,
+  };
+};
+
+const backfillStockMetaFromNames = (db) => {
+  const rows = db
+    .prepare(`
+      SELECT code, name, market
+      FROM stocks
+      WHERE COALESCE(is_etf, 0) = 0
+        AND COALESCE(is_etn, 0) = 0
+        AND COALESCE(is_spac, 0) = 0
+        AND COALESCE(is_reit, 0) = 0
+        AND COALESCE(is_preferred, 0) = 0
+        AND COALESCE(is_trading_halt, 0) = 0
+        AND COALESCE(is_administrative, 0) = 0
+        AND COALESCE(is_investment_warning, 0) = 0
+        AND COALESCE(is_attention, 0) = 0
+        AND (exclude_reason IS NULL OR exclude_reason = '')
+    `)
+    .all();
+  if (!rows.length) return;
+
+  const update = db.prepare(`
+    UPDATE stocks
+    SET is_etf = ?,
+        is_etn = ?,
+        is_spac = ?,
+        is_reit = ?,
+        is_preferred = ?,
+        stock_type = ?,
+        exclude_reason = ?,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE code = ?
+  `);
+  const updateMany = db.transaction((items) => {
+    for (const row of items) {
+      const meta = inferStockMeta(row);
+      if (meta.exclude_reason || meta.stock_type === "OTHER") {
+        update.run(
+          meta.is_etf,
+          meta.is_etn,
+          meta.is_spac,
+          meta.is_reit,
+          meta.is_preferred,
+          meta.stock_type,
+          meta.exclude_reason,
+          row.code,
+        );
+      }
+    }
+  });
+  updateMany(rows);
+};
+
 export const normalizeCandle = (candle) => {
   if (!candle) return null;
   const open = toNumber(candle.open);
@@ -42,6 +212,17 @@ export const initDatabase = (db) => {
       code TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       market TEXT,
+      is_etf INTEGER DEFAULT 0,
+      is_etn INTEGER DEFAULT 0,
+      is_spac INTEGER DEFAULT 0,
+      is_reit INTEGER DEFAULT 0,
+      is_preferred INTEGER DEFAULT 0,
+      is_trading_halt INTEGER DEFAULT 0,
+      is_administrative INTEGER DEFAULT 0,
+      is_investment_warning INTEGER DEFAULT 0,
+      is_attention INTEGER DEFAULT 0,
+      stock_type TEXT DEFAULT 'COMMON',
+      exclude_reason TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
@@ -79,6 +260,17 @@ export const initDatabase = (db) => {
       min_angle_degree REAL NOT NULL,
       min_return_rate REAL NOT NULL,
       min_r_squared REAL NOT NULL,
+      excluded_stock_count INTEGER DEFAULT 0,
+      screening_target_count INTEGER DEFAULT 0,
+      exclude_etf INTEGER DEFAULT 1,
+      exclude_etn INTEGER DEFAULT 1,
+      exclude_spac INTEGER DEFAULT 1,
+      exclude_reit INTEGER DEFAULT 1,
+      exclude_preferred INTEGER DEFAULT 1,
+      exclude_trading_halt INTEGER DEFAULT 1,
+      exclude_administrative INTEGER DEFAULT 1,
+      exclude_attention INTEGER DEFAULT 1,
+      exclude_investment_warning INTEGER DEFAULT 0,
       note TEXT
     );
 
@@ -153,17 +345,52 @@ export const initDatabase = (db) => {
     CREATE UNIQUE INDEX IF NOT EXISTS idx_buy_signals_unique_daily
     ON buy_signals(code, base_date, cross_type);
   `);
+  ensureColumns(db, "stocks", STOCK_META_COLUMNS);
+  ensureColumns(db, "screening_runs", SCREENING_RUN_EXTRA_COLUMNS);
+  backfillStockMetaFromNames(db);
 };
 
 export const upsertStock = (db, stock) => {
+  const inferred = inferStockMeta(stock);
   db.prepare(`
-    INSERT INTO stocks (code, name, market, updated_at)
-    VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+    INSERT INTO stocks (
+      code, name, market,
+      is_etf, is_etn, is_spac, is_reit, is_preferred,
+      is_trading_halt, is_administrative, is_investment_warning, is_attention,
+      stock_type, exclude_reason, updated_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     ON CONFLICT(code) DO UPDATE SET
       name = excluded.name,
       market = excluded.market,
+      is_etf = excluded.is_etf,
+      is_etn = excluded.is_etn,
+      is_spac = excluded.is_spac,
+      is_reit = excluded.is_reit,
+      is_preferred = excluded.is_preferred,
+      is_trading_halt = excluded.is_trading_halt,
+      is_administrative = excluded.is_administrative,
+      is_investment_warning = excluded.is_investment_warning,
+      is_attention = excluded.is_attention,
+      stock_type = excluded.stock_type,
+      exclude_reason = excluded.exclude_reason,
       updated_at = CURRENT_TIMESTAMP
-  `).run(String(stock.code), String(stock.name), stock.market ?? null);
+  `).run(
+    String(stock.code),
+    String(stock.name),
+    stock.market ?? null,
+    toFlag(stock.is_etf ?? stock.isEtf ?? inferred.is_etf),
+    toFlag(stock.is_etn ?? stock.isEtn ?? inferred.is_etn),
+    toFlag(stock.is_spac ?? stock.isSpac ?? inferred.is_spac),
+    toFlag(stock.is_reit ?? stock.isReit ?? inferred.is_reit),
+    toFlag(stock.is_preferred ?? stock.isPreferred ?? inferred.is_preferred),
+    toFlag(stock.is_trading_halt ?? stock.isTradingHalt),
+    toFlag(stock.is_administrative ?? stock.isAdministrative),
+    toFlag(stock.is_investment_warning ?? stock.isInvestmentWarning),
+    toFlag(stock.is_attention ?? stock.isAttention),
+    stock.stock_type ?? stock.stockType ?? inferred.stock_type,
+    stock.exclude_reason ?? stock.excludeReason ?? inferred.exclude_reason,
+  );
 };
 
 export const upsertPriceRows = (db, code, prices) => {
@@ -213,11 +440,13 @@ export const loadStocksFromDatabase = ({
   dbPath = "data/stocks.db",
   candleLimit = 180,
   minCandles = 10,
+  exclusionOptions = DEFAULT_STOCK_EXCLUSION_OPTIONS,
 } = {}) => {
   const db = openDatabase(dbPath);
   try {
+    const whereClause = buildStockExclusionWhere(exclusionOptions);
     const stocks = db
-      .prepare("SELECT code, name, market FROM stocks ORDER BY code")
+      .prepare(`SELECT code, name, market FROM stocks ${whereClause} ORDER BY code`)
       .all();
     const priceStatement = db.prepare(`
       SELECT date, open, high, low, close, volume
@@ -239,6 +468,63 @@ export const loadStocksFromDatabase = ({
   } finally {
     db.close();
   }
+};
+
+const STOCK_EXCLUSION_FILTERS = [
+  ["excludeEtf", "is_etf"],
+  ["excludeEtn", "is_etn"],
+  ["excludeSpac", "is_spac"],
+  ["excludeReit", "is_reit"],
+  ["excludePreferred", "is_preferred"],
+  ["excludeTradingHalt", "is_trading_halt"],
+  ["excludeAdministrative", "is_administrative"],
+  ["excludeAttention", "is_attention"],
+  ["excludeInvestmentWarning", "is_investment_warning"],
+];
+
+const buildStockExclusionWhere = (options = DEFAULT_STOCK_EXCLUSION_OPTIONS) => {
+  const clauses = STOCK_EXCLUSION_FILTERS
+    .filter(([optionName]) => options[optionName] !== false)
+    .map(([, column]) => `COALESCE(${column}, 0) = 0`);
+  if (options.excludeOther !== false) {
+    clauses.push("COALESCE(stock_type, 'COMMON') != 'OTHER'");
+  }
+  return clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
+};
+
+const buildStockExcludedWhere = (options = DEFAULT_STOCK_EXCLUSION_OPTIONS) => {
+  const clauses = STOCK_EXCLUSION_FILTERS
+    .filter(([optionName]) => options[optionName] !== false)
+    .map(([, column]) => `COALESCE(${column}, 0) = 1`);
+  if (options.excludeOther !== false) {
+    clauses.push("COALESCE(stock_type, 'COMMON') = 'OTHER'");
+  }
+  return clauses.length ? clauses.join(" OR ") : "0";
+};
+
+export const getStockUniverseStats = (
+  db,
+  options = DEFAULT_STOCK_EXCLUSION_OPTIONS,
+) => {
+  const scalar = (sql) => db.prepare(sql).get()?.count ?? 0;
+  const excludedWhere = buildStockExcludedWhere(options);
+  const totalStockCount = scalar("SELECT COUNT(*) AS count FROM stocks");
+  const excludedStockCount = scalar(`SELECT COUNT(*) AS count FROM stocks WHERE ${excludedWhere}`);
+  return {
+    totalStockCount,
+    excludedStockCount,
+    screeningTargetCount: Math.max(0, totalStockCount - excludedStockCount),
+    etfCount: scalar("SELECT COUNT(*) AS count FROM stocks WHERE COALESCE(is_etf, 0) = 1"),
+    etnCount: scalar("SELECT COUNT(*) AS count FROM stocks WHERE COALESCE(is_etn, 0) = 1"),
+    spacCount: scalar("SELECT COUNT(*) AS count FROM stocks WHERE COALESCE(is_spac, 0) = 1"),
+    reitCount: scalar("SELECT COUNT(*) AS count FROM stocks WHERE COALESCE(is_reit, 0) = 1"),
+    preferredCount: scalar("SELECT COUNT(*) AS count FROM stocks WHERE COALESCE(is_preferred, 0) = 1"),
+    tradingHaltCount: scalar("SELECT COUNT(*) AS count FROM stocks WHERE COALESCE(is_trading_halt, 0) = 1"),
+    administrativeCount: scalar("SELECT COUNT(*) AS count FROM stocks WHERE COALESCE(is_administrative, 0) = 1"),
+    attentionCount: scalar("SELECT COUNT(*) AS count FROM stocks WHERE COALESCE(is_attention, 0) = 1"),
+    investmentWarningCount: scalar("SELECT COUNT(*) AS count FROM stocks WHERE COALESCE(is_investment_warning, 0) = 1"),
+    otherCount: scalar("SELECT COUNT(*) AS count FROM stocks WHERE COALESCE(stock_type, 'COMMON') = 'OTHER'"),
+  };
 };
 
 export const loadRecentCandlesForCodes = (db, codes, candleLimit = 120) => {
@@ -264,9 +550,13 @@ export const insertScreeningRun = (db, runSummary, options) => {
     INSERT INTO screening_runs (
       base_date, data_source, total_stock_count, matched_stock_count,
       render_period, scan_min_period, scan_max_period,
-      min_angle_degree, min_return_rate, min_r_squared, note
+      min_angle_degree, min_return_rate, min_r_squared,
+      excluded_stock_count, screening_target_count,
+      exclude_etf, exclude_etn, exclude_spac, exclude_reit, exclude_preferred,
+      exclude_trading_halt, exclude_administrative, exclude_attention,
+      exclude_investment_warning, note
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     runSummary.baseDate,
     runSummary.dataSource ?? "database",
@@ -278,6 +568,17 @@ export const insertScreeningRun = (db, runSummary, options) => {
     options.minAngleDegree,
     options.minReturnRate,
     options.minRSquared,
+    runSummary.excludedStockCount ?? 0,
+    runSummary.screeningTargetCount ?? 0,
+    toFlag(options.excludeEtf),
+    toFlag(options.excludeEtn),
+    toFlag(options.excludeSpac),
+    toFlag(options.excludeReit),
+    toFlag(options.excludePreferred),
+    toFlag(options.excludeTradingHalt),
+    toFlag(options.excludeAdministrative),
+    toFlag(options.excludeAttention),
+    toFlag(options.excludeInvestmentWarning),
     runSummary.note ?? null,
   );
   return Number(result.lastInsertRowid);

@@ -8,6 +8,54 @@ def scalar(conn, sql, params=()):
     return conn.execute(sql, params).fetchone()[0]
 
 
+def has_column(conn, table_name, column_name):
+    return any(row[1] == column_name for row in conn.execute(f"PRAGMA table_info({table_name})"))
+
+
+def count_flag(conn, column_name):
+    if not has_column(conn, "stocks", column_name):
+        return 0
+    return scalar(conn, f"SELECT COUNT(*) FROM stocks WHERE COALESCE({column_name}, 0) = 1")
+
+
+def count_common_targets(conn):
+    required = [
+        "is_etf",
+        "is_etn",
+        "is_spac",
+        "is_reit",
+        "is_preferred",
+        "is_trading_halt",
+        "is_administrative",
+        "is_attention",
+        "stock_type",
+    ]
+    if not all(has_column(conn, "stocks", column) for column in required):
+        return 0
+    return scalar(
+        conn,
+        """
+        SELECT COUNT(*)
+        FROM stocks
+        WHERE COALESCE(is_etf, 0) = 0
+          AND COALESCE(is_etn, 0) = 0
+          AND COALESCE(is_spac, 0) = 0
+          AND COALESCE(is_reit, 0) = 0
+          AND COALESCE(is_preferred, 0) = 0
+          AND COALESCE(is_trading_halt, 0) = 0
+          AND COALESCE(is_administrative, 0) = 0
+          AND COALESCE(is_attention, 0) = 0
+          AND COALESCE(stock_type, 'COMMON') != 'OTHER'
+        """,
+    )
+
+
+def count_other(conn):
+    if not has_column(conn, "stocks", "stock_type"):
+        return 0
+    return scalar(conn, "SELECT COUNT(*) FROM stocks WHERE COALESCE(stock_type, 'COMMON') = 'OTHER'")
+
+
 def print_rows(title, rows):
     print(title)
     if not rows:
@@ -36,6 +84,18 @@ def main():
         print(f"screening runs: {scalar(conn, 'SELECT COUNT(*) FROM screening_runs')}")
         print(f"filtered stocks: {scalar(conn, 'SELECT COUNT(*) FROM filtered_stocks')}")
         print(f"buy signals: {scalar(conn, 'SELECT COUNT(*) FROM buy_signals')}")
+        print("stock exclusion stats:")
+        print(f"  ETF: {count_flag(conn, 'is_etf')}")
+        print(f"  ETN: {count_flag(conn, 'is_etn')}")
+        print(f"  SPAC: {count_flag(conn, 'is_spac')}")
+        print(f"  REIT: {count_flag(conn, 'is_reit')}")
+        print(f"  Preferred: {count_flag(conn, 'is_preferred')}")
+        print(f"  Trading halt: {count_flag(conn, 'is_trading_halt')}")
+        print(f"  Administrative: {count_flag(conn, 'is_administrative')}")
+        print(f"  Attention: {count_flag(conn, 'is_attention')}")
+        print(f"  Investment warning: {count_flag(conn, 'is_investment_warning')}")
+        print(f"  Other: {count_other(conn)}")
+        print(f"  Common screening targets: {count_common_targets(conn)}")
         latest = conn.execute(
             "SELECT * FROM screening_runs ORDER BY run_id DESC LIMIT 1"
         ).fetchone()

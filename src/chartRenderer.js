@@ -318,9 +318,14 @@ const renderSummaryPanel = () => {
     <section class="summary-panel">
       ${metric("latest run", run.runId ?? "-")}
       ${metric("기준일", run.baseDate ?? "-")}
-      ${metric("검색 대상", `${run.totalStockCount ?? 0}종목`)}
+      ${metric("DB 전체", `${run.totalStockCount ?? 0}종목`)}
+      ${metric("제외 종목", `${run.excludedStockCount ?? 0}종목`)}
+      ${metric("검색 대상", `${run.screeningTargetCount ?? run.totalStockCount ?? 0}종목`)}
       ${metric("필터링", `${summary.filteredCount ?? 0}종목`)}
       ${metric("매수 신호", `${summary.buySignalCount ?? 0}건`)}
+      ${metric("ETF/ETN 제외", run.excludeEtf || run.excludeEtn ? "ON" : "OFF")}
+      ${metric("거래정지 제외", run.excludeTradingHalt ? "ON" : "OFF")}
+      ${metric("환기 제외", run.excludeAttention ? "ON" : "OFF")}
       ${metric("renderPeriod", run.renderPeriod)}
       ${metric("scan", `${run.scanMinPeriod}~${run.scanMaxPeriod}`)}
       ${metric("minAngle", `${run.minAngleDegree}°`)}
