@@ -12,7 +12,7 @@ export const DEFAULT_OPTIONS = Object.freeze({
     bottom: 60,
     left: 30,
   },
-  minAngleDegree: 29,
+  minAngleDegree: 45,
   minReturnRate: -5,
   minRSquared: 0.5,
   useEmaBearishFilter: true,
