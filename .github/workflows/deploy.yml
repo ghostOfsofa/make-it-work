@@ -4,9 +4,6 @@ on:
   push:
     branches:
       - main
-  schedule:
-    # 08:00 KST. The fetch script uses yesterday as the default end date.
-    - cron: "0 23 * * *"
   workflow_dispatch:
 
 permissions:
@@ -15,72 +12,7 @@ permissions:
   id-token: write
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Setup Python
-        if: github.event_name != 'push'
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install
-        run: npm install
-
-      - name: Install Python Dependencies
-        if: github.event_name != 'push'
-        run: python -m pip install finance-datareader
-
-      - name: Restore KRX SQLite DB Cache
-        if: github.event_name != 'push'
-        uses: actions/cache@v4
-        with:
-          path: |
-            data/stocks.db
-            data/stocks.db-shm
-            data/stocks.db-wal
-          key: krx-sqlite-${{ github.run_id }}
-          restore-keys: |
-            krx-sqlite-
-
-      - name: Fetch KRX Data
-        if: github.event_name != 'push'
-        continue-on-error: true
-        run: python scripts/fetch-krx-data.py --days 180 --incremental-days 10 --sleep 0.08
-
-      - name: Check SQLite DB
-        id: check-db
-        run: |
-          if [ -f data/stocks.db ] || [ -f dist/stocks.db ]; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Run Downtrend Screening
-        if: steps.check-db.outputs.exists == 'true'
-        run: npm run screen
-
-      - name: Build
-        run: npm run build
-
-      - name: Upload Pages Artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: ./dist
-
   deploy:
-    needs: build
-
     runs-on: ubuntu-latest
 
     environment:
@@ -88,6 +20,28 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare Static HTML
+        run: |
+          mkdir -p pages
+          if [ -f index.html ] && [ -f chart.html ]; then
+            cp index.html pages/index.html
+            cp chart.html pages/chart.html
+          elif [ -f dist/index.html ] && [ -f dist/chart.html ]; then
+            cp dist/index.html pages/index.html
+            cp dist/chart.html pages/chart.html
+          else
+            echo "index.html/chart.html not found. Generate and commit static HTML first." >&2
+            exit 1
+          fi
+
+      - name: Upload Pages Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./pages
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

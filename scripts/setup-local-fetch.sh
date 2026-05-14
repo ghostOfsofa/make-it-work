@@ -10,6 +10,7 @@ SLEEP_SECONDS="${SLEEP_SECONDS:-0.1}"
 MAX_STOCKS="${MAX_STOCKS:-}"
 RUN_SCREEN="${RUN_SCREEN:-1}"
 RUN_GENERATE="${RUN_GENERATE:-1}"
+PUBLISH_HTML_TO_ROOT="${PUBLISH_HTML_TO_ROOT:-0}"
 SKIP_NPM_INSTALL="${SKIP_NPM_INSTALL:-0}"
 SKIP_PIP_INSTALL="${SKIP_PIP_INSTALL:-0}"
 ALLOW_FETCH_FAILURE_WITH_EXISTING_DB="${ALLOW_FETCH_FAILURE_WITH_EXISTING_DB:-1}"
@@ -134,6 +135,16 @@ if [ "${RUN_GENERATE}" = "1" ]; then
     echo "Running: npm run generate"
     npm run generate
   fi
+fi
+
+if [ "${PUBLISH_HTML_TO_ROOT}" = "1" ]; then
+  if [ ! -f "${ROOT_DIR}/dist/index.html" ] || [ ! -f "${ROOT_DIR}/dist/chart.html" ]; then
+    echo "dist/index.html or dist/chart.html not found. Run with RUN_GENERATE=1 first." >&2
+    exit 1
+  fi
+  cp "${ROOT_DIR}/dist/index.html" "${ROOT_DIR}/index.html"
+  cp "${ROOT_DIR}/dist/chart.html" "${ROOT_DIR}/chart.html"
+  echo "Published HTML to repository root: index.html chart.html"
 fi
 
 echo "Done. DB path: data/stocks.db"

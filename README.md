@@ -123,6 +123,15 @@ bash scripts/setup-local-fetch.sh
 scp dist/index.html dist/chart.html user@server:/path/to/static/
 ```
 
+GitHub Pages에 로컬에서 생성한 HTML을 그대로 배포하려면 루트 HTML도 갱신해서 커밋합니다.
+
+```bash
+PUBLISH_HTML_TO_ROOT=1 bash scripts/setup-local-fetch.sh
+git add index.html chart.html
+git commit -m "Update generated static charts"
+git push
+```
+
 서버에서 다시 스크리닝하거나 HTML을 다시 생성하려는 경우에만 DB를 올립니다.
 
 ```bash
@@ -253,15 +262,11 @@ previousPrice <= ma5Price && currentPrice > ma5Price
 
 `.github/workflows/deploy.yml`은 `main` push 시 실행됩니다.
 
-1. Node 20 설치
-2. `npm install`
-3. `data/stocks.db` 또는 `dist/stocks.db` 존재 여부 확인
-4. DB가 있으면 `npm run screen`
-5. `npm run generate`
-6. `dist`를 GitHub Pages에 배포
+1. 저장소를 checkout합니다.
+2. repo에 올라간 `index.html`, `chart.html`을 Pages artifact로 복사합니다.
+3. GitHub Pages에 정적 HTML만 배포합니다.
 
-배포 과정에서는 샘플 DB를 생성하지 않습니다. DB가 없으면 안내용 빈 HTML만 생성됩니다.
-스케줄/수동 실행의 실제 DB는 GitHub Actions cache로 `data/stocks.db`를 복원한 뒤 갱신합니다. 캐시가 없으면 최초 수집으로 `--days 180` 범위를 받고, 캐시가 있으면 종목별 기존 row를 확인해 `--incremental-days 10` 범위만 UPSERT합니다.
+배포 과정에서는 DB 생성, KRX 수집, 스크리닝, HTML 생성을 하지 않습니다. 로컬에서 HTML을 생성한 뒤 정적 파일을 올리는 구조입니다.
 
 GitHub Pages 설정에서 Source를 **GitHub Actions**로 지정하세요.
 
