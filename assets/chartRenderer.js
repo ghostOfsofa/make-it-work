@@ -12,10 +12,20 @@ const COLORS = {
   ema5: "#d946ef",
   ema20: "#eab308",
   ema60: "#22c55e",
-  ema112: "#22c55e",
-  ema224: "#000000",
-  ema448: "#a855f7",
+  ema112: "#38bdf8",
+  ema224: "#f97316",
+  ema448: "#f8fafc",
   signal: "#22c55e",
+  longEmaBadge: "#f59e0b",
+};
+
+const EMA_STYLES = {
+  ema5: { strokeWidth: 1.2, opacity: 0.55, glow: false },
+  ema20: { strokeWidth: 1.4, opacity: 0.65, glow: false },
+  ema60: { strokeWidth: 1.6, opacity: 0.75, glow: false },
+  ema112: { strokeWidth: 2.4, opacity: 0.95, glow: true },
+  ema224: { strokeWidth: 2.8, opacity: 1, glow: true },
+  ema448: { strokeWidth: 3.2, opacity: 1, glow: true },
 };
 
 const DEFAULT_MARGIN = { top: 40, right: 90, bottom: 60, left: 30 };
@@ -33,11 +43,18 @@ const MINI_CHART_OPTIONS = {
   showAxisLabels: false,
   showTooltip: false,
   showEMA5: true,
-  showEMA20: true,
+  showEMA20: false,
   showEMA60: false,
-  showEMA112: false,
-  showEMA224: false,
-  showEMA448: false,
+  showEMA112: true,
+  showEMA224: true,
+  showEMA448: true,
+  highlightLongEma: true,
+  longEmaPeriods: [112, 224, 448],
+  shortEmaPeriods: [5, 20, 60],
+  showEmaLegend: false,
+  showEmaRightLabels: false,
+  showLongEmaGlow: true,
+  miniChartLongEmaOnly: true,
   showRegressionLine: true,
   showSelectedPriceLine: true,
   showMatchedArea: true,
@@ -58,6 +75,13 @@ const DETAIL_CHART_OPTIONS = {
   showEMA112: true,
   showEMA224: true,
   showEMA448: true,
+  highlightLongEma: true,
+  longEmaPeriods: [112, 224, 448],
+  shortEmaPeriods: [5, 20, 60],
+  showEmaLegend: true,
+  showEmaRightLabels: true,
+  showLongEmaGlow: true,
+  miniChartLongEmaOnly: false,
   showRegressionLine: true,
   showSelectedPriceLine: true,
   showMatchedArea: true,
@@ -168,12 +192,105 @@ const createPolyline = (points, stroke, attrs = "") => {
   return `<polyline points="${valid.map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(" ")}" fill="none" stroke="${stroke}" ${attrs}/>`;
 };
 
-const createIndicatorLine = (values, scale, color, attrs = `stroke-width="2" opacity="0.9"`) => {
-  const points = (values ?? []).map((value, index) => ({
+const getEmaStyle = (period) => EMA_STYLES[`ema${period}`] ?? EMA_STYLES.ema20;
+
+const getVisibleEmaPeriods = (options) => [5, 20, 60, 112, 224, 448]
+  .filter((period) => options[`showEMA${period}`])
+  .filter((period) => !options.miniChartLongEmaOnly || options.longEmaPeriods.includes(period));
+
+const createEmaPoints = (values, scale) =>
+  (values ?? []).map((value, index) => ({
     x: scale.x(index),
     y: value == null ? Number.NaN : scale.y(Number(value)),
+    value,
   }));
-  return createPolyline(points, color, attrs);
+
+const createEmaLine = (values, scale, period, options) => {
+  const style = getEmaStyle(period);
+  const color = COLORS[`ema${period}`];
+  const points = createEmaPoints(values, scale);
+  const glow =
+    options.showLongEmaGlow && style.glow
+      ? createPolyline(
+          points,
+          color,
+          `stroke-width="${style.strokeWidth + 4}" opacity="0.22" stroke-linecap="round" stroke-linejoin="round"`,
+        )
+      : "";
+  const main = createPolyline(
+    points,
+    color,
+    `stroke-width="${style.strokeWidth}" opacity="${style.opacity}" stroke-linecap="round" stroke-linejoin="round"`,
+  );
+  return `${glow}${main}`;
+};
+
+const latestFiniteValue = (values = []) => {
+  for (let index = values.length - 1; index >= 0; index -= 1) {
+    const value = values[index];
+    if (value != null && Number.isFinite(Number(value))) return Number(value);
+  }
+  return null;
+};
+
+const adjustRightSideLabels = (labels, minGap = 28) => {
+  const sorted = [...labels].sort((a, b) => a.y - b.y);
+  for (let index = 1; index < sorted.length; index += 1) {
+    if (sorted[index].y - sorted[index - 1].y < minGap) {
+      sorted[index].y = sorted[index - 1].y + minGap;
+    }
+  }
+  return sorted;
+};
+
+const createRightSideEmaLabels = ({ emaValues, scale, chartWidth, margin, plotHeight, options }) => {
+  if (!options.showEmaRightLabels) return "";
+  const labels = options.longEmaPeriods
+    .map((period) => {
+      const value = latestFiniteValue(emaValues[`ema${period}`]);
+      if (value == null) return null;
+      return {
+        period,
+        value,
+        y: Math.min(margin.top + plotHeight - 14, Math.max(margin.top + 14, scale.y(value))),
+        color: COLORS[`ema${period}`],
+      };
+    })
+    .filter(Boolean);
+  return adjustRightSideLabels(labels)
+    .map(({ period, value, y, color }) => `
+      <rect x="${chartWidth - margin.right + 6}" y="${y - 13}" width="118" height="26" rx="4" fill="${color}" opacity="0.96"/>
+      <text x="${chartWidth - margin.right + 65}" y="${y + 6}" fill="${period === 448 ? "#0f172a" : "white"}" font-size="17" font-weight="700" text-anchor="middle">EMA${period} ${formatPrice(value)}</text>
+    `)
+    .join("");
+};
+
+const createEmaLegend = ({ result, emaValues, options }) => {
+  if (!options.showEmaLegend) return "";
+  const periods = getVisibleEmaPeriods(options);
+  const items = periods
+    .map((period) => {
+      const value = latestFiniteValue(emaValues[`ema${period}`]);
+      const isLong = options.longEmaPeriods.includes(period);
+      return `
+        <span class="ema-legend-item ${isLong ? "strong" : ""}">
+          <i style="background:${COLORS[`ema${period}`]}"></i>
+          EMA${period} ${formatPrice(value)}
+        </span>
+      `;
+    })
+    .join("");
+  const bearish = result.isLongEmaBearish
+    ? `<span class="ema-legend-status on">장기 EMA 역배열: YES · 112 &lt; 224 &lt; 448</span>`
+    : `<span class="ema-legend-status">장기 EMA 역배열: NO</span>`;
+  return `
+    <foreignObject x="42" y="42" width="880" height="88">
+      <div xmlns="http://www.w3.org/1999/xhtml" class="ema-legend">
+        ${bearish}
+        <div>${items}</div>
+      </div>
+    </foreignObject>
+  `;
 };
 
 const createGridLines = ({ chartWidth, chartHeight, margin, plotWidth, ticks, scale }) =>
@@ -231,14 +348,10 @@ const createCandlestickSvgChart = (result, rawCandles, optionOverrides) => {
   const candles = rawCandles.slice(-options.renderPeriod);
   if (candles.length < 2) return `<div class="empty-chart">차트 데이터 부족</div>`;
   const emaValues = appData?.emaData?.[result.code] ?? {};
-  const visibleEmaValues = [
-    options.showEMA5 ? emaValues.ema5 : [],
-    options.showEMA20 ? emaValues.ema20 : [],
-    options.showEMA60 ? emaValues.ema60 : [],
-    options.showEMA112 ? emaValues.ema112 : [],
-    options.showEMA224 ? emaValues.ema224 : [],
-    options.showEMA448 ? emaValues.ema448 : [],
-  ].flat().filter((value) => value != null);
+  const visibleEmaPeriods = getVisibleEmaPeriods(options);
+  const visibleEmaValues = visibleEmaPeriods
+    .flatMap((period) => emaValues[`ema${period}`] ?? [])
+    .filter((value) => value != null);
 
   const { chartWidth, chartHeight, margin } = options;
   const plotWidth = chartWidth - margin.left - margin.right;
@@ -272,6 +385,14 @@ const createCandlestickSvgChart = (result, rawCandles, optionOverrides) => {
     options.showSelectedPriceLine
       ? createPolyline(renderPoints, COLORS.selectedLine, `stroke-width="2" stroke-dasharray="7 7" opacity="0.85"`)
       : "";
+  const shortEmaLines = options.shortEmaPeriods
+    .filter((period) => visibleEmaPeriods.includes(period))
+    .map((period) => createEmaLine(emaValues[`ema${period}`], scale, period, options))
+    .join("");
+  const longEmaLines = options.longEmaPeriods
+    .filter((period) => visibleEmaPeriods.includes(period))
+    .map((period) => createEmaLine(emaValues[`ema${period}`], scale, period, options))
+    .join("");
   const candleElements = candles
     .map((candle, index) => {
       const color = candle.close >= candle.open ? COLORS.bullish : COLORS.bearish;
@@ -301,19 +422,17 @@ const createCandlestickSvgChart = (result, rawCandles, optionOverrides) => {
       ${axisLabels}
       ${options.showAxisLabels ? `<line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${chartHeight - margin.bottom}" stroke="${COLORS.axis}" stroke-width="1"/>
       <line x1="${chartWidth - margin.right}" y1="${margin.top}" x2="${chartWidth - margin.right}" y2="${chartHeight - margin.bottom}" stroke="${COLORS.axis}" stroke-width="1"/>` : ""}
-      ${options.showEMA5 ? createIndicatorLine(emaValues.ema5, scale, COLORS.ema5) : ""}
-      ${options.showEMA20 ? createIndicatorLine(emaValues.ema20, scale, COLORS.ema20) : ""}
-      ${options.showEMA60 ? createIndicatorLine(emaValues.ema60, scale, COLORS.ema60) : ""}
-      ${options.showEMA112 ? createIndicatorLine(emaValues.ema112, scale, COLORS.ema112, `stroke-width="4" opacity="0.95"`) : ""}
-      ${options.showEMA224 ? createIndicatorLine(emaValues.ema224, scale, COLORS.ema224, `stroke-width="4" opacity="0.95"`) : ""}
-      ${options.showEMA448 ? createIndicatorLine(emaValues.ema448, scale, COLORS.ema448, `stroke-width="4" opacity="0.95"`) : ""}
-      ${selectedLine}
       ${candleElements}
+      ${selectedLine}
+      ${shortEmaLines}
+      ${longEmaLines}
       ${regressionLine}
       ${createBuySignalMarker(result.buySignal, scale, chartWidth, margin, options.showAxisLabels)}
       ${options.showAxisLabels ? `<rect x="${chartWidth - margin.right + 4}" y="${lastY - 18}" width="82" height="34" rx="4" fill="${lastColor}"/>
       <text x="${chartWidth - margin.right + 45}" y="${lastY + 6}" fill="white" font-size="20" text-anchor="middle">${formatPrice(lastCandle.close)}</text>
       <text x="${margin.left + 4}" y="30" fill="${COLORS.text}" font-size="22">${escapeHtml(result.name)} ${escapeHtml(result.code)} | 각도 ${formatNumber(result.angleDegree)}° | R² ${formatNumber(result.rSquared, 3)} | 수익률 ${formatPercent(result.returnRate)}</text>` : ""}
+      ${createRightSideEmaLabels({ emaValues, scale, chartWidth, margin, plotHeight, options })}
+      ${createEmaLegend({ result, emaValues, options })}
       ${createHoverAreas({ candles, margin, plotHeight, candleSlotWidth, scale, showTooltip: options.showTooltip })}
     </svg>
   `;

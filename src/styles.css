@@ -225,6 +225,55 @@ button {
   user-select: none;
 }
 
+.ema-legend {
+  display: inline-grid;
+  gap: 7px;
+  max-width: 860px;
+  border: 1px solid rgba(71, 85, 105, 0.72);
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.78);
+  padding: 9px 11px;
+  color: #e5e7eb;
+  font-size: 16px;
+  line-height: 1.25;
+  backdrop-filter: blur(4px);
+}
+
+.ema-legend > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 13px;
+}
+
+.ema-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: rgba(226, 232, 240, 0.72);
+  font-weight: 500;
+}
+
+.ema-legend-item.strong {
+  color: #f8fafc;
+  font-weight: 800;
+}
+
+.ema-legend-item i {
+  width: 18px;
+  height: 5px;
+  border-radius: 999px;
+  box-shadow: 0 0 10px currentColor;
+}
+
+.ema-legend-status {
+  color: #cbd5e1;
+  font-weight: 700;
+}
+
+.ema-legend-status.on {
+  color: #fbbf24;
+}
+
 .metrics {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
