@@ -536,7 +536,9 @@ const attachEvents = () => {
 };
 
 const loadScreeningData = async () => {
-  const response = await fetch("./assets/screening-data.json", { cache: "no-cache" });
+  const version = document.documentElement.dataset.assetVersion;
+  const dataUrl = `./assets/screening-data.json${version ? `?v=${encodeURIComponent(version)}` : ""}`;
+  const response = await fetch(dataUrl, { cache: "no-cache" });
   if (!response.ok) throw new Error(`failed to load screening-data.json: ${response.status}`);
   return response.json();
 };

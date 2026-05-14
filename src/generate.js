@@ -23,6 +23,7 @@ const indexPath = `${distDir}/index.html`;
 const dataPath = `${assetsDir}/screening-data.json`;
 const stylePath = `${assetsDir}/styles.css`;
 const rendererPath = `${assetsDir}/chartRenderer.js`;
+const assetVersion = (process.env.ASSET_VERSION ?? new Date().toISOString()).replace(/[^0-9A-Za-z]/g, "");
 
 const ensureOutputDirs = () => {
   mkdirSync(distDir, { recursive: true });
@@ -30,18 +31,18 @@ const ensureOutputDirs = () => {
 };
 
 const createShellHtml = () => `<!doctype html>
-<html lang="ko">
+<html lang="ko" data-asset-version="${assetVersion}">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>우하향 추세 종목 스크리너</title>
-  <link rel="stylesheet" href="./assets/styles.css" />
+  <link rel="stylesheet" href="./assets/styles.css?v=${assetVersion}" />
 </head>
 <body>
   <aside id="summary-panel" class="sidebar"></aside>
   <main id="result-panel" class="content"></main>
   <div id="chart-tooltip"></div>
-  <script type="module" src="./assets/chartRenderer.js"></script>
+  <script type="module" src="./assets/chartRenderer.js?v=${assetVersion}"></script>
 </body>
 </html>
 `;
