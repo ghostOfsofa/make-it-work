@@ -18,6 +18,9 @@ export const SCREEN_OPTIONS = Object.freeze({
   minAngleDegree: Number(process.env.MIN_ANGLE_DEGREE ?? DEFAULT_OPTIONS.minAngleDegree),
   minReturnRate: Number(process.env.MIN_RETURN_RATE ?? DEFAULT_OPTIONS.minReturnRate),
   minRSquared: Number(process.env.MIN_R_SQUARED ?? DEFAULT_OPTIONS.minRSquared),
+  useEmaBearishFilter: process.env.USE_EMA_BEARISH_FILTER !== "0",
+  emaPeriods: DEFAULT_OPTIONS.emaPeriods,
+  bearishEmaPeriods: DEFAULT_OPTIONS.bearishEmaPeriods,
   excludeEtf: process.env.EXCLUDE_ETF !== "0" && DEFAULT_STOCK_EXCLUSION_OPTIONS.excludeEtf,
   excludeEtn: process.env.EXCLUDE_ETN !== "0" && DEFAULT_STOCK_EXCLUSION_OPTIONS.excludeEtn,
   excludeSpac: process.env.EXCLUDE_SPAC !== "0" && DEFAULT_STOCK_EXCLUSION_OPTIONS.excludeSpac,
@@ -31,7 +34,12 @@ export const SCREEN_OPTIONS = Object.freeze({
 });
 
 const dbPath = resolveDbPath();
-const candleLimit = Number(process.env.CANDLE_LIMIT ?? 180);
+const candleLimit = Math.max(
+  Number(process.env.CANDLE_LIMIT ?? 700),
+  SCREEN_OPTIONS.renderPeriod,
+  SCREEN_OPTIONS.scanMaxPeriod,
+  Math.max(...SCREEN_OPTIONS.emaPeriods),
+);
 
 if (!hasReadableDb(dbPath)) {
   console.log(`DB not found: ${dbPath}`);
@@ -46,7 +54,9 @@ closeDatabase(statsDb);
 const stocks = loadStocksFromDatabase({
   dbPath,
   candleLimit,
-  minCandles: SCREEN_OPTIONS.scanMinPeriod,
+  minCandles: SCREEN_OPTIONS.useEmaBearishFilter
+    ? Math.max(SCREEN_OPTIONS.scanMinPeriod, Math.max(...SCREEN_OPTIONS.emaPeriods))
+    : SCREEN_OPTIONS.scanMinPeriod,
   exclusionOptions: SCREEN_OPTIONS,
 });
 const results = filterStrongDowntrendStocks(stocks, SCREEN_OPTIONS);
@@ -87,6 +97,7 @@ try {
   console.log(`excluded other non-common: ${universeStats.otherCount}`);
   console.log(`screening target stocks: ${universeStats.screeningTargetCount}`);
   console.log(`screening target stocks with enough candles: ${stocks.length}`);
+  console.log(`EMA bearish filter: ${SCREEN_OPTIONS.useEmaBearishFilter ? "ON" : "OFF"}`);
   console.log(`matched stocks: ${results.length}`);
   console.table(
     results.slice(0, 50).map((result) => ({

@@ -9,10 +9,12 @@ const COLORS = {
   selectedLine: "#d946ef",
   axis: "#475569",
   matchedArea: "rgba(148, 163, 184, 0.18)",
-  ma5: "#d946ef",
-  ma20: "#eab308",
-  ma60: "#64748b",
-  ma120: "#16a34a",
+  ema5: "#d946ef",
+  ema20: "#eab308",
+  ema60: "#22c55e",
+  ema112: "#38bdf8",
+  ema224: "#f97316",
+  ema448: "#e5e7eb",
   signal: "#22c55e",
 };
 
@@ -28,10 +30,12 @@ const MINI_CHART_OPTIONS = {
   showGrid: false,
   showAxisLabels: false,
   showTooltip: false,
-  showMA5: true,
-  showMA20: false,
-  showMA60: false,
-  showMA120: false,
+  showEMA5: true,
+  showEMA20: true,
+  showEMA60: false,
+  showEMA112: false,
+  showEMA224: false,
+  showEMA448: false,
   showRegressionLine: true,
   showSelectedPriceLine: true,
   showMatchedArea: true,
@@ -46,10 +50,12 @@ const DETAIL_CHART_OPTIONS = {
   showGrid: true,
   showAxisLabels: true,
   showTooltip: true,
-  showMA5: true,
-  showMA20: true,
-  showMA60: true,
-  showMA120: true,
+  showEMA5: true,
+  showEMA20: true,
+  showEMA60: true,
+  showEMA112: true,
+  showEMA224: true,
+  showEMA448: true,
   showRegressionLine: true,
   showSelectedPriceLine: true,
   showMatchedArea: true,
@@ -104,14 +110,17 @@ const selectedPrice = (candle) => (candle.close >= candle.open ? candle.close : 
 const unpackCandles = (rows = []) =>
   rows.map(([date, open, high, low, close]) => ({ date, open, high, low, close }));
 
-const calculatePriceRange = (candles) => {
-  const values = candles.flatMap((candle) => [
-    candle.open,
-    candle.high,
-    candle.low,
-    candle.close,
-    selectedPrice(candle),
-  ]);
+const calculatePriceRange = (candles, indicatorValues = []) => {
+  const values = [
+    ...candles.flatMap((candle) => [
+      candle.open,
+      candle.high,
+      candle.low,
+      candle.close,
+      selectedPrice(candle),
+    ]),
+    ...indicatorValues,
+  ].filter((value) => value != null && Number.isFinite(Number(value)));
   const min = Math.min(...values);
   const max = Math.max(...values);
   if (!Number.isFinite(min) || !Number.isFinite(max) || min === max) {
@@ -156,13 +165,11 @@ const createPolyline = (points, stroke, attrs = "") => {
   return `<polyline points="${valid.map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(" ")}" fill="none" stroke="${stroke}" ${attrs}/>`;
 };
 
-const createMovingAverageLine = (candles, period, scale, color) => {
-  const points = candles.map((_, index) => {
-    if (index + 1 < period) return { x: Number.NaN, y: Number.NaN };
-    const slice = candles.slice(index + 1 - period, index + 1);
-    const ma = slice.reduce((sum, candle) => sum + candle.close, 0) / period;
-    return { x: scale.x(index), y: scale.y(ma) };
-  });
+const createIndicatorLine = (values, scale, color, attrs = "") => {
+  const points = (values ?? []).map((value, index) => ({
+    x: scale.x(index),
+    y: value == null ? Number.NaN : scale.y(Number(value)),
+  }));
   return createPolyline(points, color, `stroke-width="2" opacity="0.9"`);
 };
 
@@ -220,11 +227,20 @@ const createCandlestickSvgChart = (result, rawCandles, optionOverrides) => {
   const options = { ...DETAIL_CHART_OPTIONS, ...optionOverrides, margin: { ...DEFAULT_MARGIN, ...(optionOverrides.margin ?? {}) } };
   const candles = rawCandles.slice(-options.renderPeriod);
   if (candles.length < 2) return `<div class="empty-chart">차트 데이터 부족</div>`;
+  const emaValues = appData?.emaData?.[result.code] ?? {};
+  const visibleEmaValues = [
+    options.showEMA5 ? emaValues.ema5 : [],
+    options.showEMA20 ? emaValues.ema20 : [],
+    options.showEMA60 ? emaValues.ema60 : [],
+    options.showEMA112 ? emaValues.ema112 : [],
+    options.showEMA224 ? emaValues.ema224 : [],
+    options.showEMA448 ? emaValues.ema448 : [],
+  ].flat().filter((value) => value != null);
 
   const { chartWidth, chartHeight, margin } = options;
   const plotWidth = chartWidth - margin.left - margin.right;
   const plotHeight = chartHeight - margin.top - margin.bottom;
-  const { minPrice, maxPrice } = calculatePriceRange(candles);
+  const { minPrice, maxPrice } = calculatePriceRange(candles, visibleEmaValues);
   if (!Number.isFinite(minPrice) || !Number.isFinite(maxPrice)) return `<div class="empty-chart">차트 범위 계산 실패</div>`;
 
   const scale = {
@@ -282,10 +298,12 @@ const createCandlestickSvgChart = (result, rawCandles, optionOverrides) => {
       ${axisLabels}
       ${options.showAxisLabels ? `<line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${chartHeight - margin.bottom}" stroke="${COLORS.axis}" stroke-width="1"/>
       <line x1="${chartWidth - margin.right}" y1="${margin.top}" x2="${chartWidth - margin.right}" y2="${chartHeight - margin.bottom}" stroke="${COLORS.axis}" stroke-width="1"/>` : ""}
-      ${options.showMA5 ? createMovingAverageLine(candles, 5, scale, COLORS.ma5) : ""}
-      ${options.showMA20 ? createMovingAverageLine(candles, 20, scale, COLORS.ma20) : ""}
-      ${options.showMA60 ? createMovingAverageLine(candles, 60, scale, COLORS.ma60) : ""}
-      ${options.showMA120 ? createMovingAverageLine(candles, 120, scale, COLORS.ma120) : ""}
+      ${options.showEMA5 ? createIndicatorLine(emaValues.ema5, scale, COLORS.ema5) : ""}
+      ${options.showEMA20 ? createIndicatorLine(emaValues.ema20, scale, COLORS.ema20) : ""}
+      ${options.showEMA60 ? createIndicatorLine(emaValues.ema60, scale, COLORS.ema60) : ""}
+      ${options.showEMA112 ? createIndicatorLine(emaValues.ema112, scale, COLORS.ema112) : ""}
+      ${options.showEMA224 ? createIndicatorLine(emaValues.ema224, scale, COLORS.ema224) : ""}
+      ${options.showEMA448 ? createIndicatorLine(emaValues.ema448, scale, COLORS.ema448) : ""}
       ${selectedLine}
       ${candleElements}
       ${regressionLine}
@@ -326,6 +344,7 @@ const renderSummaryPanel = () => {
       ${metric("ETF/ETN 제외", run.excludeEtf || run.excludeEtn ? "ON" : "OFF")}
       ${metric("거래정지 제외", run.excludeTradingHalt ? "ON" : "OFF")}
       ${metric("환기 제외", run.excludeAttention ? "ON" : "OFF")}
+      ${metric("EMA 역배열 필터", run.useEmaBearishFilter ? "ON" : "OFF")}
       ${metric("renderPeriod", run.renderPeriod)}
       ${metric("scan", `${run.scanMinPeriod}~${run.scanMaxPeriod}`)}
       ${metric("minAngle", `${run.minAngleDegree}°`)}
@@ -375,6 +394,13 @@ const renderResultCard = (result, visibleIndex, absoluteIndex) => {
         ${metric("R²", formatNumber(result.rSquared, 4))}
         ${metric("수익률", formatPercent(result.returnRate), result.returnRate <= 0 ? "down" : "up")}
         ${metric("MA5", formatPrice(result.ma5Price))}
+        ${metric("EMA5", formatPrice(result.ema5))}
+        ${metric("EMA20", formatPrice(result.ema20))}
+        ${metric("EMA60", formatPrice(result.ema60))}
+        ${metric("EMA112", formatPrice(result.ema112))}
+        ${metric("EMA224", formatPrice(result.ema224))}
+        ${metric("EMA448", formatPrice(result.ema448))}
+        ${metric("장기 EMA 역배열", result.isLongEmaBearish ? "YES" : "NO", result.isLongEmaBearish ? "signal" : "")}
         ${metric("매수 신호", signal ? `발생 ${escapeHtml(signal.signalTime)}` : "없음", signal ? "signal" : "")}
         ${signal ? metric("신호가", formatPrice(signal.currentPrice), "signal") : ""}
         ${signal ? metric("필터가 대비", formatPercent(signal.profitRateFromFiltered), "signal") : ""}
@@ -433,6 +459,13 @@ const downloadCsv = () => {
     "lastPrice",
     "lastClose",
     "dailyChangeRate",
+    "ema5",
+    "ema20",
+    "ema60",
+    "ema112",
+    "ema224",
+    "ema448",
+    "isLongEmaBearish",
     "buySignalStatus",
     "signalTime",
     "signalCurrentPrice",
@@ -456,6 +489,13 @@ const downloadCsv = () => {
       row.lastPrice,
       row.lastClose,
       row.dailyChangeRate,
+      row.ema5,
+      row.ema20,
+      row.ema60,
+      row.ema112,
+      row.ema224,
+      row.ema448,
+      row.isLongEmaBearish ? 1 : 0,
       signal.status ?? "",
       signal.signalTime ?? "",
       signal.currentPrice ?? "",

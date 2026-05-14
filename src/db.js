@@ -48,6 +48,17 @@ const SCREENING_RUN_EXTRA_COLUMNS = [
   ["exclude_administrative", "INTEGER DEFAULT 1"],
   ["exclude_attention", "INTEGER DEFAULT 1"],
   ["exclude_investment_warning", "INTEGER DEFAULT 0"],
+  ["use_ema_bearish_filter", "INTEGER DEFAULT 1"],
+];
+
+const FILTERED_STOCK_EXTRA_COLUMNS = [
+  ["ema5", "REAL"],
+  ["ema20", "REAL"],
+  ["ema60", "REAL"],
+  ["ema112", "REAL"],
+  ["ema224", "REAL"],
+  ["ema448", "REAL"],
+  ["is_long_ema_bearish", "INTEGER DEFAULT 0"],
 ];
 
 const ensureColumns = (db, tableName, columns) => {
@@ -271,6 +282,7 @@ export const initDatabase = (db) => {
       exclude_administrative INTEGER DEFAULT 1,
       exclude_attention INTEGER DEFAULT 1,
       exclude_investment_warning INTEGER DEFAULT 0,
+      use_ema_bearish_filter INTEGER DEFAULT 1,
       note TEXT
     );
 
@@ -292,6 +304,13 @@ export const initDatabase = (db) => {
       last_price REAL NOT NULL,
       last_close REAL NOT NULL,
       daily_change_rate REAL,
+      ema5 REAL,
+      ema20 REAL,
+      ema60 REAL,
+      ema112 REAL,
+      ema224 REAL,
+      ema448 REAL,
+      is_long_ema_bearish INTEGER DEFAULT 0,
       rank_no INTEGER,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (run_id) REFERENCES screening_runs(run_id),
@@ -347,6 +366,7 @@ export const initDatabase = (db) => {
   `);
   ensureColumns(db, "stocks", STOCK_META_COLUMNS);
   ensureColumns(db, "screening_runs", SCREENING_RUN_EXTRA_COLUMNS);
+  ensureColumns(db, "filtered_stocks", FILTERED_STOCK_EXTRA_COLUMNS);
   backfillStockMetaFromNames(db);
 };
 
@@ -438,7 +458,7 @@ const mapPriceRow = (row) => ({
 
 export const loadStocksFromDatabase = ({
   dbPath = "data/stocks.db",
-  candleLimit = 180,
+  candleLimit = 700,
   minCandles = 10,
   exclusionOptions = DEFAULT_STOCK_EXCLUSION_OPTIONS,
 } = {}) => {
@@ -554,9 +574,9 @@ export const insertScreeningRun = (db, runSummary, options) => {
       excluded_stock_count, screening_target_count,
       exclude_etf, exclude_etn, exclude_spac, exclude_reit, exclude_preferred,
       exclude_trading_halt, exclude_administrative, exclude_attention,
-      exclude_investment_warning, note
+      exclude_investment_warning, use_ema_bearish_filter, note
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     runSummary.baseDate,
     runSummary.dataSource ?? "database",
@@ -579,6 +599,7 @@ export const insertScreeningRun = (db, runSummary, options) => {
     toFlag(options.excludeAdministrative),
     toFlag(options.excludeAttention),
     toFlag(options.excludeInvestmentWarning),
+    toFlag(options.useEmaBearishFilter),
     runSummary.note ?? null,
   );
   return Number(result.lastInsertRowid);
@@ -590,9 +611,10 @@ export const insertFilteredStocks = (db, runId, results) => {
       run_id, code, name, market, base_date, matched_period,
       scan_start_date, scan_end_date, slope_pixel, angle_degree, r_squared,
       return_rate, first_price, last_price, last_close, daily_change_rate,
+      ema5, ema20, ema60, ema112, ema224, ema448, is_long_ema_bearish,
       rank_no
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const insertMany = db.transaction((rows) => {
@@ -614,6 +636,13 @@ export const insertFilteredStocks = (db, runId, results) => {
         result.lastPrice,
         result.lastClose,
         result.dailyChangeRate,
+        result.ema5 ?? null,
+        result.ema20 ?? null,
+        result.ema60 ?? null,
+        result.ema112 ?? null,
+        result.ema224 ?? null,
+        result.ema448 ?? null,
+        toFlag(result.isLongEmaBearish),
         index + 1,
       );
     });
@@ -645,6 +674,13 @@ const mapFilteredRow = (row) => ({
   lastPrice: row.last_price,
   lastClose: row.last_close,
   dailyChangeRate: row.daily_change_rate,
+  ema5: row.ema5,
+  ema20: row.ema20,
+  ema60: row.ema60,
+  ema112: row.ema112,
+  ema224: row.ema224,
+  ema448: row.ema448,
+  isLongEmaBearish: Boolean(row.is_long_ema_bearish),
   rankNo: row.rank_no,
 });
 

@@ -56,6 +56,11 @@ def count_other(conn):
     return scalar(conn, "SELECT COUNT(*) FROM stocks WHERE COALESCE(stock_type, 'COMMON') = 'OTHER'")
 
 
+def latest_run_id(conn):
+    row = conn.execute("SELECT run_id FROM screening_runs ORDER BY run_id DESC LIMIT 1").fetchone()
+    return row["run_id"] if row else None
+
+
 def print_rows(title, rows):
     print(title)
     if not rows:
@@ -103,6 +108,32 @@ def main():
             print(f"latest run id: {latest['run_id']}")
             print(f"latest base date: {latest['base_date']}")
             print(f"latest matched stocks: {latest['matched_stock_count']}")
+            if has_column(conn, "filtered_stocks", "is_long_ema_bearish"):
+                bearish_count = scalar(
+                    conn,
+                    """
+                    SELECT COUNT(*)
+                    FROM filtered_stocks
+                    WHERE run_id = ? AND COALESCE(is_long_ema_bearish, 0) = 1
+                    """,
+                    (latest["run_id"],),
+                )
+                print(f"latest long EMA bearish matches: {bearish_count}")
+            if has_column(conn, "filtered_stocks", "ema448"):
+                print_rows(
+                    "latest filtered EMA sample:",
+                    conn.execute(
+                        """
+                        SELECT code, name, angle_degree, r_squared, return_rate,
+                               ema112, ema224, ema448, is_long_ema_bearish
+                        FROM filtered_stocks
+                        WHERE run_id = ?
+                        ORDER BY rank_no
+                        LIMIT 10
+                        """,
+                        (latest["run_id"],),
+                    ).fetchall(),
+                )
         print_rows(
             "recent buy signals:",
             conn.execute(

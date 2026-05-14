@@ -73,6 +73,7 @@ CREATE TABLE IF NOT EXISTS screening_runs (
   exclude_administrative INTEGER DEFAULT 1,
   exclude_attention INTEGER DEFAULT 1,
   exclude_investment_warning INTEGER DEFAULT 0,
+  use_ema_bearish_filter INTEGER DEFAULT 1,
   note TEXT
 );
 
@@ -94,6 +95,13 @@ CREATE TABLE IF NOT EXISTS filtered_stocks (
   last_price REAL NOT NULL,
   last_close REAL NOT NULL,
   daily_change_rate REAL,
+  ema5 REAL,
+  ema20 REAL,
+  ema60 REAL,
+  ema112 REAL,
+  ema224 REAL,
+  ema448 REAL,
+  is_long_ema_bearish INTEGER DEFAULT 0,
   rank_no INTEGER,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (run_id) REFERENCES screening_runs(run_id),
@@ -174,6 +182,17 @@ SCREENING_RUN_EXTRA_COLUMNS = {
     "exclude_administrative": "INTEGER DEFAULT 1",
     "exclude_attention": "INTEGER DEFAULT 1",
     "exclude_investment_warning": "INTEGER DEFAULT 0",
+    "use_ema_bearish_filter": "INTEGER DEFAULT 1",
+}
+
+FILTERED_STOCK_EXTRA_COLUMNS = {
+    "ema5": "REAL",
+    "ema20": "REAL",
+    "ema60": "REAL",
+    "ema112": "REAL",
+    "ema224": "REAL",
+    "ema448": "REAL",
+    "is_long_ema_bearish": "INTEGER DEFAULT 0",
 }
 
 ETF_KEYWORDS = (
@@ -206,6 +225,7 @@ def init_database(db_path):
     conn.executescript(SCHEMA)
     ensure_columns(conn, "stocks", STOCK_META_COLUMNS)
     ensure_columns(conn, "screening_runs", SCREENING_RUN_EXTRA_COLUMNS)
+    ensure_columns(conn, "filtered_stocks", FILTERED_STOCK_EXTRA_COLUMNS)
     conn.commit()
     return conn
 
@@ -541,7 +561,12 @@ def save_stocks_to_database(
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Fetch KRX OHLCV data into SQLite")
-    parser.add_argument("--days", type=int, default=180, help="Initial collection window")
+    parser.add_argument(
+        "--days",
+        type=int,
+        default=700,
+        help="Initial collection window. Use 700+ calendar days for EMA448.",
+    )
     parser.add_argument(
         "--incremental-days",
         type=int,

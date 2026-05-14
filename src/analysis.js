@@ -15,6 +15,15 @@ export const DEFAULT_OPTIONS = Object.freeze({
   minAngleDegree: 29,
   minReturnRate: -5,
   minRSquared: 0.5,
+  useEmaBearishFilter: true,
+  emaPeriods: [5, 20, 60, 112, 224, 448],
+  bearishEmaPeriods: [112, 224, 448],
+  showEMA5: true,
+  showEMA20: true,
+  showEMA60: true,
+  showEMA112: true,
+  showEMA224: true,
+  showEMA448: true,
   showSelectedPriceLine: true,
   showRegressionLine: true,
   showMatchedArea: true,
@@ -268,6 +277,66 @@ export const calculateReturnRate = (selectedPrices) => {
   return ((lastPrice - firstPrice) / firstPrice) * 100;
 };
 
+export const calculateSMA = (values) => {
+  if (!Array.isArray(values) || values.length === 0) return null;
+  const numeric = values.map(Number);
+  if (!numeric.every(Number.isFinite)) return null;
+  return numeric.reduce((sum, value) => sum + value, 0) / numeric.length;
+};
+
+export const calculateEMA = (candles, period) => {
+  const safePeriod = Math.floor(Number(period));
+  if (!Array.isArray(candles) || safePeriod < 1) return [];
+  const result = Array(candles.length).fill(null);
+  if (candles.length < safePeriod) return result;
+
+  const closes = candles.map((candle) => Number(candle.close));
+  if (!closes.every((value) => Number.isFinite(value) && value > 0)) return result;
+
+  const firstEma = calculateSMA(closes.slice(0, safePeriod));
+  if (firstEma == null) return result;
+
+  const multiplier = 2 / (safePeriod + 1);
+  result[safePeriod - 1] = firstEma;
+  let previousEma = firstEma;
+
+  for (let index = safePeriod; index < closes.length; index += 1) {
+    const ema = closes[index] * multiplier + previousEma * (1 - multiplier);
+    result[index] = ema;
+    previousEma = ema;
+  }
+
+  return result;
+};
+
+export const calculateEMAs = (candles, periods = DEFAULT_OPTIONS.emaPeriods) =>
+  Object.fromEntries(periods.map((period) => [`ema${period}`, calculateEMA(candles, period)]));
+
+export const getLatestEMAValues = (candles, periods = DEFAULT_OPTIONS.emaPeriods) => {
+  const emas = calculateEMAs(candles, periods);
+  return Object.fromEntries(
+    periods.map((period) => {
+      const values = emas[`ema${period}`] ?? [];
+      const latest = values.at(-1);
+      return [`ema${period}`, latest == null ? null : latest];
+    }),
+  );
+};
+
+export const isLongEmaBearish = (
+  emaValues,
+  bearishPeriods = DEFAULT_OPTIONS.bearishEmaPeriods,
+) => {
+  const [shortPeriod, midPeriod, longPeriod] = bearishPeriods;
+  const shortEma = emaValues?.[`ema${shortPeriod}`];
+  const midEma = emaValues?.[`ema${midPeriod}`];
+  const longEma = emaValues?.[`ema${longPeriod}`];
+  if ([shortEma, midEma, longEma].some((value) => value == null || !Number.isFinite(Number(value)))) {
+    return false;
+  }
+  return shortEma < midEma && midEma < longEma;
+};
+
 export const pickBestDowntrendMatch = (matches) => {
   if (!Array.isArray(matches) || matches.length === 0) return null;
   return [...matches].sort((a, b) => {
@@ -283,7 +352,14 @@ export const filterStrongDowntrendStocks = (stocks, options = {}) => {
 
   return stocks
     .map((stock) => {
-      const candles = getRecentCandles(stock.prices, merged.renderPeriod);
+      const allCandles = getValidCandlesSortedByDate(stock.prices);
+      if (allCandles.length < merged.scanMinPeriod) return null;
+
+      const emaValues = getLatestEMAValues(allCandles, merged.emaPeriods);
+      const longEmaBearish = isLongEmaBearish(emaValues, merged.bearishEmaPeriods);
+      if (merged.useEmaBearishFilter && !longEmaBearish) return null;
+
+      const candles = allCandles.slice(-merged.renderPeriod);
       if (candles.length < merged.scanMinPeriod) return null;
 
       const selectedPrices = candles.map(getSelectedPrice);
@@ -313,8 +389,15 @@ export const filterStrongDowntrendStocks = (stocks, options = {}) => {
         renderPeriod: candles.length,
         lastClose: lastCandle.close,
         dailyChangeRate,
+        ...Object.fromEntries(
+          merged.emaPeriods.map((period) => {
+            const value = emaValues[`ema${period}`];
+            return [`ema${period}`, value == null ? null : round(value, 2)];
+          }),
+        ),
+        isLongEmaBearish: longEmaBearish,
         ...bestMatch,
-        prices: stock.prices,
+        prices: allCandles,
         renderCandles: candles,
         scanCandles: candles.slice(-bestMatch.matchedPeriod),
         regressionLine: {
@@ -360,6 +443,13 @@ export const exportResultsToCsv = (results) => {
     "lastPrice",
     "lastClose",
     "dailyChangeRate",
+    "ema5",
+    "ema20",
+    "ema60",
+    "ema112",
+    "ema224",
+    "ema448",
+    "isLongEmaBearish",
   ];
   const escapeCsv = (value) => `"${String(value ?? "").replaceAll('"', '""')}"`;
   return [
@@ -377,7 +467,7 @@ export const mergeOptions = (options = {}) => {
     renderPeriod: clamp(
       Math.floor(options.renderPeriod ?? DEFAULT_OPTIONS.renderPeriod),
       2,
-      500,
+      1000,
     ),
     scanMinPeriod: Math.max(
       2,
@@ -387,5 +477,11 @@ export const mergeOptions = (options = {}) => {
       2,
       Math.floor(options.scanMaxPeriod ?? DEFAULT_OPTIONS.scanMaxPeriod),
     ),
+    emaPeriods: Array.isArray(options.emaPeriods)
+      ? options.emaPeriods.map((period) => Math.floor(Number(period))).filter((period) => period > 0)
+      : DEFAULT_OPTIONS.emaPeriods,
+    bearishEmaPeriods: Array.isArray(options.bearishEmaPeriods)
+      ? options.bearishEmaPeriods.map((period) => Math.floor(Number(period))).filter((period) => period > 0)
+      : DEFAULT_OPTIONS.bearishEmaPeriods,
   };
 };

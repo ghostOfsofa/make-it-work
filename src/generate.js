@@ -3,7 +3,7 @@ import {
   mkdirSync,
   writeFileSync,
 } from "node:fs";
-import { DEFAULT_OPTIONS } from "./analysis.js";
+import { calculateEMAs, DEFAULT_OPTIONS } from "./analysis.js";
 import {
   closeDatabase,
   getLatestScreeningRun,
@@ -66,6 +66,9 @@ const createEmptyData = () => ({
     minAngleDegree: DEFAULT_OPTIONS.minAngleDegree,
     minReturnRate: DEFAULT_OPTIONS.minReturnRate,
     minRSquared: DEFAULT_OPTIONS.minRSquared,
+    useEmaBearishFilter: DEFAULT_OPTIONS.useEmaBearishFilter,
+    emaPeriods: DEFAULT_OPTIONS.emaPeriods,
+    bearishEmaPeriods: DEFAULT_OPTIONS.bearishEmaPeriods,
   },
   summary: {
     filteredCount: 0,
@@ -74,6 +77,7 @@ const createEmptyData = () => ({
   },
   results: [],
   chartData: {},
+  emaData: {},
 });
 
 const writeOutputs = (data) => {
@@ -118,12 +122,14 @@ try {
   const candlesMap = loadRecentCandlesForCodes(
     db,
     filteredStocks.map((stock) => stock.code),
-    options.renderPeriod,
+    Math.max(options.renderPeriod, Math.max(...DEFAULT_OPTIONS.emaPeriods)),
   );
 
   const chartData = {};
+  const emaData = {};
   const results = filteredStocks.map((stock) => {
-    const renderCandles = candlesMap.get(stock.code) ?? [];
+    const indicatorCandles = candlesMap.get(stock.code) ?? [];
+    const renderCandles = indicatorCandles.slice(-options.renderPeriod);
     chartData[stock.code] = renderCandles.map((candle) => [
       candle.date,
       candle.open,
@@ -131,6 +137,15 @@ try {
       candle.low,
       candle.close,
     ]);
+    const allEmaValues = calculateEMAs(indicatorCandles, DEFAULT_OPTIONS.emaPeriods);
+    emaData[stock.code] = Object.fromEntries(
+      DEFAULT_OPTIONS.emaPeriods.map((period) => [
+        `ema${period}`,
+        (allEmaValues[`ema${period}`] ?? [])
+          .slice(-options.renderPeriod)
+          .map((value) => (value == null ? null : Number(value.toFixed(2)))),
+      ]),
+    );
     const buySignal = signalByCode.get(stock.code);
 
     return {
@@ -150,6 +165,13 @@ try {
       lastPrice: stock.lastPrice,
       lastClose: stock.lastClose,
       dailyChangeRate: stock.dailyChangeRate,
+      ema5: stock.ema5,
+      ema20: stock.ema20,
+      ema60: stock.ema60,
+      ema112: stock.ema112,
+      ema224: stock.ema224,
+      ema448: stock.ema448,
+      isLongEmaBearish: stock.isLongEmaBearish,
       ma5Price: calculateMA5(renderCandles),
       buySignal: buySignal
         ? {
@@ -187,6 +209,11 @@ try {
       minAngleDegree: options.minAngleDegree,
       minReturnRate: options.minReturnRate,
       minRSquared: options.minRSquared,
+      useEmaBearishFilter: latestRun.use_ema_bearish_filter == null
+        ? DEFAULT_OPTIONS.useEmaBearishFilter
+        : Boolean(latestRun.use_ema_bearish_filter),
+      emaPeriods: DEFAULT_OPTIONS.emaPeriods,
+      bearishEmaPeriods: DEFAULT_OPTIONS.bearishEmaPeriods,
     },
     summary: {
       filteredCount: results.length,
@@ -195,6 +222,7 @@ try {
     },
     results,
     chartData,
+    emaData,
   };
 
   writeOutputs(data);

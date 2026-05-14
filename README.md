@@ -21,7 +21,7 @@ pip install finance-datareader
 ## 실제 데이터 수집
 
 ```bash
-python3 scripts/fetch-krx-data.py --days 180 --max-stocks 100
+python3 scripts/fetch-krx-data.py --days 700 --max-stocks 100
 ```
 
 로컬 Python 환경까지 한 번에 준비하려면:
@@ -69,12 +69,12 @@ NODE_FALLBACK_VERSION=22 bash scripts/setup-local-fetch.sh
 전체 종목 수집:
 
 ```bash
-python3 scripts/fetch-krx-data.py --days 180
+python3 scripts/fetch-krx-data.py --days 700
 ```
 
 옵션:
 
-- `--days`: 수집할 최근 거래일 범위
+- `--days`: 수집할 최근 캘린더 일수. EMA448 계산을 위해 `700` 이상 권장
 - `--incremental-days`: 이미 DB에 가격 데이터가 있는 종목의 재수집 범위, 기본값 `10`
 - `--max-stocks`: 테스트용 종목 수 제한
 - `--db-path`: SQLite DB 경로, 기본값 `data/stocks.db`
@@ -207,7 +207,10 @@ python3 scripts/query-prices.py --code 005930 --csv --output samsung.csv
   chartHeight: 900,
   minAngleDegree: 29,
   minReturnRate: -5,
-  minRSquared: 0.5
+  minRSquared: 0.5,
+  useEmaBearishFilter: true,
+  emaPeriods: [5, 20, 60, 112, 224, 448],
+  bearishEmaPeriods: [112, 224, 448]
 }
 ```
 
@@ -217,6 +220,7 @@ python3 scripts/query-prices.py --code 005930 --csv --output samsung.csv
 - `angleDegree >= minAngleDegree`
 - `rSquared >= minRSquared`
 - `returnRate <= minReturnRate`
+- `EMA112 < EMA224 < EMA448`
 
 검색 종료일은 항상 가장 최근 거래일입니다. 최근 10봉, 11봉, 12봉처럼 시작점만 과거로 확장하며 검사합니다.
 
@@ -246,6 +250,22 @@ EXCLUDE_ETF=0 EXCLUDE_ETN=0 EXCLUDE_PREFERRED=0 npm run screen
 ```
 
 `scripts/check-db.py`는 ETF/ETN/우선주/스팩/리츠/환기종목 등 제외 현황과 실제 screening target 수를 함께 출력합니다.
+
+### EMA 역배열 필터
+
+우하향 필터링은 종가 `close` 기준 EMA를 함께 계산합니다. 기간은 `5, 20, 60, 112, 224, 448`이고, 최종 필터 통과 조건에는 장기 EMA 역배열이 포함됩니다.
+
+```js
+ema112 < ema224 && ema224 < ema448
+```
+
+추세선 각도 계산은 기존과 동일하게 `selectedPrice` 기준이고, EMA는 반드시 `close` 기준입니다. EMA448 계산에는 최소 448개 이상의 일봉이 필요하므로 데이터가 부족한 종목은 EMA 역배열 필터에서 제외됩니다. 실제 데이터 수집은 캘린더 기준 `--days 700` 이상을 권장합니다.
+
+필요하면 테스트 목적으로 EMA 필터를 끌 수 있습니다.
+
+```bash
+USE_EMA_BEARISH_FILTER=0 npm run screen
+```
 
 ## selectedPrice 규칙
 

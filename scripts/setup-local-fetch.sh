@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VENV_DIR="${ROOT_DIR}/.venv"
 PYTHON_BIN="${PYTHON_BIN:-python3}"
-DAYS="${DAYS:-180}"
+DAYS="${DAYS:-700}"
 INCREMENTAL_DAYS="${INCREMENTAL_DAYS:-10}"
 SLEEP_SECONDS="${SLEEP_SECONDS:-0.1}"
 MAX_STOCKS="${MAX_STOCKS:-}"

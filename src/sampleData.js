@@ -135,7 +135,7 @@ export const generatePatternedStock = ({
 
 export const generateSampleStocks = ({
   stockCount = 300,
-  candleCount = 120,
+  candleCount = 700,
   seed = Date.now(),
 } = {}) => {
   const random = createSeededRandom(seed);
