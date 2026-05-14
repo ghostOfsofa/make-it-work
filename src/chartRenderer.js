@@ -12,14 +12,16 @@ const COLORS = {
   ema5: "#d946ef",
   ema20: "#eab308",
   ema60: "#22c55e",
-  ema112: "#38bdf8",
-  ema224: "#f97316",
-  ema448: "#e5e7eb",
+  ema112: "#22c55e",
+  ema224: "#000000",
+  ema448: "#a855f7",
   signal: "#22c55e",
 };
 
 const DEFAULT_MARGIN = { top: 40, right: 90, bottom: 60, left: 30 };
-const PAGE_SIZE = 20;
+const DESKTOP_PAGE_SIZE = 1;
+const MOBILE_PAGE_SIZE = 20;
+const MOBILE_BREAKPOINT = 980;
 const DEFAULT_CHART_MODE = "detail";
 
 const MINI_CHART_OPTIONS = {
@@ -65,6 +67,7 @@ const DETAIL_CHART_OPTIONS = {
 let appData = null;
 let sortKey = "angle";
 let currentPage = 1;
+let isMobileLayout = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`).matches;
 const chartModes = new Map();
 
 const escapeHtml = (value) =>
@@ -165,12 +168,12 @@ const createPolyline = (points, stroke, attrs = "") => {
   return `<polyline points="${valid.map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(" ")}" fill="none" stroke="${stroke}" ${attrs}/>`;
 };
 
-const createIndicatorLine = (values, scale, color, attrs = "") => {
+const createIndicatorLine = (values, scale, color, attrs = `stroke-width="2" opacity="0.9"`) => {
   const points = (values ?? []).map((value, index) => ({
     x: scale.x(index),
     y: value == null ? Number.NaN : scale.y(Number(value)),
   }));
-  return createPolyline(points, color, `stroke-width="2" opacity="0.9"`);
+  return createPolyline(points, color, attrs);
 };
 
 const createGridLines = ({ chartWidth, chartHeight, margin, plotWidth, ticks, scale }) =>
@@ -301,9 +304,9 @@ const createCandlestickSvgChart = (result, rawCandles, optionOverrides) => {
       ${options.showEMA5 ? createIndicatorLine(emaValues.ema5, scale, COLORS.ema5) : ""}
       ${options.showEMA20 ? createIndicatorLine(emaValues.ema20, scale, COLORS.ema20) : ""}
       ${options.showEMA60 ? createIndicatorLine(emaValues.ema60, scale, COLORS.ema60) : ""}
-      ${options.showEMA112 ? createIndicatorLine(emaValues.ema112, scale, COLORS.ema112) : ""}
-      ${options.showEMA224 ? createIndicatorLine(emaValues.ema224, scale, COLORS.ema224) : ""}
-      ${options.showEMA448 ? createIndicatorLine(emaValues.ema448, scale, COLORS.ema448) : ""}
+      ${options.showEMA112 ? createIndicatorLine(emaValues.ema112, scale, COLORS.ema112, `stroke-width="4" opacity="0.95"`) : ""}
+      ${options.showEMA224 ? createIndicatorLine(emaValues.ema224, scale, COLORS.ema224, `stroke-width="4" opacity="0.95"`) : ""}
+      ${options.showEMA448 ? createIndicatorLine(emaValues.ema448, scale, COLORS.ema448, `stroke-width="4" opacity="0.95"`) : ""}
       ${selectedLine}
       ${candleElements}
       ${regressionLine}
@@ -412,15 +415,16 @@ const renderResultCard = (result, visibleIndex, absoluteIndex) => {
 const renderResultPanel = () => {
   const panel = document.getElementById("result-panel");
   const sorted = getSortedResults();
-  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const pageSize = isMobileLayout ? MOBILE_PAGE_SIZE : DESKTOP_PAGE_SIZE;
+  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
   currentPage = Math.min(currentPage, totalPages);
-  const start = (currentPage - 1) * PAGE_SIZE;
-  const pageItems = sorted.slice(start, start + PAGE_SIZE);
+  const start = (currentPage - 1) * pageSize;
+  const pageItems = sorted.slice(start, start + pageSize);
   panel.innerHTML = `
     <header class="toolbar">
       <div>
         <h1>필터링 결과 ${sorted.length}개 종목</h1>
-        <p>현재 페이지의 모든 종목을 상세차트로 렌더링합니다.</p>
+        <p>${isMobileLayout ? "모바일에서는 결과를 세로 스크롤로 확인합니다." : "PC에서는 한 화면에 하나의 상세차트만 표시합니다."}</p>
       </div>
       <div class="actions">
         <select id="sort-select">
@@ -437,7 +441,7 @@ const renderResultPanel = () => {
     </section>
     <nav class="pagination">
       <button type="button" id="prev-page" ${currentPage <= 1 ? "disabled" : ""}>이전</button>
-      <span>${currentPage} / ${totalPages}</span>
+      <span>${currentPage} / ${totalPages}${!isMobileLayout && pageItems[0] ? ` · #${start + 1} ${escapeHtml(pageItems[0].name)}` : ""}</span>
       <button type="button" id="next-page" ${currentPage >= totalPages ? "disabled" : ""}>다음</button>
     </nav>
   `;
@@ -531,6 +535,13 @@ const renderChartForCode = (code, mode) => {
 };
 
 const attachEvents = () => {
+  const mediaQuery = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`);
+  mediaQuery.addEventListener("change", (event) => {
+    isMobileLayout = event.matches;
+    currentPage = 1;
+    renderResultPanel();
+  });
+
   document.addEventListener("change", (event) => {
     if (event.target?.id === "sort-select") {
       sortKey = event.target.value;

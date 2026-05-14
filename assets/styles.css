@@ -18,6 +18,7 @@
 body {
   margin: 0;
   min-height: 100vh;
+  overflow: hidden;
   display: grid;
   grid-template-columns: 320px minmax(0, 1fr);
   background: var(--bg);
@@ -100,7 +101,11 @@ code {
 
 .content {
   min-width: 0;
+  height: 100vh;
+  overflow: hidden;
   padding: 22px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
 }
 
 .toolbar {
@@ -137,14 +142,18 @@ button {
 
 .results-list {
   display: grid;
+  min-height: 0;
   gap: 18px;
 }
 
 .result-card {
+  min-height: 0;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--panel-2);
   overflow: hidden;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
 }
 
 .result-card.has-signal {
@@ -190,6 +199,8 @@ button {
 
 .chart-shell {
   padding: 12px;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .chart-controls {
@@ -207,7 +218,8 @@ button {
 .stock-chart {
   display: block;
   width: 100%;
-  height: auto;
+  height: 100%;
+  max-height: 62vh;
   border-radius: 6px;
   background: #0b1220;
   user-select: none;
@@ -312,6 +324,30 @@ button {
   .sidebar {
     position: static;
     height: auto;
+  }
+
+  body {
+    min-height: 100vh;
+    overflow: auto;
+  }
+
+  .content {
+    height: auto;
+    overflow: visible;
+    display: block;
+  }
+
+  .result-card {
+    display: block;
+  }
+
+  .chart-shell {
+    overflow: visible;
+  }
+
+  .stock-chart {
+    height: auto;
+    max-height: none;
   }
 
   .toolbar,
