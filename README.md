@@ -205,7 +205,7 @@ python3 scripts/query-prices.py --code 005930 --csv --output samsung.csv
   scanMaxPeriod: 60,
   chartWidth: 1600,
   chartHeight: 900,
-  minAngleDegree: 29,
+  minAngleDegree: 45,
   minReturnRate: -5,
   minRSquared: 0.5,
   useEmaBearishFilter: true,
@@ -334,6 +334,39 @@ http://localhost:8000/chart.html
 ```
 
 GitHub Pages 설정에서 Source를 **GitHub Actions**로 지정하세요.
+
+## REST API
+
+API 서버 실행:
+
+```bash
+npm run api
+```
+
+필터링 결과 조회:
+
+```bash
+curl http://127.0.0.1:3000/api/filtered-stocks/latest
+```
+
+매수 신호 조회:
+
+```bash
+curl http://127.0.0.1:3000/api/buy-signals/latest
+```
+
+특정 종목 조회:
+
+```bash
+curl http://127.0.0.1:3000/api/stocks/005930
+```
+
+API key 사용:
+
+```bash
+API_KEY=my-secret npm run api
+curl -H "x-api-key: my-secret" http://127.0.0.1:3000/api/filtered-stocks/latest
+```
 
 ## 주의사항
 

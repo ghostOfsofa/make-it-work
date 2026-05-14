@@ -690,6 +690,7 @@ const mapFilteredRow = (row) => ({
   isLongEmaBearish: Boolean(row.is_long_ema_bearish),
   isLastPriceBelowEma5: Boolean(row.is_last_price_below_ema5),
   rankNo: row.rank_no,
+  createdAt: row.created_at,
 });
 
 export const loadFilteredStocksByRunId = (db, runId) =>
@@ -741,27 +742,126 @@ export const loadBuySignalsByRunId = (db, runId) =>
   db
     .prepare("SELECT * FROM buy_signals WHERE run_id = ? ORDER BY signal_time DESC")
     .all(runId)
-    .map((row) => ({
-      id: row.id,
-      runId: row.run_id,
-      code: row.code,
-      name: row.name,
-      market: row.market,
-      signalTime: row.signal_time,
-      baseDate: row.base_date,
-      currentPrice: row.current_price,
-      ma5Price: row.ma5_price,
-      previousClose: row.previous_close,
-      previousPrice: row.previous_price,
-      crossType: row.cross_type,
-      signalReason: row.signal_reason,
-      filteredLastPrice: row.filtered_last_price,
-      profitRateFromFiltered: row.profit_rate_from_filtered,
-      matchedPeriod: row.matched_period,
-      angleDegree: row.angle_degree,
-      rSquared: row.r_squared,
-      returnRate: row.return_rate,
-      status: row.status,
-    }));
+    .map(mapBuySignalRow);
+
+const mapRunRow = (row) =>
+  row
+    ? {
+        runId: row.run_id,
+        baseDate: row.base_date,
+        runAt: row.run_at,
+        dataSource: row.data_source,
+        totalStockCount: row.total_stock_count,
+        matchedStockCount: row.matched_stock_count,
+        renderPeriod: row.render_period,
+        scanMinPeriod: row.scan_min_period,
+        scanMaxPeriod: row.scan_max_period,
+        minAngleDegree: row.min_angle_degree,
+        minReturnRate: row.min_return_rate,
+        minRSquared: row.min_r_squared,
+      }
+    : null;
+
+const mapBuySignalRow = (row) => ({
+  id: row.id,
+  runId: row.run_id,
+  code: row.code,
+  name: row.name,
+  market: row.market,
+  signalTime: row.signal_time,
+  baseDate: row.base_date,
+  currentPrice: row.current_price,
+  ma5Price: row.ma5_price,
+  previousClose: row.previous_close,
+  previousPrice: row.previous_price,
+  crossType: row.cross_type,
+  signalReason: row.signal_reason,
+  filteredLastPrice: row.filtered_last_price,
+  profitRateFromFiltered: row.profit_rate_from_filtered,
+  matchedPeriod: row.matched_period,
+  angleDegree: row.angle_degree,
+  rSquared: row.r_squared,
+  returnRate: row.return_rate,
+  status: row.status,
+  createdAt: row.created_at,
+});
+
+const normalizePaging = ({ limit, offset } = {}) => ({
+  limit: Math.min(Math.max(Number.parseInt(limit ?? "100", 10) || 100, 1), 1000),
+  offset: Math.max(Number.parseInt(offset ?? "0", 10) || 0, 0),
+});
+
+export const loadLatestScreeningRunForApi = (db) => mapRunRow(getLatestScreeningRun(db));
+
+export const loadLatestFilteredStocksForApi = (db, paging = {}) => {
+  const latestRun = getLatestScreeningRun(db);
+  if (!latestRun) return { run: null, count: 0, results: [] };
+  const { limit, offset } = normalizePaging(paging);
+  const count = db
+    .prepare("SELECT COUNT(*) AS count FROM filtered_stocks WHERE run_id = ?")
+    .get(latestRun.run_id)?.count ?? 0;
+  const results = db
+    .prepare(`
+      SELECT *
+      FROM filtered_stocks
+      WHERE run_id = ?
+      ORDER BY rank_no, angle_degree DESC
+      LIMIT ? OFFSET ?
+    `)
+    .all(latestRun.run_id, limit, offset)
+    .map(mapFilteredRow);
+  return { run: mapRunRow(latestRun), count, results };
+};
+
+export const loadLatestBuySignalsForApi = (db, paging = {}) => {
+  const latestRun = getLatestScreeningRun(db);
+  if (!latestRun) return { run: null, count: 0, signals: [] };
+  const { limit, offset } = normalizePaging(paging);
+  const count = db
+    .prepare("SELECT COUNT(*) AS count FROM buy_signals WHERE run_id = ?")
+    .get(latestRun.run_id)?.count ?? 0;
+  const signals = db
+    .prepare(`
+      SELECT *
+      FROM buy_signals
+      WHERE run_id = ?
+      ORDER BY signal_time DESC
+      LIMIT ? OFFSET ?
+    `)
+    .all(latestRun.run_id, limit, offset)
+    .map(mapBuySignalRow);
+  return { run: mapRunRow(latestRun), count, signals };
+};
+
+export const loadStockDetailForApi = (db, code) => {
+  const normalizedCode = String(code ?? "").trim();
+  if (!normalizedCode) return null;
+  const latestRun = getLatestScreeningRun(db);
+  if (!latestRun) return null;
+  const filteredStock = db
+    .prepare(`
+      SELECT *
+      FROM filtered_stocks
+      WHERE run_id = ? AND code = ?
+      ORDER BY rank_no, angle_degree DESC
+      LIMIT 1
+    `)
+    .get(latestRun.run_id, normalizedCode);
+  if (!filteredStock) return null;
+  const buySignals = db
+    .prepare(`
+      SELECT *
+      FROM buy_signals
+      WHERE run_id = ? AND code = ?
+      ORDER BY signal_time DESC
+    `)
+    .all(latestRun.run_id, normalizedCode)
+    .map(mapBuySignalRow);
+  return {
+    code: normalizedCode,
+    filteredStock: mapFilteredRow(filteredStock),
+    buySignals,
+  };
+};
 
 export const closeDatabase = (db) => db?.close();
