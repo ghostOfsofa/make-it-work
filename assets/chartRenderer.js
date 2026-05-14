@@ -18,7 +18,7 @@ const COLORS = {
 
 const DEFAULT_MARGIN = { top: 40, right: 90, bottom: 60, left: 30 };
 const PAGE_SIZE = 20;
-const MAX_PRE_RENDERED_CHARTS = 10;
+const DEFAULT_CHART_MODE = "detail";
 
 const MINI_CHART_OPTIONS = {
   chartWidth: 480,
@@ -76,15 +76,18 @@ const round = (value, digits = 2) => {
   return Math.round(number * factor) / factor;
 };
 
+const isFiniteValue = (value) =>
+  value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value));
+
 const formatPrice = (value) =>
-  Number.isFinite(Number(value)) ? Math.round(Number(value)).toLocaleString("ko-KR") : "-";
+  isFiniteValue(value) ? Math.round(Number(value)).toLocaleString("ko-KR") : "-";
 
 const formatNumber = (value, digits = 2) =>
-  Number.isFinite(Number(value)) ? round(Number(value), digits).toLocaleString("ko-KR") : "-";
+  isFiniteValue(value) ? round(Number(value), digits).toLocaleString("ko-KR") : "-";
 
 const formatPercent = (value, digits = 2) => {
+  if (!isFiniteValue(value)) return "-";
   const number = Number(value);
-  if (!Number.isFinite(number)) return "-";
   return `${number > 0 ? "+" : ""}${number.toFixed(digits)}%`;
 };
 
@@ -332,7 +335,7 @@ const renderResultCard = (result, visibleIndex, absoluteIndex) => {
   const signal = result.buySignal;
   const signalClass = signal ? "has-signal" : "";
   const candles = unpackCandles(appData.chartData[result.code] ?? []);
-  const mode = chartModes.get(result.code) ?? (absoluteIndex < MAX_PRE_RENDERED_CHARTS ? "mini" : "none");
+  const mode = chartModes.get(result.code) ?? DEFAULT_CHART_MODE;
   const chart =
     mode === "mini"
       ? createCandlestickSvgChart(result, candles, MINI_CHART_OPTIONS)
@@ -386,7 +389,7 @@ const renderResultPanel = () => {
     <header class="toolbar">
       <div>
         <h1>필터링 결과 ${sorted.length}개 종목</h1>
-        <p>JSON 데이터를 브라우저에서 읽어 차트를 렌더링합니다.</p>
+        <p>현재 페이지의 모든 종목을 상세차트로 렌더링합니다.</p>
       </div>
       <div class="actions">
         <select id="sort-select">
