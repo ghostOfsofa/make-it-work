@@ -119,13 +119,30 @@ def main():
                     (latest["run_id"],),
                 )
                 print(f"latest long EMA bearish matches: {bearish_count}")
+            if has_column(conn, "filtered_stocks", "is_last_price_below_ema5"):
+                below_ema5_count = scalar(
+                    conn,
+                    """
+                    SELECT COUNT(*)
+                    FROM filtered_stocks
+                    WHERE run_id = ? AND COALESCE(is_last_price_below_ema5, 0) = 1
+                    """,
+                    (latest["run_id"],),
+                )
+                print(f"latest last close below EMA5 matches: {below_ema5_count}")
             if has_column(conn, "filtered_stocks", "ema448"):
+                below_column = (
+                    "is_last_price_below_ema5"
+                    if has_column(conn, "filtered_stocks", "is_last_price_below_ema5")
+                    else "0 AS is_last_price_below_ema5"
+                )
                 print_rows(
                     "latest filtered EMA sample:",
                     conn.execute(
-                        """
+                        f"""
                         SELECT code, name, angle_degree, r_squared, return_rate,
-                               ema112, ema224, ema448, is_long_ema_bearish
+                               ema5, ema112, ema224, ema448,
+                               is_long_ema_bearish, {below_column}
                         FROM filtered_stocks
                         WHERE run_id = ?
                         ORDER BY rank_no
