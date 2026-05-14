@@ -119,10 +119,12 @@ try {
   const filteredStocks = loadFilteredStocksByRunId(db, latestRun.run_id);
   const buySignals = loadBuySignalsByRunId(db, latestRun.run_id);
   const signalByCode = new Map(buySignals.map((signal) => [signal.code, signal]));
+  const maxEmaPeriod = Math.max(...DEFAULT_OPTIONS.emaPeriods);
+  const indicatorCandleLimit = maxEmaPeriod + options.renderPeriod - 1;
   const candlesMap = loadRecentCandlesForCodes(
     db,
     filteredStocks.map((stock) => stock.code),
-    Math.max(options.renderPeriod, Math.max(...DEFAULT_OPTIONS.emaPeriods)),
+    indicatorCandleLimit,
   );
 
   const chartData = {};
