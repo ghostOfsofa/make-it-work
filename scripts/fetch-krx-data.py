@@ -362,7 +362,15 @@ def main():
         if args.end_date
         else (datetime.now() - timedelta(days=1)).date()
     )
-    stocks = fetch_stock_list()
+    try:
+        stocks = fetch_stock_list()
+    except Exception as error:
+        print(f"failed to fetch KRX stock list: {error}", file=sys.stderr)
+        print(
+            "Check network/DNS access to data.krx.co.kr and retry.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
     if args.max_stocks:
         stocks = stocks[: args.max_stocks]
     print(f"target stocks: {len(stocks)}")

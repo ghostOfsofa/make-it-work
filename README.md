@@ -36,6 +36,36 @@ bash scripts/setup-local-fetch.sh
 MAX_STOCKS=100 bash scripts/setup-local-fetch.sh
 ```
 
+이 스크립트는 기본적으로 데이터 수집 후 `npm run screen`, `npm run generate`까지 실행합니다. 수집만 하고 싶으면:
+
+```bash
+RUN_SCREEN=0 RUN_GENERATE=0 bash scripts/setup-local-fetch.sh
+```
+
+스크리닝까지만 하고 HTML 생성을 건너뛰고 싶으면:
+
+```bash
+RUN_GENERATE=0 bash scripts/setup-local-fetch.sh
+```
+
+이미 `.venv`에 FinanceDataReader가 설치되어 있고 pip 설치 과정을 건너뛰고 싶으면:
+
+```bash
+SKIP_PIP_INSTALL=1 bash scripts/setup-local-fetch.sh
+```
+
+KRX 네트워크가 일시적으로 실패해도 기존 `data/stocks.db`가 있으면 기본적으로 그 DB로 스크리닝을 계속합니다. 실패 시 즉시 중단하고 싶으면:
+
+```bash
+ALLOW_FETCH_FAILURE_WITH_EXISTING_DB=0 bash scripts/setup-local-fetch.sh
+```
+
+로컬 기본 Node가 v25처럼 `better-sqlite3`가 지원하지 않는 버전이면 스크립트가 자동으로 `npx node@20`으로 스크리닝을 실행합니다. fallback 버전을 바꾸려면:
+
+```bash
+NODE_FALLBACK_VERSION=22 bash scripts/setup-local-fetch.sh
+```
+
 전체 종목 수집:
 
 ```bash
@@ -86,20 +116,18 @@ open dist/chart.html
 
 ## 로컬 수집 후 서버 업로드
 
-로컬에서 KRX 데이터를 수집한 뒤 서버에서 같은 DB를 사용하려면 업로드용 DB 사본을 만든 후 서버의 `data/stocks.db` 위치에 복사합니다.
+로컬에서 KRX 데이터를 수집한 뒤 HTML까지 생성해서 정적 서버에 올릴 수 있습니다. 이 경우 서버에는 DB, Node, Python이 필요 없습니다.
 
 ```bash
-python3 scripts/fetch-krx-data.py --days 180 --incremental-days 10
-npm run screen
-npm run prepare:db-upload
-scp dist/stocks.db user@server:/path/to/app/data/stocks.db
+bash scripts/setup-local-fetch.sh
+scp dist/index.html dist/chart.html user@server:/path/to/static/
 ```
 
-서버에서는 업로드된 DB를 기준으로 HTML만 다시 만들면 됩니다.
+서버에서 다시 스크리닝하거나 HTML을 다시 생성하려는 경우에만 DB를 올립니다.
 
 ```bash
-npm install
-npm run generate
+npm run prepare:db-upload
+scp dist/stocks.db user@server:/path/to/app/data/stocks.db
 ```
 
 Node 프로그램은 기본적으로 `data/stocks.db`를 읽습니다. `data/stocks.db`가 없고 `dist/stocks.db`가 있으면 업로드용 DB를 자동으로 읽습니다. 다른 경로를 쓰려면 `DB_PATH`를 지정하세요.
