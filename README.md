@@ -120,14 +120,14 @@ open dist/chart.html
 
 ```bash
 bash scripts/setup-local-fetch.sh
-scp dist/index.html dist/chart.html user@server:/path/to/static/
+scp -r dist/index.html dist/chart.html dist/assets user@server:/path/to/static/
 ```
 
 GitHub Pages에 로컬에서 생성한 HTML을 그대로 배포하려면 루트 HTML도 갱신해서 커밋합니다.
 
 ```bash
 PUBLISH_HTML_TO_ROOT=1 bash scripts/setup-local-fetch.sh
-git add index.html chart.html
+git add index.html chart.html assets/
 git commit -m "Update generated static charts"
 git push
 ```
@@ -263,10 +263,24 @@ previousPrice <= ma5Price && currentPrice > ma5Price
 `.github/workflows/deploy.yml`은 `main` push 시 실행됩니다.
 
 1. 저장소를 checkout합니다.
-2. repo에 올라간 `index.html`, `chart.html`을 Pages artifact로 복사합니다.
+2. repo에 올라간 `index.html`, `chart.html`, `assets/`를 Pages artifact로 복사합니다.
 3. GitHub Pages에 정적 HTML만 배포합니다.
 
 배포 과정에서는 DB 생성, KRX 수집, 스크리닝, HTML 생성을 하지 않습니다. 로컬에서 HTML을 생성한 뒤 정적 파일을 올리는 구조입니다.
+
+## 로컬 미리보기
+
+`chart.html`은 `assets/screening-data.json`을 fetch하므로 `file://`로 직접 열면 브라우저 정책에 따라 실패할 수 있습니다. 아래처럼 로컬 서버로 확인하세요.
+
+```bash
+npm run preview
+```
+
+접속:
+
+```text
+http://localhost:8000/chart.html
+```
 
 GitHub Pages 설정에서 Source를 **GitHub Actions**로 지정하세요.
 

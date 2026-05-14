@@ -1,3 +1,8 @@
+import {
+  copyFileSync,
+  mkdirSync,
+  writeFileSync,
+} from "node:fs";
 import { DEFAULT_OPTIONS } from "./analysis.js";
 import {
   closeDatabase,
@@ -7,32 +12,77 @@ import {
   loadRecentCandlesForCodes,
   openDatabase,
 } from "./db.js";
-import { generateChartHtml, saveChartHtml } from "./chart.js";
 import { calculateMA5 } from "./buySignal.js";
 import { hasReadableDb, resolveDbPath } from "./config.js";
 
 const dbPath = resolveDbPath();
-const outputPath = process.env.OUTPUT_PATH ?? "dist/chart.html";
-const indexPath = process.env.INDEX_OUTPUT_PATH ?? "dist/index.html";
+const distDir = process.env.DIST_DIR ?? "dist";
+const assetsDir = `${distDir}/assets`;
+const chartPath = `${distDir}/chart.html`;
+const indexPath = `${distDir}/index.html`;
+const dataPath = `${assetsDir}/screening-data.json`;
+const stylePath = `${assetsDir}/styles.css`;
+const rendererPath = `${assetsDir}/chartRenderer.js`;
 
-const createEmptyHtml = () =>
-  generateChartHtml([], DEFAULT_OPTIONS, {
+const ensureOutputDirs = () => {
+  mkdirSync(distDir, { recursive: true });
+  mkdirSync(assetsDir, { recursive: true });
+};
+
+const createShellHtml = () => `<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>우하향 추세 종목 스크리너</title>
+  <link rel="stylesheet" href="./assets/styles.css" />
+</head>
+<body>
+  <aside id="summary-panel" class="sidebar"></aside>
+  <main id="result-panel" class="content"></main>
+  <div id="chart-tooltip"></div>
+  <script type="module" src="./assets/chartRenderer.js"></script>
+</body>
+</html>
+`;
+
+const createEmptyData = () => ({
+  run: {
     runId: "-",
     baseDate: "-",
+    runAt: null,
     totalStockCount: 0,
     matchedStockCount: 0,
+    renderPeriod: DEFAULT_OPTIONS.renderPeriod,
+    scanMinPeriod: DEFAULT_OPTIONS.scanMinPeriod,
+    scanMaxPeriod: DEFAULT_OPTIONS.scanMaxPeriod,
+    minAngleDegree: DEFAULT_OPTIONS.minAngleDegree,
+    minReturnRate: DEFAULT_OPTIONS.minReturnRate,
+    minRSquared: DEFAULT_OPTIONS.minRSquared,
+  },
+  summary: {
+    filteredCount: 0,
     buySignalCount: 0,
-  });
+    generatedAt: new Date().toISOString(),
+  },
+  results: [],
+  chartData: {},
+});
 
-const saveHtmlOutputs = (html) => {
-  saveChartHtml(html, outputPath);
-  saveChartHtml(html, indexPath);
+const writeOutputs = (data) => {
+  ensureOutputDirs();
+  const html = createShellHtml();
+  writeFileSync(chartPath, html, "utf8");
+  writeFileSync(indexPath, html, "utf8");
+  writeFileSync(dataPath, `${JSON.stringify(data)}\n`, "utf8");
+  copyFileSync("src/styles.css", stylePath);
+  copyFileSync("src/chartRenderer.js", rendererPath);
 };
 
 if (!hasReadableDb(dbPath)) {
-  saveHtmlOutputs(createEmptyHtml());
+  writeOutputs(createEmptyData());
   console.log(`DB not found: ${dbPath}`);
-  console.log("Empty chart generated without creating a database.");
+  console.log("Split static files generated with empty data.");
   process.exit(0);
 }
 
@@ -41,8 +91,8 @@ const db = openDatabase(dbPath);
 try {
   const latestRun = getLatestScreeningRun(db);
   if (!latestRun) {
-    saveHtmlOutputs(createEmptyHtml());
-    console.log("no screening run found. Empty chart generated.");
+    writeOutputs(createEmptyData());
+    console.log("no screening run found. Split static files generated with empty data.");
     process.exit(0);
   }
 
@@ -63,29 +113,78 @@ try {
     filteredStocks.map((stock) => stock.code),
     options.renderPeriod,
   );
+
+  const chartData = {};
   const results = filteredStocks.map((stock) => {
     const renderCandles = candlesMap.get(stock.code) ?? [];
+    chartData[stock.code] = renderCandles.map((candle) => [
+      candle.date,
+      candle.open,
+      candle.high,
+      candle.low,
+      candle.close,
+    ]);
+    const buySignal = signalByCode.get(stock.code);
+
     return {
-      ...stock,
-      prices: renderCandles,
-      renderCandles,
+      code: stock.code,
+      name: stock.name,
+      market: stock.market,
+      rankNo: stock.rankNo,
+      baseDate: stock.baseDate,
+      matchedPeriod: stock.matchedPeriod,
+      scanStartDate: stock.scanStartDate,
+      scanEndDate: stock.scanEndDate,
+      angleDegree: stock.angleDegree,
+      slopePixel: stock.slopePixel,
+      rSquared: stock.rSquared,
+      returnRate: stock.returnRate,
+      firstPrice: stock.firstPrice,
+      lastPrice: stock.lastPrice,
+      lastClose: stock.lastClose,
+      dailyChangeRate: stock.dailyChangeRate,
       ma5Price: calculateMA5(renderCandles),
-      buySignal: signalByCode.get(stock.code) ?? null,
+      buySignal: buySignal
+        ? {
+            status: buySignal.status,
+            signalTime: buySignal.signalTime,
+            currentPrice: buySignal.currentPrice,
+            ma5Price: buySignal.ma5Price,
+            profitRateFromFiltered: buySignal.profitRateFromFiltered,
+          }
+        : null,
     };
   });
-  const summary = {
-    runId: latestRun.run_id,
-    baseDate: latestRun.base_date,
-    totalStockCount: latestRun.total_stock_count,
-    matchedStockCount: latestRun.matched_stock_count,
-    buySignalCount: buySignals.length,
-    runAt: latestRun.run_at,
+
+  const data = {
+    run: {
+      runId: latestRun.run_id,
+      baseDate: latestRun.base_date,
+      runAt: latestRun.run_at,
+      totalStockCount: latestRun.total_stock_count,
+      matchedStockCount: latestRun.matched_stock_count,
+      renderPeriod: options.renderPeriod,
+      scanMinPeriod: options.scanMinPeriod,
+      scanMaxPeriod: options.scanMaxPeriod,
+      minAngleDegree: options.minAngleDegree,
+      minReturnRate: options.minReturnRate,
+      minRSquared: options.minRSquared,
+    },
+    summary: {
+      filteredCount: results.length,
+      buySignalCount: buySignals.length,
+      generatedAt: new Date().toISOString(),
+    },
+    results,
+    chartData,
   };
-  const html = generateChartHtml(results, options, summary);
-  saveHtmlOutputs(html);
-  console.log(`chart generated: ${outputPath}`);
+
+  writeOutputs(data);
+  console.log(`chart generated: ${chartPath}`);
   console.log(`index generated: ${indexPath}`);
-  console.log(`run id: ${latestRun.run_id}`);
+  console.log(`styles generated: ${stylePath}`);
+  console.log(`renderer generated: ${rendererPath}`);
+  console.log(`data generated: ${dataPath}`);
   console.log(`filtered stocks: ${results.length}`);
   console.log(`buy signals: ${buySignals.length}`);
 } finally {

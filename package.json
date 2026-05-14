@@ -13,7 +13,8 @@
     "watch:buy": "node src/watchBuySignals.js",
     "generate": "node src/generate.js",
     "build": "npm run generate",
-    "start": "npm run generate"
+    "start": "npm run generate",
+    "preview": "python3 -m http.server 8000 -d dist"
   },
   "dependencies": {
     "better-sqlite3": "^11.10.0"

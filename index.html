@@ -1,12 +1,15 @@
 <!doctype html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="refresh" content="0; url=chart.html">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>우하향 추세 종목 스크리너</title>
+  <link rel="stylesheet" href="./assets/styles.css" />
 </head>
 <body>
-  <p><a href="chart.html">chart.html로 이동</a></p>
+  <aside id="summary-panel" class="sidebar"></aside>
+  <main id="result-panel" class="content"></main>
+  <div id="chart-tooltip"></div>
+  <script type="module" src="./assets/chartRenderer.js"></script>
 </body>
 </html>

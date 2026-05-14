@@ -144,9 +144,11 @@ if [ "${PUBLISH_HTML_TO_ROOT}" = "1" ]; then
   fi
   cp "${ROOT_DIR}/dist/index.html" "${ROOT_DIR}/index.html"
   cp "${ROOT_DIR}/dist/chart.html" "${ROOT_DIR}/chart.html"
-  echo "Published HTML to repository root: index.html chart.html"
+  rm -rf "${ROOT_DIR}/assets"
+  cp -R "${ROOT_DIR}/dist/assets" "${ROOT_DIR}/assets"
+  echo "Published static files to repository root: index.html chart.html assets/"
 fi
 
 echo "Done. DB path: data/stocks.db"
-echo "Done. HTML files: dist/index.html dist/chart.html"
-echo "Upload only dist/index.html and dist/chart.html to a static server."
+echo "Done. Static files: dist/index.html dist/chart.html dist/assets/"
+echo "Upload dist/index.html, dist/chart.html, and dist/assets/ to a static server."

@@ -26,14 +26,16 @@ jobs:
       - name: Prepare Static HTML
         run: |
           mkdir -p pages
-          if [ -f index.html ] && [ -f chart.html ]; then
+          if [ -f index.html ] && [ -f chart.html ] && [ -d assets ]; then
             cp index.html pages/index.html
             cp chart.html pages/chart.html
-          elif [ -f dist/index.html ] && [ -f dist/chart.html ]; then
+            cp -R assets pages/assets
+          elif [ -f dist/index.html ] && [ -f dist/chart.html ] && [ -d dist/assets ]; then
             cp dist/index.html pages/index.html
             cp dist/chart.html pages/chart.html
+            cp -R dist/assets pages/assets
           else
-            echo "index.html/chart.html not found. Generate and commit static HTML first." >&2
+            echo "index.html/chart.html/assets not found. Generate and commit static files first." >&2
             exit 1
           fi
 
