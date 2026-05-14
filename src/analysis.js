@@ -2,7 +2,7 @@ import { clamp, round } from "./utils.js";
 
 export const DEFAULT_OPTIONS = Object.freeze({
   renderPeriod: 80,
-  scanMinPeriod: 10,
+  scanMinPeriod: 15,
   scanMaxPeriod: 60,
   chartWidth: 1600,
   chartHeight: 900,

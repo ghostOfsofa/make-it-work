@@ -1,6 +1,6 @@
 # 우하향 추세 종목 필터링 + MA5 돌파 감시
 
-SQLite를 단일 데이터 원본으로 사용하는 JavaScript 기반 한국 주식 스크리너입니다. 일봉 OHLCV를 DB에 저장한 뒤, 최근일을 종료점으로 고정하고 최근 10~60봉 구간을 확장 스캔해 강한 우하향 종목을 찾습니다. 필터링된 종목만 장중 현재가 감시 대상으로 삼고, 현재가가 완료된 일봉 기준 MA5를 상향 돌파하면 `buy_signals`에 매수 신호만 저장합니다.
+SQLite를 단일 데이터 원본으로 사용하는 JavaScript 기반 한국 주식 스크리너입니다. 일봉 OHLCV를 DB에 저장한 뒤, 최근일을 종료점으로 고정하고 최근 15~60봉 구간을 확장 스캔해 강한 우하향 종목을 찾습니다. 필터링된 종목만 장중 현재가 감시 대상으로 삼고, 현재가가 완료된 일봉 기준 MA5를 상향 돌파하면 `buy_signals`에 매수 신호만 저장합니다.
 
 ## 데이터 흐름
 
@@ -201,7 +201,7 @@ python3 scripts/query-prices.py --code 005930 --csv --output samsung.csv
 ```js
 {
   renderPeriod: 80,
-  scanMinPeriod: 10,
+  scanMinPeriod: 15,
   scanMaxPeriod: 60,
   chartWidth: 1600,
   chartHeight: 900,
@@ -222,7 +222,7 @@ python3 scripts/query-prices.py --code 005930 --csv --output samsung.csv
 - `returnRate <= minReturnRate`
 - `EMA112 < EMA224 < EMA448`
 
-검색 종료일은 항상 가장 최근 거래일입니다. 최근 10봉, 11봉, 12봉처럼 시작점만 과거로 확장하며 검사합니다.
+검색 종료일은 항상 가장 최근 거래일입니다. 최근 15봉, 16봉, 17봉처럼 시작점만 과거로 확장하며 검사합니다.
 
 ### 종목 universe 제외 규칙
 

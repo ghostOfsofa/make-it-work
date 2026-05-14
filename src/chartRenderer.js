@@ -48,6 +48,9 @@ const MINI_CHART_OPTIONS = {
   showEMA112: true,
   showEMA224: true,
   showEMA448: true,
+  showLastPriceLabel: true,
+  showEma5Label: true,
+  emaLabelPeriod: 5,
   highlightLongEma: true,
   longEmaPeriods: [112, 224, 448],
   shortEmaPeriods: [5, 20, 60],
@@ -77,6 +80,9 @@ const DETAIL_CHART_OPTIONS = {
   showEMA112: true,
   showEMA224: true,
   showEMA448: true,
+  showLastPriceLabel: true,
+  showEma5Label: true,
+  emaLabelPeriod: 5,
   highlightLongEma: true,
   longEmaPeriods: [112, 224, 448],
   shortEmaPeriods: [5, 20, 60],
@@ -247,6 +253,14 @@ const adjustRightSideLabels = (labels, minGap = 28) => {
   return sorted;
 };
 
+const createRightSideLabelElements = (labels, chartWidth, margin) =>
+  adjustRightSideLabels(labels)
+    .map((label) => `
+      <rect x="${chartWidth - margin.right + 6}" y="${label.y - 13}" width="${label.width}" height="26" rx="4" fill="${label.color}" opacity="${label.opacity ?? 0.96}"/>
+      <text x="${chartWidth - margin.right + 6 + label.width / 2}" y="${label.y + 6}" fill="${label.textColor ?? "white"}" font-size="${label.fontSize ?? 17}" font-weight="700" text-anchor="middle">${label.text}</text>
+    `)
+    .join("");
+
 const createRightSideEmaLabels = ({ emaValues, scale, chartWidth, margin, plotHeight, options }) => {
   if (!options.showEmaRightLabels) return "";
   const labels = options.longEmaPeriods
@@ -258,15 +272,43 @@ const createRightSideEmaLabels = ({ emaValues, scale, chartWidth, margin, plotHe
         value,
         y: Math.min(margin.top + plotHeight - 14, Math.max(margin.top + 14, scale.y(value))),
         color: COLORS[`ema${period}`],
+        textColor: period === 448 ? "#0f172a" : "white",
+        text: `EMA${period} ${formatPrice(value)}`,
+        width: 118,
       };
     })
     .filter(Boolean);
-  return adjustRightSideLabels(labels)
-    .map(({ period, value, y, color }) => `
-      <rect x="${chartWidth - margin.right + 6}" y="${y - 13}" width="118" height="26" rx="4" fill="${color}" opacity="0.96"/>
-      <text x="${chartWidth - margin.right + 65}" y="${y + 6}" fill="${period === 448 ? "#0f172a" : "white"}" font-size="17" font-weight="700" text-anchor="middle">EMA${period} ${formatPrice(value)}</text>
-    `)
-    .join("");
+  return createRightSideLabelElements(labels, chartWidth, margin);
+};
+
+const createPriceAndEma5Labels = ({ lastCandle, previousCandle, emaValues, scale, chartWidth, margin, plotHeight, options }) => {
+  const labels = [];
+  if (options.showLastPriceLabel) {
+    const lastY = scale.y(lastCandle.close);
+    labels.push({
+      key: "lastClose",
+      y: Math.min(margin.top + plotHeight - 14, Math.max(margin.top + 14, lastY)),
+      color: lastCandle.close >= previousCandle?.close ? COLORS.bullish : COLORS.bearish,
+      text: formatPrice(lastCandle.close),
+      width: 82,
+      fontSize: 20,
+    });
+  }
+  if (options.showEma5Label) {
+    const ema5 = latestFiniteValue(emaValues[`ema${options.emaLabelPeriod}`]);
+    if (ema5 != null) {
+      const emaY = scale.y(ema5);
+      labels.push({
+        key: "ema5",
+        y: Math.min(margin.top + plotHeight - 14, Math.max(margin.top + 14, emaY)),
+        color: COLORS.ema5,
+        text: `EMA5 ${formatPrice(ema5)}`,
+        width: 112,
+        fontSize: 17,
+      });
+    }
+  }
+  return createRightSideLabelElements(labels, chartWidth, margin);
 };
 
 const createEmaLegendHtml = (result, options = DETAIL_CHART_OPTIONS) => {
@@ -411,8 +453,7 @@ const createCandlestickSvgChart = (result, rawCandles, optionOverrides) => {
     })
     .join("");
   const lastCandle = candles.at(-1);
-  const lastY = scale.y(lastCandle.close);
-  const lastColor = lastCandle.close >= candles.at(-2)?.close ? COLORS.bullish : COLORS.bearish;
+  const previousCandle = candles.at(-2);
   const ticks = calculateNicePriceTicks(minPrice, maxPrice, 7);
   const grid = options.showGrid ? createGridLines({ chartWidth, chartHeight, margin, plotWidth, ticks, scale }) : "";
   const axisLabels = options.showAxisLabels ? createAxisLabels({ candles, margin, chartHeight, scale }) : "";
@@ -431,9 +472,8 @@ const createCandlestickSvgChart = (result, rawCandles, optionOverrides) => {
       ${longEmaLines}
       ${regressionLine}
       ${createBuySignalMarker(result.buySignal, scale, chartWidth, margin, options.showAxisLabels)}
-      ${options.showAxisLabels ? `<rect x="${chartWidth - margin.right + 4}" y="${lastY - 18}" width="82" height="34" rx="4" fill="${lastColor}"/>
-      <text x="${chartWidth - margin.right + 45}" y="${lastY + 6}" fill="white" font-size="20" text-anchor="middle">${formatPrice(lastCandle.close)}</text>
-      <text x="${margin.left + 4}" y="30" fill="${COLORS.text}" font-size="22">${escapeHtml(result.name)} ${escapeHtml(result.code)} | 각도 ${formatNumber(result.angleDegree)}° | R² ${formatNumber(result.rSquared, 3)} | 수익률 ${formatPercent(result.returnRate)}</text>` : ""}
+      ${options.showAxisLabels ? createPriceAndEma5Labels({ lastCandle, previousCandle, emaValues, scale, chartWidth, margin, plotHeight, options }) : ""}
+      ${options.showAxisLabels ? `<text x="${margin.left + 4}" y="30" fill="${COLORS.text}" font-size="22">${escapeHtml(result.name)} ${escapeHtml(result.code)} | 각도 ${formatNumber(result.angleDegree)}° | R² ${formatNumber(result.rSquared, 3)} | 수익률 ${formatPercent(result.returnRate)}</text>` : ""}
       ${createRightSideEmaLabels({ emaValues, scale, chartWidth, margin, plotHeight, options })}
       ${createHoverAreas({ candles, margin, plotHeight, candleSlotWidth, scale, showTooltip: options.showTooltip })}
     </svg>
