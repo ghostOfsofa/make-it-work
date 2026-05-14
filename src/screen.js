@@ -19,6 +19,7 @@ export const SCREEN_OPTIONS = Object.freeze({
   minReturnRate: Number(process.env.MIN_RETURN_RATE ?? DEFAULT_OPTIONS.minReturnRate),
   minRSquared: Number(process.env.MIN_R_SQUARED ?? DEFAULT_OPTIONS.minRSquared),
   useEmaBearishFilter: process.env.USE_EMA_BEARISH_FILTER !== "0",
+  useLastPriceBelowEma5Filter: process.env.USE_LAST_PRICE_BELOW_EMA5_FILTER !== "0",
   emaPeriods: DEFAULT_OPTIONS.emaPeriods,
   bearishEmaPeriods: DEFAULT_OPTIONS.bearishEmaPeriods,
   excludeEtf: process.env.EXCLUDE_ETF !== "0" && DEFAULT_STOCK_EXCLUSION_OPTIONS.excludeEtf,
@@ -98,6 +99,7 @@ try {
   console.log(`screening target stocks: ${universeStats.screeningTargetCount}`);
   console.log(`screening target stocks with enough candles: ${stocks.length}`);
   console.log(`EMA bearish filter: ${SCREEN_OPTIONS.useEmaBearishFilter ? "ON" : "OFF"}`);
+  console.log(`last close below EMA5 filter: ${SCREEN_OPTIONS.useLastPriceBelowEma5Filter ? "ON" : "OFF"}`);
   console.log(`matched stocks: ${results.length}`);
   console.table(
     results.slice(0, 50).map((result) => ({

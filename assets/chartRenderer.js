@@ -509,6 +509,7 @@ const renderSummaryPanel = () => {
       ${metric("거래정지 제외", run.excludeTradingHalt ? "ON" : "OFF")}
       ${metric("환기 제외", run.excludeAttention ? "ON" : "OFF")}
       ${metric("EMA 역배열 필터", run.useEmaBearishFilter ? "ON" : "OFF")}
+      ${metric("종가 < EMA5 필터", run.useLastPriceBelowEma5Filter ? "ON" : "OFF")}
       ${metric("renderPeriod", run.renderPeriod)}
       ${metric("scan", `${run.scanMinPeriod}~${run.scanMaxPeriod}`)}
       ${metric("minAngle", `${run.minAngleDegree}°`)}
@@ -532,6 +533,9 @@ const renderResultCard = (result, visibleIndex, absoluteIndex) => {
         : `<div class="empty-chart compact">차트 보기 버튼으로 렌더링</div>`;
   const legendOptions = mode === "mini" ? MINI_CHART_OPTIONS : DETAIL_CHART_OPTIONS;
   const legend = mode === "none" ? "" : createEmaLegendHtml(result, legendOptions);
+  const ema5BelowBadge = result.isLastPriceBelowEma5
+    ? `<span class="filter-badge">EMA5 아래</span>`
+    : "";
 
   return `
     <article class="result-card ${signalClass}" data-code="${escapeHtml(result.code)}">
@@ -539,7 +543,7 @@ const renderResultCard = (result, visibleIndex, absoluteIndex) => {
         <div>
           <span class="rank">#${absoluteIndex + 1}</span>
           <h2>${escapeHtml(result.name)}</h2>
-          <p>${escapeHtml(result.code)} · ${escapeHtml(result.market ?? "-")}</p>
+          <p>${escapeHtml(result.code)} · ${escapeHtml(result.market ?? "-")} ${ema5BelowBadge}</p>
         </div>
         <div class="price-box">
           <strong>${formatPrice(result.lastClose)}</strong>
@@ -562,6 +566,8 @@ const renderResultCard = (result, visibleIndex, absoluteIndex) => {
         ${metric("수익률", formatPercent(result.returnRate), result.returnRate <= 0 ? "down" : "up")}
         ${metric("MA5", formatPrice(result.ma5Price))}
         ${metric("EMA5", formatPrice(result.ema5))}
+        ${metric("종가/EMA5", `${formatPrice(result.lastClose)} < ${formatPrice(result.ema5)}`)}
+        ${metric("EMA5 아래", result.isLastPriceBelowEma5 ? "YES" : "NO", result.isLastPriceBelowEma5 ? "signal" : "")}
         ${metric("EMA20", formatPrice(result.ema20))}
         ${metric("EMA60", formatPrice(result.ema60))}
         ${metric("EMA112", formatPrice(result.ema112))}
@@ -634,6 +640,7 @@ const downloadCsv = () => {
     "ema224",
     "ema448",
     "isLongEmaBearish",
+    "isLastPriceBelowEma5",
     "buySignalStatus",
     "signalTime",
     "signalCurrentPrice",
@@ -664,6 +671,7 @@ const downloadCsv = () => {
       row.ema224,
       row.ema448,
       row.isLongEmaBearish ? 1 : 0,
+      row.isLastPriceBelowEma5 ? 1 : 0,
       signal.status ?? "",
       signal.signalTime ?? "",
       signal.currentPrice ?? "",

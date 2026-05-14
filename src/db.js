@@ -49,6 +49,7 @@ const SCREENING_RUN_EXTRA_COLUMNS = [
   ["exclude_attention", "INTEGER DEFAULT 1"],
   ["exclude_investment_warning", "INTEGER DEFAULT 0"],
   ["use_ema_bearish_filter", "INTEGER DEFAULT 1"],
+  ["use_last_price_below_ema5_filter", "INTEGER DEFAULT 1"],
 ];
 
 const FILTERED_STOCK_EXTRA_COLUMNS = [
@@ -59,6 +60,7 @@ const FILTERED_STOCK_EXTRA_COLUMNS = [
   ["ema224", "REAL"],
   ["ema448", "REAL"],
   ["is_long_ema_bearish", "INTEGER DEFAULT 0"],
+  ["is_last_price_below_ema5", "INTEGER DEFAULT 0"],
 ];
 
 const ensureColumns = (db, tableName, columns) => {
@@ -283,6 +285,7 @@ export const initDatabase = (db) => {
       exclude_attention INTEGER DEFAULT 1,
       exclude_investment_warning INTEGER DEFAULT 0,
       use_ema_bearish_filter INTEGER DEFAULT 1,
+      use_last_price_below_ema5_filter INTEGER DEFAULT 1,
       note TEXT
     );
 
@@ -311,6 +314,7 @@ export const initDatabase = (db) => {
       ema224 REAL,
       ema448 REAL,
       is_long_ema_bearish INTEGER DEFAULT 0,
+      is_last_price_below_ema5 INTEGER DEFAULT 0,
       rank_no INTEGER,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (run_id) REFERENCES screening_runs(run_id),
@@ -574,9 +578,10 @@ export const insertScreeningRun = (db, runSummary, options) => {
       excluded_stock_count, screening_target_count,
       exclude_etf, exclude_etn, exclude_spac, exclude_reit, exclude_preferred,
       exclude_trading_halt, exclude_administrative, exclude_attention,
-      exclude_investment_warning, use_ema_bearish_filter, note
+      exclude_investment_warning, use_ema_bearish_filter,
+      use_last_price_below_ema5_filter, note
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     runSummary.baseDate,
     runSummary.dataSource ?? "database",
@@ -600,6 +605,7 @@ export const insertScreeningRun = (db, runSummary, options) => {
     toFlag(options.excludeAttention),
     toFlag(options.excludeInvestmentWarning),
     toFlag(options.useEmaBearishFilter),
+    toFlag(options.useLastPriceBelowEma5Filter),
     runSummary.note ?? null,
   );
   return Number(result.lastInsertRowid);
@@ -612,9 +618,9 @@ export const insertFilteredStocks = (db, runId, results) => {
       scan_start_date, scan_end_date, slope_pixel, angle_degree, r_squared,
       return_rate, first_price, last_price, last_close, daily_change_rate,
       ema5, ema20, ema60, ema112, ema224, ema448, is_long_ema_bearish,
-      rank_no
+      is_last_price_below_ema5, rank_no
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const insertMany = db.transaction((rows) => {
@@ -643,6 +649,7 @@ export const insertFilteredStocks = (db, runId, results) => {
         result.ema224 ?? null,
         result.ema448 ?? null,
         toFlag(result.isLongEmaBearish),
+        toFlag(result.isLastPriceBelowEma5),
         index + 1,
       );
     });
@@ -681,6 +688,7 @@ const mapFilteredRow = (row) => ({
   ema224: row.ema224,
   ema448: row.ema448,
   isLongEmaBearish: Boolean(row.is_long_ema_bearish),
+  isLastPriceBelowEma5: Boolean(row.is_last_price_below_ema5),
   rankNo: row.rank_no,
 });
 

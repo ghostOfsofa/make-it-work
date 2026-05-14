@@ -2,7 +2,7 @@ import { clamp, round } from "./utils.js";
 
 export const DEFAULT_OPTIONS = Object.freeze({
   renderPeriod: 80,
-  scanMinPeriod: 15,
+  scanMinPeriod: 10,
   scanMaxPeriod: 60,
   chartWidth: 1600,
   chartHeight: 900,
@@ -12,10 +12,11 @@ export const DEFAULT_OPTIONS = Object.freeze({
     bottom: 60,
     left: 30,
   },
-  minAngleDegree: 45,
+  minAngleDegree: 29,
   minReturnRate: -5,
   minRSquared: 0.5,
   useEmaBearishFilter: true,
+  useLastPriceBelowEma5Filter: true,
   emaPeriods: [5, 20, 60, 112, 224, 448],
   bearishEmaPeriods: [112, 224, 448],
   showEMA5: true,
@@ -337,6 +338,15 @@ export const isLongEmaBearish = (
   return shortEma < midEma && midEma < longEma;
 };
 
+export const isLastPriceBelowEma5 = (lastClose, emaValues) => {
+  const close = Number(lastClose);
+  const ema5 = Number(emaValues?.ema5);
+  if (!Number.isFinite(close) || close <= 0 || !Number.isFinite(ema5) || ema5 <= 0) {
+    return false;
+  }
+  return close < ema5;
+};
+
 export const pickBestDowntrendMatch = (matches) => {
   if (!Array.isArray(matches) || matches.length === 0) return null;
   return [...matches].sort((a, b) => {
@@ -362,6 +372,10 @@ export const filterStrongDowntrendStocks = (stocks, options = {}) => {
       const candles = allCandles.slice(-merged.renderPeriod);
       if (candles.length < merged.scanMinPeriod) return null;
 
+      const lastCandle = candles.at(-1);
+      const lastBelowEma5 = isLastPriceBelowEma5(lastCandle?.close, emaValues);
+      if (merged.useLastPriceBelowEma5Filter && !lastBelowEma5) return null;
+
       const selectedPrices = candles.map(getSelectedPrice);
       const range = calculatePriceRange(candles, selectedPrices);
       if (!Number.isFinite(range.minPrice) || !Number.isFinite(range.maxPrice)) {
@@ -373,7 +387,6 @@ export const filterStrongDowntrendStocks = (stocks, options = {}) => {
       const bestMatch = pickBestDowntrendMatch(matches);
       if (!bestMatch) return null;
 
-      const lastCandle = candles.at(-1);
       const prevCandle = candles.at(-2);
       const dailyChangeRate =
         prevCandle?.close > 0
@@ -396,6 +409,7 @@ export const filterStrongDowntrendStocks = (stocks, options = {}) => {
           }),
         ),
         isLongEmaBearish: longEmaBearish,
+        isLastPriceBelowEma5: lastBelowEma5,
         ...bestMatch,
         prices: allCandles,
         renderCandles: candles,
@@ -450,6 +464,7 @@ export const exportResultsToCsv = (results) => {
     "ema224",
     "ema448",
     "isLongEmaBearish",
+    "isLastPriceBelowEma5",
   ];
   const escapeCsv = (value) => `"${String(value ?? "").replaceAll('"', '""')}"`;
   return [

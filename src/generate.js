@@ -67,6 +67,7 @@ const createEmptyData = () => ({
     minReturnRate: DEFAULT_OPTIONS.minReturnRate,
     minRSquared: DEFAULT_OPTIONS.minRSquared,
     useEmaBearishFilter: DEFAULT_OPTIONS.useEmaBearishFilter,
+    useLastPriceBelowEma5Filter: DEFAULT_OPTIONS.useLastPriceBelowEma5Filter,
     emaPeriods: DEFAULT_OPTIONS.emaPeriods,
     bearishEmaPeriods: DEFAULT_OPTIONS.bearishEmaPeriods,
   },
@@ -174,6 +175,7 @@ try {
       ema224: stock.ema224,
       ema448: stock.ema448,
       isLongEmaBearish: stock.isLongEmaBearish,
+      isLastPriceBelowEma5: stock.isLastPriceBelowEma5,
       ma5Price: calculateMA5(renderCandles),
       buySignal: buySignal
         ? {
@@ -214,6 +216,9 @@ try {
       useEmaBearishFilter: latestRun.use_ema_bearish_filter == null
         ? DEFAULT_OPTIONS.useEmaBearishFilter
         : Boolean(latestRun.use_ema_bearish_filter),
+      useLastPriceBelowEma5Filter: latestRun.use_last_price_below_ema5_filter == null
+        ? DEFAULT_OPTIONS.useLastPriceBelowEma5Filter
+        : Boolean(latestRun.use_last_price_below_ema5_filter),
       emaPeriods: DEFAULT_OPTIONS.emaPeriods,
       bearishEmaPeriods: DEFAULT_OPTIONS.bearishEmaPeriods,
     },
