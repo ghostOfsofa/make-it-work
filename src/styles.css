@@ -376,6 +376,26 @@ button {
   font-style: normal;
 }
 
+#chart-tooltip .tooltip-rate.up {
+  color: var(--red);
+}
+
+#chart-tooltip .tooltip-rate.down {
+  color: var(--blue);
+}
+
+#chart-tooltip .tooltip-rate.neutral,
+#chart-tooltip .tooltip-base {
+  color: var(--muted);
+}
+
+#chart-tooltip .tooltip-base {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(148, 163, 184, 0.25);
+  font-size: 12px;
+}
+
 .up {
   color: var(--red);
 }

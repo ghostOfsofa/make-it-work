@@ -136,6 +136,28 @@ const formatPercent = (value, digits = 2) => {
   return `${number > 0 ? "+" : ""}${number.toFixed(digits)}%`;
 };
 
+const calculateChangeRate = (value, prevClose) => {
+  const price = Number(value);
+  const base = Number(prevClose);
+  if (!Number.isFinite(price) || !Number.isFinite(base) || base <= 0) return null;
+  return ((price - base) / base) * 100;
+};
+
+const formatChangeRate = (rate) => {
+  if (rate == null || !Number.isFinite(Number(rate))) return "N/A";
+  const number = Number(rate);
+  return `${number > 0 ? "+" : ""}${number.toFixed(2)}%`;
+};
+
+const getChangeRateClass = (rate) => {
+  if (rate == null || !Number.isFinite(Number(rate)) || Number(rate) === 0) return "neutral";
+  return Number(rate) > 0 ? "up" : "down";
+};
+
+const createTooltipPriceLine = (label, price, rate) => `
+  <span>${label}: ${formatPrice(price)} <em class="tooltip-rate ${getChangeRateClass(rate)}">(${formatChangeRate(rate)})</em></span>
+`;
+
 const formatDateLabel = (date) => {
   const parts = String(date ?? "").split("-");
   return parts.length === 3 ? `${parts[1]}/${parts[2]}` : String(date ?? "");
@@ -372,9 +394,13 @@ const createHoverAreas = ({ candles, margin, plotHeight, candleSlotWidth, scale,
     : candles
         .map((candle, index) => {
           const prevClose = candles[index - 1]?.close;
-          const changeRate = prevClose > 0 ? ((candle.close - prevClose) / prevClose) * 100 : "";
+          const openChangeRate = calculateChangeRate(candle.open, prevClose);
+          const highChangeRate = calculateChangeRate(candle.high, prevClose);
+          const lowChangeRate = calculateChangeRate(candle.low, prevClose);
+          const closeChangeRate = calculateChangeRate(candle.close, prevClose);
           return `<rect class="candle-hover-area" x="${scale.x(index) - candleSlotWidth / 2}" y="${margin.top}" width="${candleSlotWidth}" height="${plotHeight}" fill="transparent"
-        data-date="${escapeHtml(candle.date)}" data-open="${candle.open}" data-high="${candle.high}" data-low="${candle.low}" data-close="${candle.close}" data-change-rate="${changeRate}"/>`;
+        data-date="${escapeHtml(candle.date)}" data-open="${candle.open}" data-high="${candle.high}" data-low="${candle.low}" data-close="${candle.close}" data-prev-close="${prevClose ?? ""}"
+        data-open-change-rate="${openChangeRate ?? ""}" data-high-change-rate="${highChangeRate ?? ""}" data-low-change-rate="${lowChangeRate ?? ""}" data-close-change-rate="${closeChangeRate ?? ""}"/>`;
         })
         .join("");
 
@@ -769,15 +795,18 @@ const attachEvents = () => {
       tooltip.style.display = "none";
       return;
     }
-    const rate = Number(target.dataset.changeRate);
-    const rateClass = !Number.isFinite(rate) || rate === 0 ? "flat" : rate > 0 ? "up" : "down";
+    const prevClose = Number(target.dataset.prevClose);
+    const openRate = Number(target.dataset.openChangeRate);
+    const highRate = Number(target.dataset.highChangeRate);
+    const lowRate = Number(target.dataset.lowChangeRate);
+    const closeRate = Number(target.dataset.closeChangeRate);
     tooltip.innerHTML = `
       <strong>${escapeHtml(target.dataset.date)}</strong>
-      <span>시가: ${formatPrice(target.dataset.open)}</span>
-      <span>고가: ${formatPrice(target.dataset.high)}</span>
-      <span>저가: ${formatPrice(target.dataset.low)}</span>
-      <span>종가: ${formatPrice(target.dataset.close)}</span>
-      <span>전일 종가 대비: <em class="${rateClass}">${Number.isFinite(rate) ? formatPercent(rate) : "N/A"}</em></span>
+      ${createTooltipPriceLine("시가", target.dataset.open, Number.isFinite(openRate) ? openRate : null)}
+      ${createTooltipPriceLine("고가", target.dataset.high, Number.isFinite(highRate) ? highRate : null)}
+      ${createTooltipPriceLine("저가", target.dataset.low, Number.isFinite(lowRate) ? lowRate : null)}
+      ${createTooltipPriceLine("종가", target.dataset.close, Number.isFinite(closeRate) ? closeRate : null)}
+      <span class="tooltip-base">기준: 전일 종가 ${Number.isFinite(prevClose) ? formatPrice(prevClose) : "N/A"}</span>
     `;
     tooltip.style.left = `${event.clientX + 12}px`;
     tooltip.style.top = `${event.clientY + 12}px`;

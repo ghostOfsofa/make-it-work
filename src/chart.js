@@ -60,6 +60,13 @@ const createPolyline = (points, stroke, attrs = "") => {
   return `<polyline points="${valid.map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(" ")}" fill="none" stroke="${stroke}" ${attrs}/>`;
 };
 
+const calculateChangeRate = (value, prevClose) => {
+  const price = Number(value);
+  const base = Number(prevClose);
+  if (!Number.isFinite(price) || !Number.isFinite(base) || base <= 0) return null;
+  return ((price - base) / base) * 100;
+};
+
 export const createMovingAverageLine = (candles, period, scale, color) => {
   const points = candles.map((_, index) => {
     if (index + 1 < period) return { x: Number.NaN, y: Number.NaN };
@@ -113,9 +120,13 @@ export const createHoverAreas = ({ candles, margin, plotHeight, candleSlotWidth,
   candles
     .map((candle, index) => {
       const prevClose = candles[index - 1]?.close;
-      const changeRate = prevClose > 0 ? ((candle.close - prevClose) / prevClose) * 100 : "";
+      const openChangeRate = calculateChangeRate(candle.open, prevClose);
+      const highChangeRate = calculateChangeRate(candle.high, prevClose);
+      const lowChangeRate = calculateChangeRate(candle.low, prevClose);
+      const closeChangeRate = calculateChangeRate(candle.close, prevClose);
       return `<rect class="candle-hover-area" x="${scale.x(index) - candleSlotWidth / 2}" y="${margin.top}" width="${candleSlotWidth}" height="${plotHeight}" fill="transparent"
-        data-date="${escapeHtml(candle.date)}" data-open="${candle.open}" data-high="${candle.high}" data-low="${candle.low}" data-close="${candle.close}" data-change-rate="${changeRate}"/>`;
+        data-date="${escapeHtml(candle.date)}" data-open="${candle.open}" data-high="${candle.high}" data-low="${candle.low}" data-close="${candle.close}" data-prev-close="${prevClose ?? ""}"
+        data-open-change-rate="${openChangeRate ?? ""}" data-high-change-rate="${highChangeRate ?? ""}" data-low-change-rate="${lowChangeRate ?? ""}" data-close-change-rate="${closeChangeRate ?? ""}"/>`;
     })
     .join("");
 
@@ -255,26 +266,40 @@ const createClientScript = (payload) => `
     window.__SCREENING_DATA__ = ${JSON.stringify(payload).replaceAll("</script", "<\\/script")};
     const tooltip = document.getElementById("chart-tooltip");
     const formatPrice = (value) => Number.isFinite(Number(value)) ? Math.round(Number(value)).toLocaleString("ko-KR") : "-";
-    const formatPercent = (value) => {
+    const calculateChangeRate = (value, prevClose) => {
+      const price = Number(value);
+      const base = Number(prevClose);
+      if (!Number.isFinite(price) || !Number.isFinite(base) || base <= 0) return null;
+      return ((price - base) / base) * 100;
+    };
+    const formatChangeRate = (value) => {
       const number = Number(value);
       if (!Number.isFinite(number)) return "N/A";
       return (number > 0 ? "+" : "") + number.toFixed(2) + "%";
     };
-    const rateClass = (value) => {
+    const getChangeRateClass = (value) => {
       const number = Number(value);
-      return !Number.isFinite(number) || number === 0 ? "flat" : number > 0 ? "up" : "down";
+      return !Number.isFinite(number) || number === 0 ? "neutral" : number > 0 ? "up" : "down";
+    };
+    const tooltipPriceLine = (label, price, rate) => {
+      const safeRate = Number.isFinite(Number(rate)) ? Number(rate) : null;
+      return "<span>" + label + ": " + formatPrice(price) + " <em class='tooltip-rate " + getChangeRateClass(safeRate) + "'>(" + formatChangeRate(safeRate) + ")</em></span>";
     };
     document.addEventListener("mousemove", (event) => {
       const target = event.target.closest(".candle-hover-area");
       if (!target) return;
-      const rate = Number(target.dataset.changeRate);
+      const prevClose = Number(target.dataset.prevClose);
+      const openRate = calculateChangeRate(target.dataset.open, prevClose);
+      const highRate = calculateChangeRate(target.dataset.high, prevClose);
+      const lowRate = calculateChangeRate(target.dataset.low, prevClose);
+      const closeRate = calculateChangeRate(target.dataset.close, prevClose);
       tooltip.innerHTML = [
         "<strong>" + target.dataset.date + "</strong>",
-        "<span>시가: " + formatPrice(target.dataset.open) + "</span>",
-        "<span>고가: " + formatPrice(target.dataset.high) + "</span>",
-        "<span>저가: " + formatPrice(target.dataset.low) + "</span>",
-        "<span>종가: " + formatPrice(target.dataset.close) + "</span>",
-        "<span>전일 종가 대비: <em class='" + rateClass(rate) + "'>" + formatPercent(rate) + "</em></span>"
+        tooltipPriceLine("시가", target.dataset.open, openRate),
+        tooltipPriceLine("고가", target.dataset.high, highRate),
+        tooltipPriceLine("저가", target.dataset.low, lowRate),
+        tooltipPriceLine("종가", target.dataset.close, closeRate),
+        "<span class='tooltip-base'>기준: 전일 종가 " + (Number.isFinite(prevClose) ? formatPrice(prevClose) : "N/A") + "</span>"
       ].join("");
       tooltip.style.left = event.clientX + 12 + "px";
       tooltip.style.top = event.clientY + 12 + "px";
