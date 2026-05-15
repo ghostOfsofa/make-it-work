@@ -142,7 +142,7 @@ const formatDateLabel = (date) => {
 const metric = (label, value, className = "") =>
   `<span class="metric ${className}"><b>${escapeHtml(label)}</b>${value}</span>`;
 
-const selectedPrice = (candle) => (candle.close >= candle.open ? candle.close : candle.open);
+const trendPrice = (candle) => candle.high;
 
 const unpackCandles = (rows = []) =>
   rows.map(([date, open, high, low, close]) => ({ date, open, high, low, close }));
@@ -154,7 +154,7 @@ const calculatePriceRange = (candles, indicatorValues = []) => {
       candle.high,
       candle.low,
       candle.close,
-      selectedPrice(candle),
+      trendPrice(candle),
     ]),
     ...indicatorValues,
   ].filter((value) => value != null && Number.isFinite(Number(value)));
@@ -412,7 +412,7 @@ const createCandlestickSvgChart = (result, rawCandles, optionOverrides) => {
   const candleWidth = Math.max(2, Math.min(18, candleSlotWidth * 0.8));
   const renderPoints = candles.map((candle, index) => ({
     x: scale.x(index),
-    y: scale.y(selectedPrice(candle)),
+    y: scale.y(trendPrice(candle)),
   }));
   const scanPoints = renderPoints.slice(-result.matchedPeriod);
   const regression = linearRegression(scanPoints);

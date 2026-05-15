@@ -34,6 +34,8 @@ export const DEFAULT_OPTIONS = Object.freeze({
 export const getSelectedPrice = (candle) =>
   candle.close >= candle.open ? candle.close : candle.open;
 
+export const getTrendPrice = (candle) => candle.high;
+
 export const isValidNumber = (value) =>
   typeof value === "number" && Number.isFinite(value) && value > 0;
 
@@ -136,8 +138,8 @@ export const priceToY = (price, minPrice, maxPrice, plotHeight, marginTop = 0) =
 export const createRenderPoints = (candles, options = {}) => {
   const merged = mergeOptions(options);
   const { margin, plotWidth, plotHeight } = getPlotSize(merged);
-  const selectedPrices = candles.map(getSelectedPrice);
-  const { minPrice, maxPrice } = calculatePriceRange(candles, selectedPrices);
+  const trendPrices = candles.map(getTrendPrice);
+  const { minPrice, maxPrice } = calculatePriceRange(candles, trendPrices);
 
   if (!Number.isFinite(minPrice) || !Number.isFinite(maxPrice) || candles.length < 2) {
     return [];
@@ -146,15 +148,16 @@ export const createRenderPoints = (candles, options = {}) => {
   return candles.map((candle, index) => {
     const xPixel =
       margin.left + (index / Math.max(candles.length - 1, 1)) * plotWidth;
-    const selectedPrice = getSelectedPrice(candle);
+    const trendPrice = getTrendPrice(candle);
 
     return {
       index,
       date: candle.date,
-      selectedPrice,
+      selectedPrice: trendPrice,
+      trendPrice,
       xPixel,
       yPixel: priceToY(
-        selectedPrice,
+        trendPrice,
         minPrice,
         maxPrice,
         plotHeight,
@@ -165,11 +168,11 @@ export const createRenderPoints = (candles, options = {}) => {
 };
 
 export const analyzeDowntrendPeriod = (scanCandles, scanPoints) => {
-  const selectedPrices = scanCandles.map(getSelectedPrice);
+  const trendPrices = scanCandles.map(getTrendPrice);
   const { slopePixel, intercept } = calculateLinearRegressionByPoints(scanPoints);
   const rSquared = calculateRSquaredByPoints(scanPoints, slopePixel, intercept);
   const angleDegree = calculateAngleDegree(slopePixel);
-  const returnRate = calculateReturnRate(selectedPrices);
+  const returnRate = calculateReturnRate(trendPrices);
 
   return {
     matchedPeriod: scanCandles.length,
@@ -180,8 +183,8 @@ export const analyzeDowntrendPeriod = (scanCandles, scanPoints) => {
     angleDegree,
     rSquared,
     returnRate,
-    firstPrice: selectedPrices[0],
-    lastPrice: selectedPrices.at(-1),
+    firstPrice: trendPrices[0],
+    lastPrice: trendPrices.at(-1),
   };
 };
 
@@ -376,8 +379,8 @@ export const filterStrongDowntrendStocks = (stocks, options = {}) => {
       const lastBelowEma5 = isLastPriceBelowEma5(lastCandle?.close, emaValues);
       if (merged.useLastPriceBelowEma5Filter && !lastBelowEma5) return null;
 
-      const selectedPrices = candles.map(getSelectedPrice);
-      const range = calculatePriceRange(candles, selectedPrices);
+      const trendPrices = candles.map(getTrendPrice);
+      const range = calculatePriceRange(candles, trendPrices);
       if (!Number.isFinite(range.minPrice) || !Number.isFinite(range.maxPrice)) {
         return null;
       }

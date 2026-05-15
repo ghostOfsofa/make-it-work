@@ -5,7 +5,7 @@ import {
   calculatePriceRange,
   calculateRSquaredByPoints,
   createRenderPoints,
-  getSelectedPrice,
+  getTrendPrice,
   mergeOptions,
   priceToY,
 } from "./analysis.js";
@@ -139,8 +139,8 @@ export const createCandlestickSvgChart = (stockResult, options = {}) => {
   const { chartWidth, chartHeight, margin } = merged;
   const plotWidth = chartWidth - margin.left - margin.right;
   const plotHeight = chartHeight - margin.top - margin.bottom;
-  const selectedPrices = candles.map(getSelectedPrice);
-  const { minPrice, maxPrice } = calculatePriceRange(candles, selectedPrices);
+  const trendPrices = candles.map(getTrendPrice);
+  const { minPrice, maxPrice } = calculatePriceRange(candles, trendPrices);
   const scale = {
     x: (index) => margin.left + (index / Math.max(1, candles.length - 1)) * plotWidth,
     y: (price) => priceToY(price, minPrice, maxPrice, plotHeight, margin.top),

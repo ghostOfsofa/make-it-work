@@ -263,7 +263,7 @@ EXCLUDE_ETF=0 EXCLUDE_ETN=0 EXCLUDE_PREFERRED=0 npm run screen
 ema112 < ema224 && ema224 < ema448
 ```
 
-추세선 각도 계산은 기존과 동일하게 `selectedPrice` 기준이고, EMA는 반드시 `close` 기준입니다. EMA448 계산에는 최소 448개 이상의 일봉이 필요하므로 데이터가 부족한 종목은 EMA 역배열 필터에서 제외됩니다. 실제 데이터 수집은 캘린더 기준 `--days 700` 이상을 권장합니다.
+추세선 각도 계산은 `high` 기준이고, EMA는 반드시 `close` 기준입니다. EMA448 계산에는 최소 448개 이상의 일봉이 필요하므로 데이터가 부족한 종목은 EMA 역배열 필터에서 제외됩니다. 실제 데이터 수집은 캘린더 기준 `--days 700` 이상을 권장합니다.
 
 필요하면 테스트 목적으로 EMA 필터를 끌 수 있습니다.
 
@@ -271,15 +271,15 @@ ema112 < ema224 && ema224 < ema448
 USE_EMA_BEARISH_FILTER=0 npm run screen
 ```
 
-## selectedPrice 규칙
+## 추세 계산 가격
 
-추세 계산에는 캔들 방향에 따라 선택 가격을 사용합니다.
+추세선, slope, angleDegree, rSquared, returnRate 계산에는 항상 고가 `high`를 사용합니다.
 
 ```js
-selectedPrice = close >= open ? close : open
+trendPrice = candle.high
 ```
 
-봉차트 렌더링은 실제 `open/high/low/close`를 사용하고, 회귀 추세선 계산만 `selectedPrice`를 사용합니다.
+봉차트 렌더링은 실제 `open/high/low/close`를 사용하고, EMA와 MA5 관련 판단은 기존처럼 `close` 기준을 유지합니다.
 
 ## 각도 계산
 
