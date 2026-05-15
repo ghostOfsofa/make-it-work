@@ -263,11 +263,18 @@ ALLOWED_MARKETS=KOSPI,KOSDAQ npm run screen
 - 관리종목
 - 투자주의환기종목
 - 기타 `stock_type = 'OTHER'` 종목
+- 차트에 표시되는 최근 80봉 안에서 인접 일봉 날짜 사이에 40일 이상 공백이 있는 종목
 
 투자주의/경고/위험 종목은 기본 제외하지 않습니다. 필요하면 실행 시 켤 수 있습니다.
 
 ```bash
 EXCLUDE_INVESTMENT_WARNING=1 npm run screen
+```
+
+최근 80봉 내부 날짜 공백 제외는 거래정지 또는 장기 미거래로 인한 추세 왜곡을 줄이기 위한 조건입니다. 기준은 가격 동일 여부가 아니라 인접 일봉 날짜 차이입니다.
+
+```bash
+MAX_TRADING_GAP_DAYS=40 npm run screen
 ```
 
 각 제외 조건은 환경변수로 끌 수 있습니다.

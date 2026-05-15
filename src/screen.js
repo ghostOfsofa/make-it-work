@@ -1,4 +1,4 @@
-import { DEFAULT_OPTIONS, filterStrongDowntrendStocks } from "./analysis.js";
+import { DEFAULT_OPTIONS, filterStrongDowntrendStocks, hasLongTradingGap } from "./analysis.js";
 import {
   closeDatabase,
   DEFAULT_STOCK_EXCLUSION_OPTIONS,
@@ -18,6 +18,8 @@ export const SCREEN_OPTIONS = Object.freeze({
   minAngleDegree: Number(process.env.MIN_ANGLE_DEGREE ?? DEFAULT_OPTIONS.minAngleDegree),
   minReturnRate: Number(process.env.MIN_RETURN_RATE ?? DEFAULT_OPTIONS.minReturnRate),
   minRSquared: Number(process.env.MIN_R_SQUARED ?? DEFAULT_OPTIONS.minRSquared),
+  excludeLongTradingGap: process.env.EXCLUDE_LONG_TRADING_GAP !== "0",
+  maxTradingGapDays: Number(process.env.MAX_TRADING_GAP_DAYS ?? DEFAULT_OPTIONS.maxTradingGapDays),
   useEmaBearishFilter: process.env.USE_EMA_BEARISH_FILTER !== "0",
   useLastPriceBelowEma5Filter: process.env.USE_LAST_PRICE_BELOW_EMA5_FILTER !== "0",
   useEma5To112GapFilter: process.env.USE_EMA5_TO_112_GAP_FILTER !== "0",
@@ -69,6 +71,14 @@ const stocks = loadStocksFromDatabase({
   allowedMarkets: SCREEN_OPTIONS.allowedMarkets,
   requireLatestPriceDate: SCREEN_OPTIONS.requireLatestPriceDate,
 });
+const longTradingGapCount = SCREEN_OPTIONS.excludeLongTradingGap
+  ? stocks.filter((stock) =>
+      hasLongTradingGap(
+        stock.prices.slice(-SCREEN_OPTIONS.renderPeriod),
+        SCREEN_OPTIONS.maxTradingGapDays,
+      ),
+    ).length
+  : 0;
 const results = filterStrongDowntrendStocks(stocks, SCREEN_OPTIONS);
 const baseDate =
   stocks
@@ -107,6 +117,7 @@ try {
   console.log(`excluded other non-common: ${universeStats.otherCount}`);
   console.log(`excluded by market: ${universeStats.nonAllowedMarketCount}`);
   console.log(`excluded stale price date: ${universeStats.stalePriceCount}`);
+  console.log(`excluded long trading gap in recent ${SCREEN_OPTIONS.renderPeriod} candles: ${longTradingGapCount}`);
   console.log(`allowed markets: ${SCREEN_OPTIONS.allowedMarkets.join(", ")}`);
   console.log(`screening target stocks: ${universeStats.screeningTargetCount}`);
   console.log(`screening target stocks with enough candles: ${stocks.length}`);

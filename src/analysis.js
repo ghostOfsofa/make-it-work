@@ -16,6 +16,8 @@ export const DEFAULT_OPTIONS = Object.freeze({
   minAngleDegree: 45,
   minReturnRate: -5,
   minRSquared: 0.5,
+  excludeLongTradingGap: true,
+  maxTradingGapDays: 40,
   useEmaBearishFilter: true,
   useLastPriceBelowEma5Filter: true,
   useEma5To112GapFilter: true,
@@ -82,6 +84,30 @@ export const getRecentCandles = (prices, renderPeriod) => {
   const candles = getValidCandlesSortedByDate(prices);
   const safeRenderPeriod = Math.max(2, Math.floor(renderPeriod));
   return candles.slice(-safeRenderPeriod);
+};
+
+export const hasLongTradingGap = (candles, maxGapDays = 40) => {
+  if (!Array.isArray(candles) || candles.length < 2) return false;
+
+  const sorted = [...candles].sort((a, b) => {
+    const prevTime = new Date(a.date).getTime();
+    const nextTime = new Date(b.date).getTime();
+    return prevTime - nextTime;
+  });
+
+  for (let index = 1; index < sorted.length; index += 1) {
+    const prevDate = new Date(sorted[index - 1].date);
+    const currentDate = new Date(sorted[index].date);
+    if (Number.isNaN(prevDate.getTime()) || Number.isNaN(currentDate.getTime())) {
+      continue;
+    }
+
+    const diffDays =
+      (currentDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24);
+    if (diffDays >= maxGapDays) return true;
+  }
+
+  return false;
 };
 
 export const getPlotSize = (options = {}) => {
@@ -559,12 +585,18 @@ export const filterStrongDowntrendStocks = (stocks, options = {}) => {
       const allCandles = getValidCandlesSortedByDate(stock.prices);
       if (allCandles.length < merged.scanMinPeriod) return null;
 
+      const candles = allCandles.slice(-merged.renderPeriod);
+      if (candles.length < merged.scanMinPeriod) return null;
+      if (
+        merged.excludeLongTradingGap &&
+        hasLongTradingGap(candles, merged.maxTradingGapDays)
+      ) {
+        return null;
+      }
+
       const emaValues = getLatestEMAValues(allCandles, merged.emaPeriods);
       const longEmaBearish = isLongEmaBearish(emaValues, merged.bearishEmaPeriods);
       if (merged.useEmaBearishFilter && !longEmaBearish) return null;
-
-      const candles = allCandles.slice(-merged.renderPeriod);
-      if (candles.length < merged.scanMinPeriod) return null;
 
       const lastCandle = candles.at(-1);
       const lastBelowEma5 = isLastPriceBelowEma5(lastCandle?.close, emaValues);
