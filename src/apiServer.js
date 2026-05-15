@@ -1,5 +1,17 @@
 import express from "express";
-import { closeDatabase, loadLatestBuySignalsForApi, loadLatestFilteredStocksForApi, loadLatestScreeningRunForApi, loadStockDetailForApi, openDatabase } from "./db.js";
+import {
+  closeDatabase,
+  getLatestScreeningRun,
+  loadBuySignalsByRunId,
+  loadFilteredStocksByRunId,
+  loadFilteredStocksWithCurrentPrice,
+  loadLatestBuySignalsForApi,
+  loadLatestFilteredStocksForApi,
+  loadLatestScreeningRunForApi,
+  loadScreeningRuns,
+  loadStockDetailForApi,
+  openDatabase,
+} from "./db.js";
 import { hasReadableDb, resolveDbPath } from "./config.js";
 
 const PORT = Number(process.env.PORT ?? 3000);
@@ -71,6 +83,35 @@ app.get("/api/filtered-stocks/latest", (req, res) => {
       baseDate: run.baseDate,
       count,
       results,
+    });
+  });
+});
+
+app.get("/api/screening-runs", (req, res) => {
+  withDatabase(res, (db) => {
+    res.json({ ok: true, runs: loadScreeningRuns(db, req.query) });
+  });
+});
+
+app.get("/api/filtered-stocks", (req, res) => {
+  withDatabase(res, (db) => {
+    const latestRun = getLatestScreeningRun(db);
+    const runId = Number(req.query.run_id ?? latestRun?.run_id);
+    if (!Number.isFinite(runId)) {
+      jsonError(res, 404, "screening run not found");
+      return;
+    }
+    const includeCurrent = String(req.query.include_current ?? "false") === "true";
+    const results = includeCurrent
+      ? loadFilteredStocksWithCurrentPrice(db, runId)
+      : loadFilteredStocksByRunId(db, runId);
+    const signals = loadBuySignalsByRunId(db, runId);
+    res.json({
+      ok: true,
+      runId,
+      count: results.length,
+      results,
+      buySignalCount: signals.length,
     });
   });
 });

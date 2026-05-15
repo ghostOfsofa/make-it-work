@@ -72,6 +72,18 @@ select {
   padding: 14px;
 }
 
+.run-selector {
+  display: grid;
+  gap: 8px;
+  margin-top: 18px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.run-selector select {
+  width: 100%;
+}
+
 .metric {
   display: flex;
   justify-content: space-between;

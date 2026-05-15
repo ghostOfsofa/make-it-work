@@ -62,7 +62,8 @@ const MINI_CHART_OPTIONS = {
   showLongEmaGlow: true,
   miniChartLongEmaOnly: true,
   showRegressionLine: true,
-  showSelectedPriceLine: true,
+  showSelectedPriceLine: false,
+  showMa5PriceGuide: true,
   showMatchedArea: true,
   showCandleWick: true,
 };
@@ -95,12 +96,14 @@ const DETAIL_CHART_OPTIONS = {
   showLongEmaGlow: true,
   miniChartLongEmaOnly: false,
   showRegressionLine: true,
-  showSelectedPriceLine: true,
+  showSelectedPriceLine: false,
+  showMa5PriceGuide: true,
   showMatchedArea: true,
   showCandleWick: true,
 };
 
 let appData = null;
+let screeningRuns = [];
 let sortKey = "angle";
 let currentPage = 1;
 let isMobileLayout = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`).matches;
@@ -267,6 +270,13 @@ const latestFiniteValue = (values = []) => {
   return null;
 };
 
+const calculateLatestMA = (candles, period) => {
+  if (!Array.isArray(candles) || candles.length < period) return null;
+  const values = candles.slice(-period).map((candle) => Number(candle.close));
+  if (!values.every(Number.isFinite)) return null;
+  return values.reduce((sum, value) => sum + value, 0) / period;
+};
+
 const adjustRightSideLabels = (labels, minGap = 28) => {
   const sorted = [...labels].sort((a, b) => a.y - b.y);
   for (let index = 1; index < sorted.length; index += 1) {
@@ -416,6 +426,16 @@ const createBuySignalMarker = (signal, scale, chartWidth, margin, showLabel) => 
   `;
 };
 
+const createMa5PriceGuide = ({ ma5Price, scale, chartWidth, margin, options }) => {
+  if (!options.showMa5PriceGuide || !Number.isFinite(Number(ma5Price))) return "";
+  const y = scale.y(Number(ma5Price));
+  if (!Number.isFinite(y)) return "";
+  return `
+    <line x1="${margin.left}" y1="${y}" x2="${chartWidth - margin.right}" y2="${y}" stroke="${COLORS.ema5}" stroke-width="1.5" opacity="0.42"/>
+    ${options.showAxisLabels ? `<text x="${chartWidth - margin.right - 10}" y="${y - 8}" fill="${COLORS.ema5}" font-size="18" text-anchor="end" opacity="0.78">MA5 ${formatPrice(ma5Price)}</text>` : ""}
+  `;
+};
+
 const createCandlestickSvgChart = (result, rawCandles, optionOverrides) => {
   const options = { ...DETAIL_CHART_OPTIONS, ...optionOverrides, margin: { ...DEFAULT_MARGIN, ...(optionOverrides.margin ?? {}) } };
   const candles = rawCandles.slice(-options.renderPeriod);
@@ -486,6 +506,9 @@ const createCandlestickSvgChart = (result, rawCandles, optionOverrides) => {
     .join("");
   const lastCandle = candles.at(-1);
   const previousCandle = candles.at(-2);
+  const ma5Price = Number.isFinite(Number(result.ma5Price))
+    ? Number(result.ma5Price)
+    : calculateLatestMA(candles, 5);
   const ticks = calculateNicePriceTicks(minPrice, maxPrice, 7);
   const grid = options.showGrid ? createGridLines({ chartWidth, chartHeight, margin, plotWidth, ticks, scale }) : "";
   const axisLabels = options.showAxisLabels ? createAxisLabels({ candles, margin, chartHeight, scale }) : "";
@@ -495,6 +518,7 @@ const createCandlestickSvgChart = (result, rawCandles, optionOverrides) => {
       <rect width="${chartWidth}" height="${chartHeight}" fill="${COLORS.background}"/>
       ${matchedArea}
       ${grid}
+      ${createMa5PriceGuide({ ma5Price, scale, chartWidth, margin, options })}
       ${axisLabels}
       ${options.showAxisLabels ? `<line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${chartHeight - margin.bottom}" stroke="${COLORS.axis}" stroke-width="1"/>
       <line x1="${chartWidth - margin.right}" y1="${margin.top}" x2="${chartWidth - margin.right}" y2="${chartHeight - margin.bottom}" stroke="${COLORS.axis}" stroke-width="1"/>` : ""}
@@ -515,8 +539,11 @@ const createCandlestickSvgChart = (result, rawCandles, optionOverrides) => {
 const getSortedResults = () => {
   const sorted = [...(appData?.results ?? [])];
   const sorters = {
+    rankNo: (a, b) => (a.rankNo ?? 0) - (b.rankNo ?? 0),
     angle: (a, b) => b.angleDegree - a.angleDegree,
     returnRate: (a, b) => a.returnRate - b.returnRate,
+    currentReturnRateDesc: (a, b) => (b.currentReturnRate ?? -Infinity) - (a.currentReturnRate ?? -Infinity),
+    currentReturnRateAsc: (a, b) => (a.currentReturnRate ?? Infinity) - (b.currentReturnRate ?? Infinity),
     rSquared: (a, b) => b.rSquared - a.rSquared,
     matchedPeriod: (a, b) => b.matchedPeriod - a.matchedPeriod,
   };
@@ -529,6 +556,16 @@ const renderSummaryPanel = () => {
   panel.innerHTML = `
     <h1>우하향 스크리너</h1>
     <p class="subtitle">정적 JSON 기반 키움 HTS 스타일 차트</p>
+    <label class="run-selector">
+      <span>필터링 일자 선택</span>
+      <select id="run-select">
+        ${screeningRuns.map((run) => `
+          <option value="${run.runId}" ${run.runId === run.runId && run.runId === appData.run.runId ? "selected" : ""}>
+            ${escapeHtml(run.baseDate)} / run #${run.runId} / ${run.matchedStockCount ?? 0}종목
+          </option>
+        `).join("")}
+      </select>
+    </label>
     <section class="summary-panel">
       ${metric("latest run", run.runId ?? "-")}
       ${metric("기준일", run.baseDate ?? "-")}
@@ -597,6 +634,10 @@ const renderResultCard = (result, visibleIndex, absoluteIndex) => {
         ${metric("slope", formatNumber(result.slopePixel, 4))}
         ${metric("R²", formatNumber(result.rSquared, 4))}
         ${metric("수익률", formatPercent(result.returnRate), result.returnRate <= 0 ? "down" : "up")}
+        ${metric("필터링 당시", formatPrice(result.filteredLastPrice ?? result.lastPrice))}
+        ${metric("현재 기준일", escapeHtml(result.currentDate ?? "-"))}
+        ${metric("현재 주가", formatPrice(result.currentPrice))}
+        ${metric("현재 수익률", formatPercent(result.currentReturnRate), result.currentReturnRate > 0 ? "up" : result.currentReturnRate < 0 ? "down" : "")}
         ${metric("MA5", formatPrice(result.ma5Price))}
         ${metric("EMA5", formatPrice(result.ema5))}
         ${metric("종가/EMA5", `${formatPrice(result.lastClose)} < ${formatPrice(result.ema5)}`)}
@@ -635,6 +676,9 @@ const renderResultPanel = () => {
       <div class="actions">
         <select id="sort-select">
           <option value="angle" ${sortKey === "angle" ? "selected" : ""}>각도 내림차순</option>
+          <option value="rankNo" ${sortKey === "rankNo" ? "selected" : ""}>필터링 순위 순</option>
+          <option value="currentReturnRateDesc" ${sortKey === "currentReturnRateDesc" ? "selected" : ""}>현재 수익률 높은 순</option>
+          <option value="currentReturnRateAsc" ${sortKey === "currentReturnRateAsc" ? "selected" : ""}>현재 수익률 낮은 순</option>
           <option value="returnRate" ${sortKey === "returnRate" ? "selected" : ""}>수익률 오름차순</option>
           <option value="rSquared" ${sortKey === "rSquared" ? "selected" : ""}>R² 내림차순</option>
           <option value="matchedPeriod" ${sortKey === "matchedPeriod" ? "selected" : ""}>검색 구간 길이</option>
@@ -667,6 +711,10 @@ const downloadCsv = () => {
     "returnRate",
     "firstPrice",
     "lastPrice",
+    "filteredLastPrice",
+    "currentDate",
+    "currentPrice",
+    "currentReturnRate",
     "lastClose",
     "dailyChangeRate",
     "ema5",
@@ -704,6 +752,10 @@ const downloadCsv = () => {
       row.returnRate,
       row.firstPrice,
       row.lastPrice,
+      row.filteredLastPrice,
+      row.currentDate,
+      row.currentPrice,
+      row.currentReturnRate,
       row.lastClose,
       row.dailyChangeRate,
       row.ema5,
@@ -768,6 +820,11 @@ const attachEvents = () => {
       currentPage = 1;
       renderResultPanel();
     }
+    if (event.target?.id === "run-select") {
+      loadRunData(event.target.value).catch((error) => {
+        document.getElementById("result-panel").innerHTML = `<div class="empty-state">run 데이터 로드 실패: ${escapeHtml(error.message)}</div>`;
+      });
+    }
   });
   document.addEventListener("click", (event) => {
     const button = event.target.closest("button");
@@ -814,19 +871,35 @@ const attachEvents = () => {
   });
 };
 
-const loadScreeningData = async () => {
-  const version = document.documentElement.dataset.assetVersion;
-  const dataUrl = `./assets/screening-data.json${version ? `?v=${encodeURIComponent(version)}` : ""}`;
-  const response = await fetch(dataUrl, { cache: "no-cache" });
-  if (!response.ok) throw new Error(`failed to load screening-data.json: ${response.status}`);
+const fetchJson = async (url) => {
+  const response = await fetch(url, { cache: "no-cache" });
+  if (!response.ok) throw new Error(`failed to load ${url}: ${response.status}`);
   return response.json();
+};
+
+const loadRunData = async (runId) => {
+  const version = document.documentElement.dataset.assetVersion;
+  const dataUrl = `./assets/runs/run-${encodeURIComponent(runId)}.json${version ? `?v=${encodeURIComponent(version)}` : ""}`;
+  appData = await fetchJson(dataUrl);
+  currentPage = 1;
+  chartModes.clear();
+  renderSummaryPanel();
+  renderResultPanel();
 };
 
 const boot = async () => {
   try {
-    appData = await loadScreeningData();
-    renderSummaryPanel();
-    renderResultPanel();
+    const version = document.documentElement.dataset.assetVersion;
+    const runsUrl = `./assets/screening-runs.json${version ? `?v=${encodeURIComponent(version)}` : ""}`;
+    const runsData = await fetchJson(runsUrl);
+    screeningRuns = runsData.screeningRuns ?? [];
+    if (runsData.selectedRunId) {
+      await loadRunData(runsData.selectedRunId);
+    } else {
+      appData = { run: { runId: "-", baseDate: "-" }, summary: { filteredCount: 0, buySignalCount: 0 }, results: [], chartData: {}, emaData: {} };
+      renderSummaryPanel();
+      renderResultPanel();
+    }
     attachEvents();
   } catch (error) {
     document.body.innerHTML = `<main class="content"><div class="empty-state">데이터 로드 실패: ${escapeHtml(error.message)}</div></main>`;

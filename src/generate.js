@@ -8,8 +8,9 @@ import {
   closeDatabase,
   getLatestScreeningRun,
   loadBuySignalsByRunId,
-  loadFilteredStocksByRunId,
+  loadFilteredStocksWithCurrentPrice,
   loadRecentCandlesForCodes,
+  loadScreeningRuns,
   openDatabase,
 } from "./db.js";
 import { calculateMA5 } from "./buySignal.js";
@@ -18,16 +19,23 @@ import { hasReadableDb, resolveDbPath } from "./config.js";
 const dbPath = resolveDbPath();
 const distDir = process.env.DIST_DIR ?? "dist";
 const assetsDir = `${distDir}/assets`;
+const runsDir = `${assetsDir}/runs`;
 const chartPath = `${distDir}/chart.html`;
 const indexPath = `${distDir}/index.html`;
 const dataPath = `${assetsDir}/screening-data.json`;
+const runsListPath = `${assetsDir}/screening-runs.json`;
 const stylePath = `${assetsDir}/styles.css`;
 const rendererPath = `${assetsDir}/chartRenderer.js`;
 const assetVersion = (process.env.ASSET_VERSION ?? new Date().toISOString()).replace(/[^0-9A-Za-z]/g, "");
+const generateOptions = {
+  recentRunLimit: Number(process.env.RECENT_RUN_LIMIT ?? 10),
+  maxEmbeddedCandlesPerStock: Number(process.env.MAX_EMBEDDED_CANDLES_PER_STOCK ?? DEFAULT_OPTIONS.renderPeriod),
+};
 
 const ensureOutputDirs = () => {
   mkdirSync(distDir, { recursive: true });
   mkdirSync(assetsDir, { recursive: true });
+  mkdirSync(runsDir, { recursive: true });
 };
 
 const createShellHtml = () => `<!doctype html>
@@ -83,18 +91,24 @@ const createEmptyData = () => ({
   emaData: {},
 });
 
-const writeOutputs = (data) => {
+const writeShellOutputs = () => {
   ensureOutputDirs();
   const html = createShellHtml();
   writeFileSync(chartPath, html, "utf8");
   writeFileSync(indexPath, html, "utf8");
-  writeFileSync(dataPath, `${JSON.stringify(data)}\n`, "utf8");
   copyFileSync("src/styles.css", stylePath);
   copyFileSync("src/chartRenderer.js", rendererPath);
 };
 
+const writeEmptyOutputs = () => {
+  const data = createEmptyData();
+  writeShellOutputs();
+  writeFileSync(dataPath, `${JSON.stringify(data)}\n`, "utf8");
+  writeFileSync(runsListPath, `${JSON.stringify({ screeningRuns: [], selectedRunId: null, generatedAt: data.summary.generatedAt })}\n`, "utf8");
+};
+
 if (!hasReadableDb(dbPath)) {
-  writeOutputs(createEmptyData());
+  writeEmptyOutputs();
   console.log(`DB not found: ${dbPath}`);
   console.log("Split static files generated with empty data.");
   process.exit(0);
@@ -105,25 +119,27 @@ const db = openDatabase(dbPath);
 try {
   const latestRun = getLatestScreeningRun(db);
   if (!latestRun) {
-    writeOutputs(createEmptyData());
+    writeEmptyOutputs();
     console.log("no screening run found. Split static files generated with empty data.");
     process.exit(0);
   }
 
+  const buildRunData = (run) => {
   const options = {
     ...DEFAULT_OPTIONS,
-    renderPeriod: latestRun.render_period,
-    scanMinPeriod: latestRun.scan_min_period,
-    scanMaxPeriod: latestRun.scan_max_period,
-    minAngleDegree: latestRun.min_angle_degree,
-    minReturnRate: latestRun.min_return_rate,
-    minRSquared: latestRun.min_r_squared,
+    renderPeriod: run.renderPeriod,
+    scanMinPeriod: run.scanMinPeriod,
+    scanMaxPeriod: run.scanMaxPeriod,
+    minAngleDegree: run.minAngleDegree,
+    minReturnRate: run.minReturnRate,
+    minRSquared: run.minRSquared,
   };
-  const filteredStocks = loadFilteredStocksByRunId(db, latestRun.run_id);
-  const buySignals = loadBuySignalsByRunId(db, latestRun.run_id);
+  const filteredStocks = loadFilteredStocksWithCurrentPrice(db, run.runId);
+  const buySignals = loadBuySignalsByRunId(db, run.runId);
   const signalByCode = new Map(buySignals.map((signal) => [signal.code, signal]));
   const maxEmaPeriod = Math.max(...DEFAULT_OPTIONS.emaPeriods);
-  const indicatorCandleLimit = maxEmaPeriod + options.renderPeriod - 1;
+  const renderPeriod = Math.min(options.renderPeriod, generateOptions.maxEmbeddedCandlesPerStock);
+  const indicatorCandleLimit = maxEmaPeriod + renderPeriod - 1;
   const candlesMap = loadRecentCandlesForCodes(
     db,
     filteredStocks.map((stock) => stock.code),
@@ -134,7 +150,7 @@ try {
   const emaData = {};
   const results = filteredStocks.map((stock) => {
     const indicatorCandles = candlesMap.get(stock.code) ?? [];
-    const renderCandles = indicatorCandles.slice(-options.renderPeriod);
+    const renderCandles = indicatorCandles.slice(-renderPeriod);
     chartData[stock.code] = renderCandles.map((candle) => [
       candle.date,
       candle.open,
@@ -147,7 +163,7 @@ try {
       DEFAULT_OPTIONS.emaPeriods.map((period) => [
         `ema${period}`,
         (allEmaValues[`ema${period}`] ?? [])
-          .slice(-options.renderPeriod)
+          .slice(-renderPeriod)
           .map((value) => (value == null ? null : Number(value.toFixed(2)))),
       ]),
     );
@@ -168,7 +184,12 @@ try {
       returnRate: stock.returnRate,
       firstPrice: stock.firstPrice,
       lastPrice: stock.lastPrice,
+      filteredLastPrice: stock.filteredLastPrice,
+      filteredLastClose: stock.filteredLastClose,
       lastClose: stock.lastClose,
+      currentDate: stock.currentDate,
+      currentPrice: stock.currentPrice,
+      currentReturnRate: stock.currentReturnRate == null ? null : Number(stock.currentReturnRate.toFixed(2)),
       dailyChangeRate: stock.dailyChangeRate,
       ema5: stock.ema5,
       ema20: stock.ema20,
@@ -199,38 +220,23 @@ try {
 
   const data = {
     run: {
-      runId: latestRun.run_id,
-      baseDate: latestRun.base_date,
-      runAt: latestRun.run_at,
-      totalStockCount: latestRun.total_stock_count,
-      matchedStockCount: latestRun.matched_stock_count,
-      excludedStockCount: latestRun.excluded_stock_count ?? 0,
-      screeningTargetCount: latestRun.screening_target_count ?? latestRun.total_stock_count,
-      excludeEtf: Boolean(latestRun.exclude_etf),
-      excludeEtn: Boolean(latestRun.exclude_etn),
-      excludeSpac: Boolean(latestRun.exclude_spac),
-      excludeReit: Boolean(latestRun.exclude_reit),
-      excludePreferred: Boolean(latestRun.exclude_preferred),
-      excludeTradingHalt: Boolean(latestRun.exclude_trading_halt),
-      excludeAdministrative: Boolean(latestRun.exclude_administrative),
-      excludeAttention: Boolean(latestRun.exclude_attention),
-      excludeInvestmentWarning: Boolean(latestRun.exclude_investment_warning),
+      ...run,
       renderPeriod: options.renderPeriod,
       scanMinPeriod: options.scanMinPeriod,
       scanMaxPeriod: options.scanMaxPeriod,
       minAngleDegree: options.minAngleDegree,
       minReturnRate: options.minReturnRate,
       minRSquared: options.minRSquared,
-      useEmaBearishFilter: latestRun.use_ema_bearish_filter == null
+      useEmaBearishFilter: run.useEmaBearishFilter == null
         ? DEFAULT_OPTIONS.useEmaBearishFilter
-        : Boolean(latestRun.use_ema_bearish_filter),
-      useLastPriceBelowEma5Filter: latestRun.use_last_price_below_ema5_filter == null
+        : run.useEmaBearishFilter,
+      useLastPriceBelowEma5Filter: run.useLastPriceBelowEma5Filter == null
         ? DEFAULT_OPTIONS.useLastPriceBelowEma5Filter
-        : Boolean(latestRun.use_last_price_below_ema5_filter),
-      useEma5To112GapFilter: latestRun.use_ema5_to_112_gap_filter == null
+        : run.useLastPriceBelowEma5Filter,
+      useEma5To112GapFilter: run.useEma5To112GapFilter == null
         ? DEFAULT_OPTIONS.useEma5To112GapFilter
-        : Boolean(latestRun.use_ema5_to_112_gap_filter),
-      minEma5To112GapRate: latestRun.min_ema5_to_112_gap_rate ?? DEFAULT_OPTIONS.minEma5To112GapRate,
+        : run.useEma5To112GapFilter,
+      minEma5To112GapRate: run.minEma5To112GapRate ?? DEFAULT_OPTIONS.minEma5To112GapRate,
       emaPeriods: DEFAULT_OPTIONS.emaPeriods,
       bearishEmaPeriods: DEFAULT_OPTIONS.bearishEmaPeriods,
     },
@@ -243,15 +249,37 @@ try {
     chartData,
     emaData,
   };
+  return data;
+  };
 
-  writeOutputs(data);
+  const runs = loadScreeningRuns(db, { limit: generateOptions.recentRunLimit });
+  const runFiles = [];
+  let latestData = null;
+  writeShellOutputs();
+  for (const run of runs) {
+    const runData = buildRunData(run);
+    if (run.runId === latestRun.run_id) latestData = runData;
+    const runPath = `${runsDir}/run-${run.runId}.json`;
+    writeFileSync(runPath, `${JSON.stringify(runData)}\n`, "utf8");
+    runFiles.push({ ...run, file: `./assets/runs/run-${run.runId}.json` });
+  }
+  const selectedRunId = latestRun.run_id;
+  writeFileSync(
+    runsListPath,
+    `${JSON.stringify({ screeningRuns: runFiles, selectedRunId, generatedAt: new Date().toISOString() })}\n`,
+    "utf8",
+  );
+  if (latestData) {
+    writeFileSync(dataPath, `${JSON.stringify(latestData)}\n`, "utf8");
+  }
   console.log(`chart generated: ${chartPath}`);
   console.log(`index generated: ${indexPath}`);
   console.log(`styles generated: ${stylePath}`);
   console.log(`renderer generated: ${rendererPath}`);
-  console.log(`data generated: ${dataPath}`);
-  console.log(`filtered stocks: ${results.length}`);
-  console.log(`buy signals: ${buySignals.length}`);
+  console.log(`runs list generated: ${runsListPath}`);
+  console.log(`run json files: ${runFiles.length}`);
+  console.log(`filtered stocks: ${latestData?.results.length ?? 0}`);
+  console.log(`buy signals: ${latestData?.summary.buySignalCount ?? 0}`);
 } finally {
   closeDatabase(db);
 }

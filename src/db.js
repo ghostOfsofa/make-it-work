@@ -688,6 +688,52 @@ export const getLatestScreeningRun = (db) =>
     .prepare("SELECT * FROM screening_runs ORDER BY run_id DESC LIMIT 1")
     .get() ?? null;
 
+const mapRunRow = (row) =>
+  row
+    ? {
+        runId: row.run_id,
+        baseDate: row.base_date,
+        runAt: row.run_at,
+        dataSource: row.data_source,
+        totalStockCount: row.total_stock_count,
+        matchedStockCount: row.matched_stock_count,
+        excludedStockCount: row.excluded_stock_count ?? 0,
+        screeningTargetCount: row.screening_target_count ?? row.total_stock_count,
+        excludeEtf: Boolean(row.exclude_etf),
+        excludeEtn: Boolean(row.exclude_etn),
+        excludeSpac: Boolean(row.exclude_spac),
+        excludeReit: Boolean(row.exclude_reit),
+        excludePreferred: Boolean(row.exclude_preferred),
+        excludeTradingHalt: Boolean(row.exclude_trading_halt),
+        excludeAdministrative: Boolean(row.exclude_administrative),
+        excludeAttention: Boolean(row.exclude_attention),
+        excludeInvestmentWarning: Boolean(row.exclude_investment_warning),
+        renderPeriod: row.render_period,
+        scanMinPeriod: row.scan_min_period,
+        scanMaxPeriod: row.scan_max_period,
+        minAngleDegree: row.min_angle_degree,
+        minReturnRate: row.min_return_rate,
+        minRSquared: row.min_r_squared,
+        useEmaBearishFilter: row.use_ema_bearish_filter == null ? null : Boolean(row.use_ema_bearish_filter),
+        useLastPriceBelowEma5Filter: row.use_last_price_below_ema5_filter == null ? null : Boolean(row.use_last_price_below_ema5_filter),
+        useEma5To112GapFilter: row.use_ema5_to_112_gap_filter == null ? null : Boolean(row.use_ema5_to_112_gap_filter),
+        minEma5To112GapRate: row.min_ema5_to_112_gap_rate,
+      }
+    : null;
+
+export const loadScreeningRuns = (db, { limit = 10 } = {}) => {
+  const safeLimit = Math.min(Math.max(Number.parseInt(limit, 10) || 10, 1), 100);
+  return db
+    .prepare(`
+      SELECT *
+      FROM screening_runs
+      ORDER BY run_id DESC
+      LIMIT ?
+    `)
+    .all(safeLimit)
+    .map(mapRunRow);
+};
+
 const mapFilteredRow = (row) => ({
   id: row.id,
   runId: row.run_id,
@@ -729,6 +775,33 @@ export const loadFilteredStocksByRunId = (db, runId) =>
     .prepare("SELECT * FROM filtered_stocks WHERE run_id = ? ORDER BY rank_no, angle_degree DESC")
     .all(runId)
     .map(mapFilteredRow);
+
+export const loadFilteredStocksWithCurrentPrice = (db, runId) => {
+  const rows = loadFilteredStocksByRunId(db, runId);
+  const latestPrice = db.prepare(`
+    SELECT date, close
+    FROM stock_prices
+    WHERE code = ?
+    ORDER BY date DESC
+    LIMIT 1
+  `);
+  return rows.map((row) => {
+    const current = latestPrice.get(row.code);
+    const currentPrice = current?.close ?? null;
+    const currentReturnRate =
+      Number.isFinite(Number(currentPrice)) && Number(row.lastPrice) > 0
+        ? ((Number(currentPrice) - Number(row.lastPrice)) / Number(row.lastPrice)) * 100
+        : null;
+    return {
+      ...row,
+      filteredLastPrice: row.lastPrice,
+      filteredLastClose: row.lastClose,
+      currentDate: current?.date ?? null,
+      currentPrice,
+      currentReturnRate,
+    };
+  });
+};
 
 export const loadLatestFilteredStocks = (db) => {
   const latestRun = getLatestScreeningRun(db);
@@ -774,24 +847,6 @@ export const loadBuySignalsByRunId = (db, runId) =>
     .prepare("SELECT * FROM buy_signals WHERE run_id = ? ORDER BY signal_time DESC")
     .all(runId)
     .map(mapBuySignalRow);
-
-const mapRunRow = (row) =>
-  row
-    ? {
-        runId: row.run_id,
-        baseDate: row.base_date,
-        runAt: row.run_at,
-        dataSource: row.data_source,
-        totalStockCount: row.total_stock_count,
-        matchedStockCount: row.matched_stock_count,
-        renderPeriod: row.render_period,
-        scanMinPeriod: row.scan_min_period,
-        scanMaxPeriod: row.scan_max_period,
-        minAngleDegree: row.min_angle_degree,
-        minReturnRate: row.min_return_rate,
-        minRSquared: row.min_r_squared,
-      }
-    : null;
 
 const mapBuySignalRow = (row) => ({
   id: row.id,
