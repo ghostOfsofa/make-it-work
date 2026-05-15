@@ -205,6 +205,7 @@ python3 scripts/query-prices.py --code 005930 --csv --output samsung.csv
   scanMaxPeriod: 60,
   chartWidth: 1600,
   chartHeight: 900,
+  rightPaddingBars: 5,
   minAngleDegree: 45,
   minReturnRate: -5,
   minRSquared: 0.5,
@@ -302,12 +303,14 @@ trendNextPrice = maxPrice - ((trendNextY - margin.top) / plotHeight) * (maxPrice
 가격 변화율이 아니라 실제 16:9 차트 plot 영역에 표시되는 좌표 기울기를 기준으로 계산합니다.
 
 ```js
-xPixel = margin.left + (index / (period - 1)) * plotWidth
+virtualPeriod = period + rightPaddingBars
+xPixel = margin.left + (index / (virtualPeriod - 1)) * plotWidth
 yPixel = margin.top + (maxPrice - price) / (maxPrice - minPrice) * plotHeight
 angleDegree = Math.atan(slopePixel) * 180 / Math.PI
 ```
 
 화면 좌표에서는 아래로 갈수록 y가 커지므로 `slopePixel > 0`이면 우하향입니다.
+`rightPaddingBars`는 마지막 봉 오른쪽에 빈 공간을 만들기 위한 가상 봉 개수이며, 회귀 계산과 차트 렌더링 x좌표에 동일하게 적용됩니다.
 
 ## MA5 돌파 감시
 

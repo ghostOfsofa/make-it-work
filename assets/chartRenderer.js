@@ -38,6 +38,7 @@ const MINI_CHART_OPTIONS = {
   chartWidth: 480,
   chartHeight: 270,
   renderPeriod: 40,
+  rightPaddingBars: 3,
   margin: { top: 18, right: 28, bottom: 20, left: 12 },
   showGrid: false,
   showAxisLabels: false,
@@ -70,6 +71,7 @@ const DETAIL_CHART_OPTIONS = {
   chartWidth: 1600,
   chartHeight: 900,
   renderPeriod: 80,
+  rightPaddingBars: 5,
   margin: DEFAULT_MARGIN,
   showGrid: true,
   showAxisLabels: true,
@@ -401,14 +403,17 @@ const createCandlestickSvgChart = (result, rawCandles, optionOverrides) => {
   const { chartWidth, chartHeight, margin } = options;
   const plotWidth = chartWidth - margin.left - margin.right;
   const plotHeight = chartHeight - margin.top - margin.bottom;
+  const rightPaddingBars = Math.max(0, Math.floor(Number(options.rightPaddingBars) || 0));
+  const virtualPeriod = candles.length + rightPaddingBars;
+  const xStep = plotWidth / Math.max(1, virtualPeriod - 1);
   const { minPrice, maxPrice } = calculatePriceRange(candles, visibleEmaValues);
   if (!Number.isFinite(minPrice) || !Number.isFinite(maxPrice)) return `<div class="empty-chart">차트 범위 계산 실패</div>`;
 
   const scale = {
-    x: (index) => margin.left + (index / Math.max(1, candles.length - 1)) * plotWidth,
+    x: (index) => margin.left + (index / Math.max(1, virtualPeriod - 1)) * plotWidth,
     y: (price) => priceToY(price, minPrice, maxPrice, plotHeight, margin.top),
   };
-  const candleSlotWidth = plotWidth / candles.length;
+  const candleSlotWidth = plotWidth / virtualPeriod;
   const candleWidth = Math.max(2, Math.min(18, candleSlotWidth * 0.8));
   const renderPoints = candles.map((candle, index) => ({
     x: scale.x(index),
@@ -419,12 +424,13 @@ const createCandlestickSvgChart = (result, rawCandles, optionOverrides) => {
   const firstScanX = scanPoints[0]?.x;
   const lastScanX = scanPoints.at(-1)?.x;
   const matchedArea =
-    options.showMatchedArea && Number.isFinite(firstScanX)
-      ? `<rect x="${firstScanX}" y="${margin.top}" width="${chartWidth - margin.right - firstScanX}" height="${plotHeight}" fill="${COLORS.matchedArea}"/>`
+    options.showMatchedArea && Number.isFinite(firstScanX) && Number.isFinite(lastScanX)
+      ? `<rect x="${firstScanX}" y="${margin.top}" width="${Math.max(0, lastScanX - firstScanX)}" height="${plotHeight}" fill="${COLORS.matchedArea}"/>`
       : "";
+  const regressionEndX = Math.min(chartWidth - margin.right, lastScanX + xStep);
   const regressionLine =
     options.showRegressionLine && Number.isFinite(regression.slope)
-      ? `<line x1="${firstScanX}" y1="${regression.slope * firstScanX + regression.intercept}" x2="${lastScanX}" y2="${regression.slope * lastScanX + regression.intercept}" stroke="${COLORS.regression}" stroke-width="${options.chartWidth > 500 ? 3 : 2}"/>`
+      ? `<line x1="${firstScanX}" y1="${regression.slope * firstScanX + regression.intercept}" x2="${regressionEndX}" y2="${regression.slope * regressionEndX + regression.intercept}" stroke="${COLORS.regression}" stroke-width="${options.chartWidth > 500 ? 3 : 2}"/>`
       : "";
   const selectedLine =
     options.showSelectedPriceLine

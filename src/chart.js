@@ -139,13 +139,16 @@ export const createCandlestickSvgChart = (stockResult, options = {}) => {
   const { chartWidth, chartHeight, margin } = merged;
   const plotWidth = chartWidth - margin.left - margin.right;
   const plotHeight = chartHeight - margin.top - margin.bottom;
+  const rightPaddingBars = Math.max(0, Math.floor(Number(merged.rightPaddingBars) || 0));
+  const virtualPeriod = candles.length + rightPaddingBars;
+  const xStep = plotWidth / Math.max(1, virtualPeriod - 1);
   const trendPrices = candles.map(getTrendPrice);
   const { minPrice, maxPrice } = calculatePriceRange(candles, trendPrices);
   const scale = {
-    x: (index) => margin.left + (index / Math.max(1, candles.length - 1)) * plotWidth,
+    x: (index) => margin.left + (index / Math.max(1, virtualPeriod - 1)) * plotWidth,
     y: (price) => priceToY(price, minPrice, maxPrice, plotHeight, margin.top),
   };
-  const candleSlotWidth = plotWidth / candles.length;
+  const candleSlotWidth = plotWidth / virtualPeriod;
   const candleWidth = Math.max(2, Math.min(18, candleSlotWidth * 0.8));
   const ticks = calculateNicePriceTicks(minPrice, maxPrice, 7);
   const renderPoints = createRenderPoints(candles, merged);
@@ -154,9 +157,10 @@ export const createCandlestickSvgChart = (stockResult, options = {}) => {
   const rSquared = calculateRSquaredByPoints(scanPoints, regression.slopePixel, regression.intercept);
   const firstScanX = scanPoints[0]?.xPixel;
   const lastScanX = scanPoints.at(-1)?.xPixel;
+  const regressionEndX = Math.min(chartWidth - margin.right, lastScanX + xStep);
   const regressionLine =
     merged.showRegressionLine && Number.isFinite(regression.slopePixel)
-      ? `<line x1="${firstScanX}" y1="${regression.slopePixel * firstScanX + regression.intercept}" x2="${lastScanX}" y2="${regression.slopePixel * lastScanX + regression.intercept}" stroke="${COLORS.regression}" stroke-width="3"/>`
+      ? `<line x1="${firstScanX}" y1="${regression.slopePixel * firstScanX + regression.intercept}" x2="${regressionEndX}" y2="${regression.slopePixel * regressionEndX + regression.intercept}" stroke="${COLORS.regression}" stroke-width="3"/>`
       : "";
   const selectedLine =
     merged.showSelectedPriceLine
@@ -167,8 +171,8 @@ export const createCandlestickSvgChart = (stockResult, options = {}) => {
         )
       : "";
   const matchedX =
-    merged.showMatchedArea && Number.isFinite(firstScanX)
-      ? `<rect x="${firstScanX}" y="${margin.top}" width="${chartWidth - margin.right - firstScanX}" height="${plotHeight}" fill="${COLORS.matchedArea}"/>`
+    merged.showMatchedArea && Number.isFinite(firstScanX) && Number.isFinite(lastScanX)
+      ? `<rect x="${firstScanX}" y="${margin.top}" width="${Math.max(0, lastScanX - firstScanX)}" height="${plotHeight}" fill="${COLORS.matchedArea}"/>`
       : "";
   const candlesSvg = candles
     .map((candle, index) => {

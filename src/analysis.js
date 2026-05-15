@@ -6,6 +6,7 @@ export const DEFAULT_OPTIONS = Object.freeze({
   scanMaxPeriod: 60,
   chartWidth: 1600,
   chartHeight: 900,
+  rightPaddingBars: 5,
   margin: {
     top: 40,
     right: 90,
@@ -163,8 +164,9 @@ export const createRenderPoints = (candles, options = {}) => {
   }
 
   return candles.map((candle, index) => {
+    const virtualPeriod = candles.length + merged.rightPaddingBars;
     const xPixel =
-      margin.left + (index / Math.max(candles.length - 1, 1)) * plotWidth;
+      margin.left + (index / Math.max(virtualPeriod - 1, 1)) * plotWidth;
     const trendPrice = getTrendPrice(candle);
 
     return {
@@ -434,8 +436,10 @@ export const calculateTrendNextProjection = (
     };
   }
 
-  const xStep = plotWidth / (period - 1);
-  const trendNextX = margin.left + plotWidth + xStep;
+  const virtualPeriod = period + (Number(options.rightPaddingBars) || 0);
+  const xStep = plotWidth / Math.max(virtualPeriod - 1, 1);
+  const lastX = margin.left + ((period - 1) / Math.max(virtualPeriod - 1, 1)) * plotWidth;
+  const trendNextX = lastX + xStep;
   const trendNextY = slopePixel * trendNextX + regressionIntercept;
   const trendNextPrice = yToPrice(
     trendNextY,
@@ -623,6 +627,10 @@ export const mergeOptions = (options = {}) => {
     scanMaxPeriod: Math.max(
       2,
       Math.floor(options.scanMaxPeriod ?? DEFAULT_OPTIONS.scanMaxPeriod),
+    ),
+    rightPaddingBars: Math.max(
+      0,
+      Math.floor(options.rightPaddingBars ?? DEFAULT_OPTIONS.rightPaddingBars),
     ),
     emaPeriods: Array.isArray(options.emaPeriods)
       ? options.emaPeriods.map((period) => Math.floor(Number(period))).filter((period) => period > 0)
