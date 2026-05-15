@@ -26,6 +26,7 @@ export const COLORS = Object.freeze({
   bullish: "#ef4444",
   bearish: "#3b82f6",
   regression: "#f87171",
+  trendNextPrice: "#facc15",
   selectedLine: "#d946ef",
   axis: "#475569",
   matchedArea: "rgba(148, 163, 184, 0.18)",
@@ -159,6 +160,16 @@ const createMa5PriceGuide = ({ ma5Price, scale, chartWidth, margin }) => {
   `;
 };
 
+const createTrendNextPriceGuide = ({ trendNextPrice, scale, chartWidth, margin }) => {
+  if (!Number.isFinite(Number(trendNextPrice))) return "";
+  const y = scale.y(Number(trendNextPrice));
+  if (!Number.isFinite(y)) return "";
+  return `
+    <line x1="${margin.left}" y1="${y}" x2="${chartWidth - margin.right}" y2="${y}" stroke="${COLORS.trendNextPrice}" stroke-width="1.5" opacity="0.46"/>
+    <text x="${chartWidth - margin.right - 10}" y="${y + 18}" fill="${COLORS.trendNextPrice}" font-size="18" text-anchor="end" opacity="0.82">다음추세 ${formatPrice(trendNextPrice)}</text>
+  `;
+};
+
 export const createCandlestickSvgChart = (stockResult, options = {}) => {
   const merged = mergeOptions({ ...options, showSelectedPriceLine: false });
   const candles = (stockResult.renderCandles ?? stockResult.prices ?? []).slice(-merged.renderPeriod);
@@ -228,6 +239,7 @@ export const createCandlestickSvgChart = (stockResult, options = {}) => {
       ${matchedX}
       ${createGridLines({ chartWidth, chartHeight, margin, plotWidth, plotHeight, ticks, scale })}
       ${createMa5PriceGuide({ ma5Price, scale, chartWidth, margin })}
+      ${createTrendNextPriceGuide({ trendNextPrice: stockResult.trendNextPrice, scale, chartWidth, margin })}
       ${createAxisLabels({ candles, margin, chartHeight, plotWidth, scale })}
       <line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${chartHeight - margin.bottom}" stroke="${COLORS.axis}" stroke-width="1"/>
       <line x1="${chartWidth - margin.right}" y1="${margin.top}" x2="${chartWidth - margin.right}" y2="${chartHeight - margin.bottom}" stroke="${COLORS.axis}" stroke-width="1"/>

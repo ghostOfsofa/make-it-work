@@ -6,6 +6,7 @@ const COLORS = {
   bullish: "#ef4444",
   bearish: "#3b82f6",
   regression: "#f87171",
+  trendNextPrice: "#facc15",
   selectedLine: "#d946ef",
   axis: "#475569",
   matchedArea: "rgba(148, 163, 184, 0.18)",
@@ -64,6 +65,7 @@ const MINI_CHART_OPTIONS = {
   showRegressionLine: true,
   showSelectedPriceLine: false,
   showMa5PriceGuide: true,
+  showTrendNextPriceGuide: true,
   showMatchedArea: true,
   showCandleWick: true,
 };
@@ -98,6 +100,7 @@ const DETAIL_CHART_OPTIONS = {
   showRegressionLine: true,
   showSelectedPriceLine: false,
   showMa5PriceGuide: true,
+  showTrendNextPriceGuide: true,
   showMatchedArea: true,
   showCandleWick: true,
 };
@@ -436,6 +439,16 @@ const createMa5PriceGuide = ({ ma5Price, scale, chartWidth, margin, options }) =
   `;
 };
 
+const createTrendNextPriceGuide = ({ trendNextPrice, scale, chartWidth, margin, options }) => {
+  if (!options.showTrendNextPriceGuide || !Number.isFinite(Number(trendNextPrice))) return "";
+  const y = scale.y(Number(trendNextPrice));
+  if (!Number.isFinite(y)) return "";
+  return `
+    <line x1="${margin.left}" y1="${y}" x2="${chartWidth - margin.right}" y2="${y}" stroke="${COLORS.trendNextPrice}" stroke-width="1.5" opacity="0.46"/>
+    ${options.showAxisLabels ? `<text x="${chartWidth - margin.right - 10}" y="${y + 18}" fill="${COLORS.trendNextPrice}" font-size="18" text-anchor="end" opacity="0.82">다음추세 ${formatPrice(trendNextPrice)}</text>` : ""}
+  `;
+};
+
 const createCandlestickSvgChart = (result, rawCandles, optionOverrides) => {
   const options = { ...DETAIL_CHART_OPTIONS, ...optionOverrides, margin: { ...DEFAULT_MARGIN, ...(optionOverrides.margin ?? {}) } };
   const candles = rawCandles.slice(-options.renderPeriod);
@@ -519,6 +532,7 @@ const createCandlestickSvgChart = (result, rawCandles, optionOverrides) => {
       ${matchedArea}
       ${grid}
       ${createMa5PriceGuide({ ma5Price, scale, chartWidth, margin, options })}
+      ${createTrendNextPriceGuide({ trendNextPrice: result.trendNextPrice, scale, chartWidth, margin, options })}
       ${axisLabels}
       ${options.showAxisLabels ? `<line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${chartHeight - margin.bottom}" stroke="${COLORS.axis}" stroke-width="1"/>
       <line x1="${chartWidth - margin.right}" y1="${margin.top}" x2="${chartWidth - margin.right}" y2="${chartHeight - margin.bottom}" stroke="${COLORS.axis}" stroke-width="1"/>` : ""}
