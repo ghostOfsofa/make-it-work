@@ -174,6 +174,10 @@ export const createRenderPoints = (candles, options = {}) => {
       date: candle.date,
       selectedPrice: trendPrice,
       trendPrice,
+      minPrice,
+      maxPrice,
+      plotHeight,
+      marginTop: margin.top,
       xPixel,
       yPixel: priceToY(
         trendPrice,
@@ -186,12 +190,18 @@ export const createRenderPoints = (candles, options = {}) => {
   });
 };
 
-export const analyzeDowntrendPeriod = (scanCandles, scanPoints) => {
+export const analyzeDowntrendPeriod = (scanCandles, scanPoints, options = {}) => {
   const trendPrices = scanCandles.map(getTrendPrice);
   const { slopePixel, intercept } = calculateLinearRegressionByPoints(scanPoints);
   const rSquared = calculateRSquaredByPoints(scanPoints, slopePixel, intercept);
   const angleDegree = calculateAngleDegree(slopePixel);
   const returnRate = calculateReturnRate(trendPrices);
+  const trendNextProjection = calculateTrendNextProjection(
+    scanCandles,
+    { slopePixel, intercept },
+    scanPoints,
+    options,
+  );
 
   return {
     matchedPeriod: scanCandles.length,
@@ -204,6 +214,7 @@ export const analyzeDowntrendPeriod = (scanCandles, scanPoints) => {
     returnRate,
     firstPrice: trendPrices[0],
     lastPrice: trendPrices.at(-1),
+    ...trendNextProjection,
   };
 };
 
@@ -411,46 +422,94 @@ export const pickBestDowntrendMatch = (matches) => {
 export const calculateTrendNextProjection = (
   candles,
   regression,
-  priceRange,
+  scanPoints,
   options = {},
 ) => {
-  const { margin, plotWidth, plotHeight } = getPlotSize(options);
   const period = candles.length;
   const slopePixel = Number(regression?.slopePixel);
   const regressionIntercept = Number(regression?.intercept);
+  const lastPoint = scanPoints?.at(-1);
+  const prevPoint = scanPoints?.at(-2);
+  const minPrice = Number(lastPoint?.minPrice);
+  const maxPrice = Number(lastPoint?.maxPrice);
+  const plotHeight = Number(lastPoint?.plotHeight);
+  const marginTop = Number(lastPoint?.marginTop);
 
   if (
     period < 2 ||
     !Number.isFinite(slopePixel) ||
     !Number.isFinite(regressionIntercept) ||
-    !Number.isFinite(priceRange?.minPrice) ||
-    !Number.isFinite(priceRange?.maxPrice) ||
-    priceRange.maxPrice === priceRange.minPrice ||
-    !Number.isFinite(plotWidth) ||
+    !Number.isFinite(lastPoint?.xPixel) ||
+    !Number.isFinite(prevPoint?.xPixel) ||
+    !Number.isFinite(minPrice) ||
+    !Number.isFinite(maxPrice) ||
+    maxPrice === minPrice ||
     !Number.isFinite(plotHeight) ||
-    plotWidth <= 0 ||
     plotHeight <= 0
   ) {
+    console.warn("Invalid trendNextPrice", {
+      code: options.code,
+      slopePixel,
+      regressionIntercept,
+      nextX: null,
+      trendNextY: null,
+      minPrice,
+      maxPrice,
+      plotHeight,
+      marginTop,
+    });
     return {
       regressionIntercept: Number.isFinite(regressionIntercept) ? regressionIntercept : null,
       trendNextX: null,
       trendNextY: null,
       trendNextPrice: null,
+      trendNextGapFromLastHighRate: null,
     };
   }
 
-  const virtualPeriod = period + (Number(options.rightPaddingBars) || 0);
-  const xStep = plotWidth / Math.max(virtualPeriod - 1, 1);
-  const lastX = margin.left + ((period - 1) / Math.max(virtualPeriod - 1, 1)) * plotWidth;
-  const trendNextX = lastX + xStep;
+  const xStep = lastPoint.xPixel - prevPoint.xPixel;
+  const trendNextX = lastPoint.xPixel + xStep;
   const trendNextY = slopePixel * trendNextX + regressionIntercept;
   const trendNextPrice = yToPrice(
     trendNextY,
-    priceRange.minPrice,
-    priceRange.maxPrice,
+    minPrice,
+    maxPrice,
     plotHeight,
-    margin.top,
+    marginTop,
   );
+  const lastHigh = getTrendPrice(candles.at(-1));
+  const trendNextGapFromLastHighRate =
+    Number.isFinite(trendNextPrice) && Number.isFinite(lastHigh) && lastHigh > 0
+      ? ((trendNextPrice - lastHigh) / lastHigh) * 100
+      : Number.NaN;
+  if (!Number.isFinite(trendNextPrice) || trendNextPrice <= 0) {
+    console.warn("Invalid trendNextPrice", {
+      code: options.code,
+      slopePixel,
+      regressionIntercept,
+      nextX: trendNextX,
+      trendNextY,
+      minPrice,
+      maxPrice,
+      plotHeight,
+      marginTop,
+    });
+  } else if (Math.abs(trendNextGapFromLastHighRate) > 50) {
+    console.warn("Suspicious trendNextPrice", {
+      code: options.code,
+      slopePixel,
+      regressionIntercept,
+      nextX: trendNextX,
+      trendNextY,
+      trendNextPrice,
+      lastHigh,
+      gapFromLastHighRate: trendNextGapFromLastHighRate,
+      minPrice,
+      maxPrice,
+      plotHeight,
+      marginTop,
+    });
+  }
 
   return {
     regressionIntercept,
@@ -458,6 +517,9 @@ export const calculateTrendNextProjection = (
     trendNextY,
     trendNextPrice:
       Number.isFinite(trendNextPrice) && trendNextPrice > 0 ? trendNextPrice : null,
+    trendNextGapFromLastHighRate: Number.isFinite(trendNextGapFromLastHighRate)
+      ? trendNextGapFromLastHighRate
+      : null,
   };
 };
 
@@ -494,15 +556,9 @@ export const filterStrongDowntrendStocks = (stocks, options = {}) => {
       }
 
       const renderPoints = createRenderPoints(candles, merged);
-      const matches = scanDowntrendPeriods(candles, renderPoints, merged);
+      const matches = scanDowntrendPeriods(candles, renderPoints, { ...merged, code: stock.code });
       const bestMatch = pickBestDowntrendMatch(matches);
       if (!bestMatch) return null;
-      const trendNextProjection = calculateTrendNextProjection(
-        candles,
-        bestMatch,
-        range,
-        merged,
-      );
 
       const prevCandle = candles.at(-2);
       const dailyChangeRate =
@@ -532,18 +588,21 @@ export const filterStrongDowntrendStocks = (stocks, options = {}) => {
           : null,
         isEma5FarBelowEma112: ema5FarBelowEma112,
         ...bestMatch,
-        regressionIntercept: trendNextProjection.regressionIntercept == null
+        regressionIntercept: bestMatch.regressionIntercept == null
           ? null
-          : round(trendNextProjection.regressionIntercept, 4),
-        trendNextX: trendNextProjection.trendNextX == null
+          : round(bestMatch.regressionIntercept, 4),
+        trendNextX: bestMatch.trendNextX == null
           ? null
-          : round(trendNextProjection.trendNextX, 4),
-        trendNextY: trendNextProjection.trendNextY == null
+          : round(bestMatch.trendNextX, 4),
+        trendNextY: bestMatch.trendNextY == null
           ? null
-          : round(trendNextProjection.trendNextY, 4),
-        trendNextPrice: trendNextProjection.trendNextPrice == null
+          : round(bestMatch.trendNextY, 4),
+        trendNextPrice: bestMatch.trendNextPrice == null
           ? null
-          : round(trendNextProjection.trendNextPrice, 2),
+          : round(bestMatch.trendNextPrice, 2),
+        trendNextGapFromLastHighRate: bestMatch.trendNextGapFromLastHighRate == null
+          ? null
+          : round(bestMatch.trendNextGapFromLastHighRate, 2),
         prices: allCandles,
         renderCandles: candles,
         scanCandles: candles.slice(-bestMatch.matchedPeriod),
