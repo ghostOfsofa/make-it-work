@@ -77,6 +77,13 @@ export const createMovingAverageLine = (candles, period, scale, color) => {
   return createPolyline(points, color, `stroke-width="2" opacity="0.9"`);
 };
 
+const calculateLatestMA = (candles, period) => {
+  if (!Array.isArray(candles) || candles.length < period) return null;
+  const values = candles.slice(-period).map((candle) => Number(candle.close));
+  if (!values.every(Number.isFinite)) return null;
+  return values.reduce((sum, value) => sum + value, 0) / period;
+};
+
 export const createGridLines = ({ chartWidth, chartHeight, margin, plotWidth, plotHeight, ticks, scale }) => {
   const horizontal = ticks
     .map((tick) => {
@@ -142,8 +149,18 @@ export const createBuySignalMarker = (signal, scale, chartWidth, margin) => {
   `;
 };
 
+const createMa5PriceGuide = ({ ma5Price, scale, chartWidth, margin }) => {
+  if (!Number.isFinite(Number(ma5Price))) return "";
+  const y = scale.y(Number(ma5Price));
+  if (!Number.isFinite(y)) return "";
+  return `
+    <line x1="${margin.left}" y1="${y}" x2="${chartWidth - margin.right}" y2="${y}" stroke="${COLORS.ma5}" stroke-width="1.5" opacity="0.42"/>
+    <text x="${chartWidth - margin.right - 10}" y="${y - 8}" fill="${COLORS.ma5}" font-size="18" text-anchor="end" opacity="0.78">MA5 ${formatPrice(ma5Price)}</text>
+  `;
+};
+
 export const createCandlestickSvgChart = (stockResult, options = {}) => {
-  const merged = mergeOptions(options);
+  const merged = mergeOptions({ ...options, showSelectedPriceLine: false });
   const candles = (stockResult.renderCandles ?? stockResult.prices ?? []).slice(-merged.renderPeriod);
   if (candles.length < 2) return `<div class="empty-chart">차트 데이터 부족</div>`;
 
@@ -199,12 +216,18 @@ export const createCandlestickSvgChart = (stockResult, options = {}) => {
   const lastColor = lastCandle.close >= candles.at(-2)?.close ? COLORS.bullish : COLORS.bearish;
   const lastY = scale.y(lastCandle.close);
   const signal = stockResult.buySignal;
+  const ma5Price = Number.isFinite(Number(stockResult.ma5Price))
+    ? Number(stockResult.ma5Price)
+    : Number.isFinite(Number(signal?.ma5Price))
+      ? Number(signal.ma5Price)
+      : calculateLatestMA(candles, 5);
 
   return `
     <svg class="stock-chart" viewBox="0 0 ${chartWidth} ${chartHeight}" role="img" aria-label="${escapeHtml(stockResult.name)} 봉차트">
       <rect width="${chartWidth}" height="${chartHeight}" fill="${COLORS.background}"/>
       ${matchedX}
       ${createGridLines({ chartWidth, chartHeight, margin, plotWidth, plotHeight, ticks, scale })}
+      ${createMa5PriceGuide({ ma5Price, scale, chartWidth, margin })}
       ${createAxisLabels({ candles, margin, chartHeight, plotWidth, scale })}
       <line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${chartHeight - margin.bottom}" stroke="${COLORS.axis}" stroke-width="1"/>
       <line x1="${chartWidth - margin.right}" y1="${margin.top}" x2="${chartWidth - margin.right}" y2="${chartHeight - margin.bottom}" stroke="${COLORS.axis}" stroke-width="1"/>

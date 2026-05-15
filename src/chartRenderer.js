@@ -62,7 +62,8 @@ const MINI_CHART_OPTIONS = {
   showLongEmaGlow: true,
   miniChartLongEmaOnly: true,
   showRegressionLine: true,
-  showSelectedPriceLine: true,
+  showSelectedPriceLine: false,
+  showMa5PriceGuide: true,
   showMatchedArea: true,
   showCandleWick: true,
 };
@@ -95,7 +96,8 @@ const DETAIL_CHART_OPTIONS = {
   showLongEmaGlow: true,
   miniChartLongEmaOnly: false,
   showRegressionLine: true,
-  showSelectedPriceLine: true,
+  showSelectedPriceLine: false,
+  showMa5PriceGuide: true,
   showMatchedArea: true,
   showCandleWick: true,
 };
@@ -267,6 +269,13 @@ const latestFiniteValue = (values = []) => {
   return null;
 };
 
+const calculateLatestMA = (candles, period) => {
+  if (!Array.isArray(candles) || candles.length < period) return null;
+  const values = candles.slice(-period).map((candle) => Number(candle.close));
+  if (!values.every(Number.isFinite)) return null;
+  return values.reduce((sum, value) => sum + value, 0) / period;
+};
+
 const adjustRightSideLabels = (labels, minGap = 28) => {
   const sorted = [...labels].sort((a, b) => a.y - b.y);
   for (let index = 1; index < sorted.length; index += 1) {
@@ -416,6 +425,16 @@ const createBuySignalMarker = (signal, scale, chartWidth, margin, showLabel) => 
   `;
 };
 
+const createMa5PriceGuide = ({ ma5Price, scale, chartWidth, margin, options }) => {
+  if (!options.showMa5PriceGuide || !Number.isFinite(Number(ma5Price))) return "";
+  const y = scale.y(Number(ma5Price));
+  if (!Number.isFinite(y)) return "";
+  return `
+    <line x1="${margin.left}" y1="${y}" x2="${chartWidth - margin.right}" y2="${y}" stroke="${COLORS.ema5}" stroke-width="1.5" opacity="0.42"/>
+    ${options.showAxisLabels ? `<text x="${chartWidth - margin.right - 10}" y="${y - 8}" fill="${COLORS.ema5}" font-size="18" text-anchor="end" opacity="0.78">MA5 ${formatPrice(ma5Price)}</text>` : ""}
+  `;
+};
+
 const createCandlestickSvgChart = (result, rawCandles, optionOverrides) => {
   const options = { ...DETAIL_CHART_OPTIONS, ...optionOverrides, margin: { ...DEFAULT_MARGIN, ...(optionOverrides.margin ?? {}) } };
   const candles = rawCandles.slice(-options.renderPeriod);
@@ -486,6 +505,9 @@ const createCandlestickSvgChart = (result, rawCandles, optionOverrides) => {
     .join("");
   const lastCandle = candles.at(-1);
   const previousCandle = candles.at(-2);
+  const ma5Price = Number.isFinite(Number(result.ma5Price))
+    ? Number(result.ma5Price)
+    : calculateLatestMA(candles, 5);
   const ticks = calculateNicePriceTicks(minPrice, maxPrice, 7);
   const grid = options.showGrid ? createGridLines({ chartWidth, chartHeight, margin, plotWidth, ticks, scale }) : "";
   const axisLabels = options.showAxisLabels ? createAxisLabels({ candles, margin, chartHeight, scale }) : "";
@@ -495,6 +517,7 @@ const createCandlestickSvgChart = (result, rawCandles, optionOverrides) => {
       <rect width="${chartWidth}" height="${chartHeight}" fill="${COLORS.background}"/>
       ${matchedArea}
       ${grid}
+      ${createMa5PriceGuide({ ma5Price, scale, chartWidth, margin, options })}
       ${axisLabels}
       ${options.showAxisLabels ? `<line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${chartHeight - margin.bottom}" stroke="${COLORS.axis}" stroke-width="1"/>
       <line x1="${chartWidth - margin.right}" y1="${margin.top}" x2="${chartWidth - margin.right}" y2="${chartHeight - margin.bottom}" stroke="${COLORS.axis}" stroke-width="1"/>` : ""}
