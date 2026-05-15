@@ -288,6 +288,13 @@ USE_EMA_BEARISH_FILTER=0 npm run screen
 trendPrice = candle.high
 ```
 
+스크리닝 결과에는 회귀선상 다음 봉 x좌표의 기준가도 저장합니다. 이 값은 필터 조건에는 사용하지 않고, 외부 실시간 비교 프로그램에서 `filtered_stocks.trend_next_price`를 읽어 활용할 수 있습니다.
+
+```js
+trendNextY = slopePixel * trendNextX + regressionIntercept
+trendNextPrice = maxPrice - ((trendNextY - margin.top) / plotHeight) * (maxPrice - minPrice)
+```
+
 봉차트 렌더링은 실제 `open/high/low/close`를 사용하고, EMA와 MA5 관련 판단은 기존처럼 `close` 기준을 유지합니다.
 
 ## 각도 계산

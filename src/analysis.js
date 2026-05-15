@@ -137,6 +137,21 @@ export const priceToY = (price, minPrice, maxPrice, plotHeight, marginTop = 0) =
   return marginTop + ((maxPrice - price) / (maxPrice - minPrice)) * plotHeight;
 };
 
+export const yToPrice = (y, minPrice, maxPrice, plotHeight, marginTop = 0) => {
+  if (
+    !Number.isFinite(y) ||
+    !Number.isFinite(minPrice) ||
+    !Number.isFinite(maxPrice) ||
+    !Number.isFinite(plotHeight) ||
+    plotHeight <= 0 ||
+    maxPrice === minPrice
+  ) {
+    return Number.NaN;
+  }
+
+  return maxPrice - ((y - marginTop) / plotHeight) * (maxPrice - minPrice);
+};
+
 export const createRenderPoints = (candles, options = {}) => {
   const merged = mergeOptions(options);
   const { margin, plotWidth, plotHeight } = getPlotSize(merged);
@@ -388,6 +403,57 @@ export const pickBestDowntrendMatch = (matches) => {
   })[0];
 };
 
+export const calculateTrendNextProjection = (
+  candles,
+  regression,
+  priceRange,
+  options = {},
+) => {
+  const { margin, plotWidth, plotHeight } = getPlotSize(options);
+  const period = candles.length;
+  const slopePixel = Number(regression?.slopePixel);
+  const regressionIntercept = Number(regression?.intercept);
+
+  if (
+    period < 2 ||
+    !Number.isFinite(slopePixel) ||
+    !Number.isFinite(regressionIntercept) ||
+    !Number.isFinite(priceRange?.minPrice) ||
+    !Number.isFinite(priceRange?.maxPrice) ||
+    priceRange.maxPrice === priceRange.minPrice ||
+    !Number.isFinite(plotWidth) ||
+    !Number.isFinite(plotHeight) ||
+    plotWidth <= 0 ||
+    plotHeight <= 0
+  ) {
+    return {
+      regressionIntercept: Number.isFinite(regressionIntercept) ? regressionIntercept : null,
+      trendNextX: null,
+      trendNextY: null,
+      trendNextPrice: null,
+    };
+  }
+
+  const xStep = plotWidth / (period - 1);
+  const trendNextX = margin.left + plotWidth + xStep;
+  const trendNextY = slopePixel * trendNextX + regressionIntercept;
+  const trendNextPrice = yToPrice(
+    trendNextY,
+    priceRange.minPrice,
+    priceRange.maxPrice,
+    plotHeight,
+    margin.top,
+  );
+
+  return {
+    regressionIntercept,
+    trendNextX,
+    trendNextY,
+    trendNextPrice:
+      Number.isFinite(trendNextPrice) && trendNextPrice > 0 ? trendNextPrice : null,
+  };
+};
+
 export const filterStrongDowntrendStocks = (stocks, options = {}) => {
   const merged = mergeOptions(options);
 
@@ -424,6 +490,12 @@ export const filterStrongDowntrendStocks = (stocks, options = {}) => {
       const matches = scanDowntrendPeriods(candles, renderPoints, merged);
       const bestMatch = pickBestDowntrendMatch(matches);
       if (!bestMatch) return null;
+      const trendNextProjection = calculateTrendNextProjection(
+        candles,
+        bestMatch,
+        range,
+        merged,
+      );
 
       const prevCandle = candles.at(-2);
       const dailyChangeRate =
@@ -453,6 +525,18 @@ export const filterStrongDowntrendStocks = (stocks, options = {}) => {
           : null,
         isEma5FarBelowEma112: ema5FarBelowEma112,
         ...bestMatch,
+        regressionIntercept: trendNextProjection.regressionIntercept == null
+          ? null
+          : round(trendNextProjection.regressionIntercept, 4),
+        trendNextX: trendNextProjection.trendNextX == null
+          ? null
+          : round(trendNextProjection.trendNextX, 4),
+        trendNextY: trendNextProjection.trendNextY == null
+          ? null
+          : round(trendNextProjection.trendNextY, 4),
+        trendNextPrice: trendNextProjection.trendNextPrice == null
+          ? null
+          : round(trendNextProjection.trendNextPrice, 2),
         prices: allCandles,
         renderCandles: candles,
         scanCandles: candles.slice(-bestMatch.matchedPeriod),
@@ -509,6 +593,10 @@ export const exportResultsToCsv = (results) => {
     "isLastPriceBelowEma5",
     "ema5To112GapRate",
     "isEma5FarBelowEma112",
+    "regressionIntercept",
+    "trendNextX",
+    "trendNextY",
+    "trendNextPrice",
   ];
   const escapeCsv = (value) => `"${String(value ?? "").replaceAll('"', '""')}"`;
   return [

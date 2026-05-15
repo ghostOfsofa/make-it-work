@@ -571,6 +571,7 @@ const renderResultCard = (result, visibleIndex, absoluteIndex) => {
         ${metric("EMA5 아래", result.isLastPriceBelowEma5 ? "YES" : "NO", result.isLastPriceBelowEma5 ? "signal" : "")}
         ${metric("EMA5-112 차이", formatPercent(result.ema5To112GapRate))}
         ${metric("EMA5 < EMA112 3% 이상", result.isEma5FarBelowEma112 ? "YES" : "NO", result.isEma5FarBelowEma112 ? "signal" : "")}
+        ${metric("다음 추세선 기준가", formatPrice(result.trendNextPrice))}
         ${metric("EMA20", formatPrice(result.ema20))}
         ${metric("EMA60", formatPrice(result.ema60))}
         ${metric("EMA112", formatPrice(result.ema112))}
@@ -646,6 +647,10 @@ const downloadCsv = () => {
     "isLastPriceBelowEma5",
     "ema5To112GapRate",
     "isEma5FarBelowEma112",
+    "regressionIntercept",
+    "trendNextX",
+    "trendNextY",
+    "trendNextPrice",
     "buySignalStatus",
     "signalTime",
     "signalCurrentPrice",
@@ -679,6 +684,10 @@ const downloadCsv = () => {
       row.isLastPriceBelowEma5 ? 1 : 0,
       row.ema5To112GapRate,
       row.isEma5FarBelowEma112 ? 1 : 0,
+      row.regressionIntercept,
+      row.trendNextX,
+      row.trendNextY,
+      row.trendNextPrice,
       signal.status ?? "",
       signal.signalTime ?? "",
       signal.currentPrice ?? "",

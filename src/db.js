@@ -65,6 +65,10 @@ const FILTERED_STOCK_EXTRA_COLUMNS = [
   ["is_last_price_below_ema5", "INTEGER DEFAULT 0"],
   ["ema5_to_112_gap_rate", "REAL"],
   ["is_ema5_far_below_ema112", "INTEGER DEFAULT 0"],
+  ["regression_intercept", "REAL"],
+  ["trend_next_x", "REAL"],
+  ["trend_next_y", "REAL"],
+  ["trend_next_price", "REAL"],
 ];
 
 const ensureColumns = (db, tableName, columns) => {
@@ -321,6 +325,10 @@ export const initDatabase = (db) => {
       is_last_price_below_ema5 INTEGER DEFAULT 0,
       ema5_to_112_gap_rate REAL,
       is_ema5_far_below_ema112 INTEGER DEFAULT 0,
+      regression_intercept REAL,
+      trend_next_x REAL,
+      trend_next_y REAL,
+      trend_next_price REAL,
       rank_no INTEGER,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (run_id) REFERENCES screening_runs(run_id),
@@ -628,9 +636,10 @@ export const insertFilteredStocks = (db, runId, results) => {
       return_rate, first_price, last_price, last_close, daily_change_rate,
       ema5, ema20, ema60, ema112, ema224, ema448, is_long_ema_bearish,
       is_last_price_below_ema5, ema5_to_112_gap_rate,
-      is_ema5_far_below_ema112, rank_no
+      is_ema5_far_below_ema112, regression_intercept, trend_next_x,
+      trend_next_y, trend_next_price, rank_no
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const insertMany = db.transaction((rows) => {
@@ -662,6 +671,10 @@ export const insertFilteredStocks = (db, runId, results) => {
         toFlag(result.isLastPriceBelowEma5),
         result.ema5To112GapRate ?? null,
         toFlag(result.isEma5FarBelowEma112),
+        result.regressionIntercept ?? null,
+        result.trendNextX ?? null,
+        result.trendNextY ?? null,
+        result.trendNextPrice ?? null,
         index + 1,
       );
     });
@@ -703,6 +716,10 @@ const mapFilteredRow = (row) => ({
   isLastPriceBelowEma5: Boolean(row.is_last_price_below_ema5),
   ema5To112GapRate: row.ema5_to_112_gap_rate,
   isEma5FarBelowEma112: Boolean(row.is_ema5_far_below_ema112),
+  regressionIntercept: row.regression_intercept,
+  trendNextX: row.trend_next_x,
+  trendNextY: row.trend_next_y,
+  trendNextPrice: row.trend_next_price,
   rankNo: row.rank_no,
   createdAt: row.created_at,
 });
