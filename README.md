@@ -333,7 +333,7 @@ angleDegree = Math.atan(slopePixel) * 180 / Math.PI
 
 ## MA5 돌파 감시
 
-MA5는 DB에 저장된 완료된 최근 5거래일 `close` 평균입니다. 실시간 현재가는 MA5 계산에 포함하지 않습니다.
+MA5 기준값은 DB에 저장된 완료 일봉 `close` 기준 EMA5입니다. 실시간 현재가는 EMA5 계산에 포함하지 않습니다.
 
 상향 돌파 조건:
 

@@ -78,11 +78,16 @@ export const createMovingAverageLine = (candles, period, scale, color) => {
   return createPolyline(points, color, `stroke-width="2" opacity="0.9"`);
 };
 
-const calculateLatestMA = (candles, period) => {
+const calculateLatestEMA = (candles, period) => {
   if (!Array.isArray(candles) || candles.length < period) return null;
-  const values = candles.slice(-period).map((candle) => Number(candle.close));
+  const values = candles.map((candle) => Number(candle.close));
   if (!values.every(Number.isFinite)) return null;
-  return values.reduce((sum, value) => sum + value, 0) / period;
+  const firstEma = values.slice(0, period).reduce((sum, value) => sum + value, 0) / period;
+  const multiplier = 2 / (period + 1);
+  return values.slice(period).reduce(
+    (previousEma, value) => value * multiplier + previousEma * (1 - multiplier),
+    firstEma,
+  );
 };
 
 export const createGridLines = ({ chartWidth, chartHeight, margin, plotWidth, plotHeight, ticks, scale }) => {
@@ -156,7 +161,7 @@ const createMa5PriceGuide = ({ ma5Price, scale, chartWidth, margin }) => {
   if (!Number.isFinite(y)) return "";
   return `
     <line x1="${margin.left}" y1="${y}" x2="${chartWidth - margin.right}" y2="${y}" stroke="${COLORS.ma5}" stroke-width="1.5" opacity="0.42"/>
-    <text x="${chartWidth - margin.right - 10}" y="${y - 8}" fill="${COLORS.ma5}" font-size="18" text-anchor="end" opacity="0.78">MA5 ${formatPrice(ma5Price)}</text>
+    <text x="${chartWidth - margin.right - 10}" y="${y - 8}" fill="${COLORS.ma5}" font-size="18" text-anchor="end" opacity="0.78">EMA5 ${formatPrice(ma5Price)}</text>
   `;
 };
 
@@ -231,7 +236,7 @@ export const createCandlestickSvgChart = (stockResult, options = {}) => {
     ? Number(stockResult.ma5Price)
     : Number.isFinite(Number(signal?.ma5Price))
       ? Number(signal.ma5Price)
-      : calculateLatestMA(candles, 5);
+      : calculateLatestEMA(candles, 5);
 
   return `
     <svg class="stock-chart" viewBox="0 0 ${chartWidth} ${chartHeight}" role="img" aria-label="${escapeHtml(stockResult.name)} 봉차트">

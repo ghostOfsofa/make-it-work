@@ -9,7 +9,21 @@ export const calculateMA = (candles, period) => {
   return closes.reduce((sum, close) => sum + close, 0) / period;
 };
 
-export const calculateMA5 = (candles) => calculateMA(candles, 5);
+export const calculateEMA = (candles, period) => {
+  if (!Array.isArray(candles) || candles.length < period) return Number.NaN;
+  const closes = candles.map((candle) => Number(candle.close));
+  if (closes.some((value) => !Number.isFinite(value) || value <= 0)) {
+    return Number.NaN;
+  }
+  const firstEma = closes.slice(0, period).reduce((sum, close) => sum + close, 0) / period;
+  const multiplier = 2 / (period + 1);
+  return closes.slice(period).reduce(
+    (previousEma, close) => close * multiplier + previousEma * (1 - multiplier),
+    firstEma,
+  );
+};
+
+export const calculateMA5 = (candles) => calculateEMA(candles, 5);
 
 export const isCrossAboveMA = ({
   currentPrice,

@@ -273,11 +273,16 @@ const latestFiniteValue = (values = []) => {
   return null;
 };
 
-const calculateLatestMA = (candles, period) => {
+const calculateLatestEMA = (candles, period) => {
   if (!Array.isArray(candles) || candles.length < period) return null;
-  const values = candles.slice(-period).map((candle) => Number(candle.close));
+  const values = candles.map((candle) => Number(candle.close));
   if (!values.every(Number.isFinite)) return null;
-  return values.reduce((sum, value) => sum + value, 0) / period;
+  const firstEma = values.slice(0, period).reduce((sum, value) => sum + value, 0) / period;
+  const multiplier = 2 / (period + 1);
+  return values.slice(period).reduce(
+    (previousEma, value) => value * multiplier + previousEma * (1 - multiplier),
+    firstEma,
+  );
 };
 
 const adjustRightSideLabels = (labels, minGap = 28) => {
@@ -435,7 +440,7 @@ const createMa5PriceGuide = ({ ma5Price, scale, chartWidth, margin, options }) =
   if (!Number.isFinite(y)) return "";
   return `
     <line x1="${margin.left}" y1="${y}" x2="${chartWidth - margin.right}" y2="${y}" stroke="${COLORS.ema5}" stroke-width="1.5" opacity="0.42"/>
-    ${options.showAxisLabels ? `<text x="${chartWidth - margin.right - 10}" y="${y - 8}" fill="${COLORS.ema5}" font-size="18" text-anchor="end" opacity="0.78">MA5 ${formatPrice(ma5Price)}</text>` : ""}
+    ${options.showAxisLabels ? `<text x="${chartWidth - margin.right - 10}" y="${y - 8}" fill="${COLORS.ema5}" font-size="18" text-anchor="end" opacity="0.78">EMA5 ${formatPrice(ma5Price)}</text>` : ""}
   `;
 };
 
@@ -521,7 +526,7 @@ const createCandlestickSvgChart = (result, rawCandles, optionOverrides) => {
   const previousCandle = candles.at(-2);
   const ma5Price = Number.isFinite(Number(result.ma5Price))
     ? Number(result.ma5Price)
-    : calculateLatestMA(candles, 5);
+    : calculateLatestEMA(candles, 5);
   const ticks = calculateNicePriceTicks(minPrice, maxPrice, 7);
   const grid = options.showGrid ? createGridLines({ chartWidth, chartHeight, margin, plotWidth, ticks, scale }) : "";
   const axisLabels = options.showAxisLabels ? createAxisLabels({ candles, margin, chartHeight, scale }) : "";
@@ -656,7 +661,7 @@ const renderResultCard = (result, visibleIndex, absoluteIndex) => {
         ${metric("현재 기준일", escapeHtml(result.currentDate ?? "-"))}
         ${metric("현재 주가", formatPrice(result.currentPrice))}
         ${metric("현재 수익률", formatPercent(result.currentReturnRate), result.currentReturnRate > 0 ? "up" : result.currentReturnRate < 0 ? "down" : "")}
-        ${metric("MA5", formatPrice(result.ma5Price))}
+        ${metric("EMA5 기준값", formatPrice(result.ma5Price))}
         ${metric("EMA5", formatPrice(result.ema5))}
         ${metric("종가/EMA5", `${formatPrice(result.lastClose)} < ${formatPrice(result.ema5)}`)}
         ${metric("EMA5 아래", result.isLastPriceBelowEma5 ? "YES" : "NO", result.isLastPriceBelowEma5 ? "signal" : "")}
