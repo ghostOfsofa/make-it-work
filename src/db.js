@@ -491,10 +491,14 @@ export const loadStocksFromDatabase = ({
   minCandles = 10,
   exclusionOptions = DEFAULT_STOCK_EXCLUSION_OPTIONS,
   allowedMarkets = DEFAULT_ALLOWED_MARKETS,
+  requireLatestPriceDate = true,
 } = {}) => {
   const db = openDatabase(dbPath);
   try {
     const whereClause = buildStockExclusionWhere(exclusionOptions, allowedMarkets);
+    const latestMarketDate = requireLatestPriceDate
+      ? db.prepare("SELECT MAX(date) AS date FROM stock_prices").get()?.date
+      : null;
     const stocks = db
       .prepare(`SELECT code, name, market FROM stocks ${whereClause} ORDER BY code`)
       .all();
@@ -514,6 +518,10 @@ export const loadStocksFromDatabase = ({
           .reverse();
         return { ...stock, prices };
       })
+      .filter((stock) => (
+        !latestMarketDate ||
+        stock.prices.at(-1)?.date === latestMarketDate
+      ))
       .filter((stock) => stock.prices.length >= minCandles);
   } finally {
     db.close();
@@ -583,10 +591,18 @@ export const getStockUniverseStats = (
   const totalStockCount = scalar("SELECT COUNT(*) AS count FROM stocks");
   const excludedStockCount = scalar(`SELECT COUNT(*) AS count FROM stocks WHERE ${excludedWhere}`);
   const targetWhere = buildStockExclusionWhere(options, allowedMarkets);
+  const stalePriceCount = scalar(`
+    WITH latest AS (SELECT MAX(date) AS date FROM stock_prices)
+    SELECT COUNT(*) AS count
+    FROM stocks s
+    WHERE ${targetWhere.replace(/^WHERE\s+/i, "")}
+      AND COALESCE((SELECT MAX(date) FROM stock_prices p WHERE p.code = s.code), '') <> COALESCE((SELECT date FROM latest), '')
+  `);
   return {
     totalStockCount,
     excludedStockCount,
     screeningTargetCount: scalar(`SELECT COUNT(*) AS count FROM stocks ${targetWhere}`),
+    stalePriceCount,
     allowedMarkets: normalizeAllowedMarkets(allowedMarkets),
     nonAllowedMarketCount: scalar(`SELECT COUNT(*) AS count FROM stocks WHERE ${buildNotAllowedMarketClause(allowedMarkets)}`),
     etfCount: scalar("SELECT COUNT(*) AS count FROM stocks WHERE COALESCE(is_etf, 0) = 1"),

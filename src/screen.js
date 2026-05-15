@@ -38,6 +38,7 @@ export const SCREEN_OPTIONS = Object.freeze({
   excludeAttention: process.env.EXCLUDE_ATTENTION !== "0" && DEFAULT_STOCK_EXCLUSION_OPTIONS.excludeAttention,
   excludeInvestmentWarning: process.env.EXCLUDE_INVESTMENT_WARNING === "1",
   excludeOther: process.env.EXCLUDE_OTHER !== "0" && DEFAULT_STOCK_EXCLUSION_OPTIONS.excludeOther,
+  requireLatestPriceDate: process.env.REQUIRE_LATEST_PRICE_DATE !== "0",
 });
 
 const dbPath = resolveDbPath();
@@ -66,6 +67,7 @@ const stocks = loadStocksFromDatabase({
     : SCREEN_OPTIONS.scanMinPeriod,
   exclusionOptions: SCREEN_OPTIONS,
   allowedMarkets: SCREEN_OPTIONS.allowedMarkets,
+  requireLatestPriceDate: SCREEN_OPTIONS.requireLatestPriceDate,
 });
 const results = filterStrongDowntrendStocks(stocks, SCREEN_OPTIONS);
 const baseDate =
@@ -104,6 +106,7 @@ try {
   console.log(`excluded administrative: ${universeStats.administrativeCount}`);
   console.log(`excluded other non-common: ${universeStats.otherCount}`);
   console.log(`excluded by market: ${universeStats.nonAllowedMarketCount}`);
+  console.log(`excluded stale price date: ${universeStats.stalePriceCount}`);
   console.log(`allowed markets: ${SCREEN_OPTIONS.allowedMarkets.join(", ")}`);
   console.log(`screening target stocks: ${universeStats.screeningTargetCount}`);
   console.log(`screening target stocks with enough candles: ${stocks.length}`);
