@@ -428,6 +428,7 @@ export const calculateTrendNextProjection = (
   const period = candles.length;
   const slopePixel = Number(regression?.slopePixel);
   const regressionIntercept = Number(regression?.intercept);
+  const firstPoint = scanPoints?.[0];
   const lastPoint = scanPoints?.at(-1);
   const prevPoint = scanPoints?.at(-2);
   const minPrice = Number(lastPoint?.minPrice);
@@ -439,6 +440,7 @@ export const calculateTrendNextProjection = (
     period < 2 ||
     !Number.isFinite(slopePixel) ||
     !Number.isFinite(regressionIntercept) ||
+    !Number.isFinite(firstPoint?.xPixel) ||
     !Number.isFinite(lastPoint?.xPixel) ||
     !Number.isFinite(prevPoint?.xPixel) ||
     !Number.isFinite(minPrice) ||
@@ -460,6 +462,8 @@ export const calculateTrendNextProjection = (
     });
     return {
       regressionIntercept: Number.isFinite(regressionIntercept) ? regressionIntercept : null,
+      trendLineStartPrice: null,
+      trendLineEndPrice: null,
       trendNextX: null,
       trendNextY: null,
       trendNextPrice: null,
@@ -469,7 +473,23 @@ export const calculateTrendNextProjection = (
 
   const xStep = lastPoint.xPixel - prevPoint.xPixel;
   const trendNextX = lastPoint.xPixel + xStep;
+  const trendLineStartY = slopePixel * firstPoint.xPixel + regressionIntercept;
+  const trendLineEndY = slopePixel * lastPoint.xPixel + regressionIntercept;
   const trendNextY = slopePixel * trendNextX + regressionIntercept;
+  const trendLineStartPrice = yToPrice(
+    trendLineStartY,
+    minPrice,
+    maxPrice,
+    plotHeight,
+    marginTop,
+  );
+  const trendLineEndPrice = yToPrice(
+    trendLineEndY,
+    minPrice,
+    maxPrice,
+    plotHeight,
+    marginTop,
+  );
   const trendNextPrice = yToPrice(
     trendNextY,
     minPrice,
@@ -513,6 +533,14 @@ export const calculateTrendNextProjection = (
 
   return {
     regressionIntercept,
+    trendLineStartPrice:
+      Number.isFinite(trendLineStartPrice) && trendLineStartPrice > 0
+        ? trendLineStartPrice
+        : null,
+    trendLineEndPrice:
+      Number.isFinite(trendLineEndPrice) && trendLineEndPrice > 0
+        ? trendLineEndPrice
+        : null,
     trendNextX,
     trendNextY,
     trendNextPrice:
@@ -591,6 +619,12 @@ export const filterStrongDowntrendStocks = (stocks, options = {}) => {
         regressionIntercept: bestMatch.regressionIntercept == null
           ? null
           : round(bestMatch.regressionIntercept, 4),
+        trendLineStartPrice: bestMatch.trendLineStartPrice == null
+          ? null
+          : round(bestMatch.trendLineStartPrice, 2),
+        trendLineEndPrice: bestMatch.trendLineEndPrice == null
+          ? null
+          : round(bestMatch.trendLineEndPrice, 2),
         trendNextX: bestMatch.trendNextX == null
           ? null
           : round(bestMatch.trendNextX, 4),

@@ -213,19 +213,6 @@ const calculateNicePriceTicks = (minPrice, maxPrice, tickCount = 6) => {
   return ticks;
 };
 
-const linearRegression = (points) => {
-  if (points.length < 2) return { slope: Number.NaN, intercept: Number.NaN };
-  const n = points.length;
-  const sumX = points.reduce((sum, point) => sum + point.x, 0);
-  const sumY = points.reduce((sum, point) => sum + point.y, 0);
-  const sumXY = points.reduce((sum, point) => sum + point.x * point.y, 0);
-  const sumXX = points.reduce((sum, point) => sum + point.x * point.x, 0);
-  const denominator = n * sumXX - sumX * sumX;
-  if (denominator === 0) return { slope: Number.NaN, intercept: Number.NaN };
-  const slope = (n * sumXY - sumX * sumY) / denominator;
-  return { slope, intercept: (sumY - slope * sumX) / n };
-};
-
 const createPolyline = (points, stroke, attrs = "") => {
   const valid = points.filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y));
   if (valid.length < 2) return "";
@@ -444,14 +431,59 @@ const createMa5PriceGuide = ({ ma5Price, scale, chartWidth, margin, options }) =
   `;
 };
 
-const createTrendNextPriceGuide = ({ trendNextPrice, scale, chartWidth, margin, options }) => {
+const createTrendNextPriceGuide = ({ trendNextPrice, trendNextX, scale, chartWidth, margin, options }) => {
   if (!options.showTrendNextPriceGuide || !Number.isFinite(Number(trendNextPrice))) return "";
   const y = scale.y(Number(trendNextPrice));
   if (!Number.isFinite(y)) return "";
+  const labelX = Number.isFinite(Number(trendNextX))
+    ? Math.min(chartWidth - margin.right - 10, Number(trendNextX) + 80)
+    : chartWidth - margin.right - 10;
   return `
     <line x1="${margin.left}" y1="${y}" x2="${chartWidth - margin.right}" y2="${y}" stroke="${COLORS.trendNextPrice}" stroke-width="1.5" opacity="0.46"/>
-    ${options.showAxisLabels ? `<text x="${chartWidth - margin.right - 10}" y="${y + 18}" fill="${COLORS.trendNextPrice}" font-size="18" text-anchor="end" opacity="0.82">다음추세 ${formatPrice(trendNextPrice)}</text>` : ""}
+    ${options.showAxisLabels ? `<text x="${labelX}" y="${y + 18}" fill="${COLORS.trendNextPrice}" font-size="18" text-anchor="end" opacity="0.82">다음추세 ${formatPrice(trendNextPrice)}</text>` : ""}
   `;
+};
+
+const getStoredTrendLinePoints = ({ result, scale, candles, xStep }) => {
+  const startIndex = candles.findIndex((candle) => candle.date === result.scanStartDate);
+  const endIndex = candles.findIndex((candle) => candle.date === result.scanEndDate);
+  const resolvedStartIndex = startIndex >= 0
+    ? startIndex
+    : Math.max(0, candles.length - Number(result.matchedPeriod || 0));
+  const resolvedEndIndex = endIndex >= 0 ? endIndex : candles.length - 1;
+  const startPrice = Number(result.trendLineStartPrice);
+  const endPrice = Number(result.trendLineEndPrice);
+  const nextPrice = Number(result.trendNextPrice);
+
+  if (
+    !Number.isFinite(startPrice) ||
+    !Number.isFinite(endPrice) ||
+    !Number.isFinite(nextPrice) ||
+    resolvedStartIndex < 0 ||
+    resolvedEndIndex < 0
+  ) {
+    return null;
+  }
+
+  const startX = scale.x(resolvedStartIndex);
+  const endX = scale.x(resolvedEndIndex);
+  const nextX = endX + xStep;
+  const points = [
+    [startX, scale.y(startPrice)],
+    [endX, scale.y(endPrice)],
+    [nextX, scale.y(nextPrice)],
+  ];
+
+  if (points.some(([x, y]) => !Number.isFinite(x) || !Number.isFinite(y))) {
+    return null;
+  }
+
+  return { points, nextX };
+};
+
+const createStoredTrendLine = ({ trendLinePoints, options }) => {
+  if (!options.showRegressionLine || !trendLinePoints) return "";
+  return `<polyline points="${trendLinePoints.points.map(([x, y]) => `${x},${y}`).join(" ")}" fill="none" stroke="${COLORS.regression}" stroke-width="${options.chartWidth > 500 ? 3 : 2}" stroke-linecap="round" stroke-linejoin="round"/>`;
 };
 
 const createCandlestickSvgChart = (result, rawCandles, optionOverrides) => {
@@ -484,18 +516,14 @@ const createCandlestickSvgChart = (result, rawCandles, optionOverrides) => {
     y: scale.y(trendPrice(candle)),
   }));
   const scanPoints = renderPoints.slice(-result.matchedPeriod);
-  const regression = linearRegression(scanPoints);
   const firstScanX = scanPoints[0]?.x;
   const lastScanX = scanPoints.at(-1)?.x;
   const matchedArea =
     options.showMatchedArea && Number.isFinite(firstScanX) && Number.isFinite(lastScanX)
       ? `<rect x="${firstScanX}" y="${margin.top}" width="${Math.max(0, lastScanX - firstScanX)}" height="${plotHeight}" fill="${COLORS.matchedArea}"/>`
       : "";
-  const regressionEndX = Math.min(chartWidth - margin.right, lastScanX + xStep);
-  const regressionLine =
-    options.showRegressionLine && Number.isFinite(regression.slope)
-      ? `<line x1="${firstScanX}" y1="${regression.slope * firstScanX + regression.intercept}" x2="${regressionEndX}" y2="${regression.slope * regressionEndX + regression.intercept}" stroke="${COLORS.regression}" stroke-width="${options.chartWidth > 500 ? 3 : 2}"/>`
-      : "";
+  const trendLinePoints = getStoredTrendLinePoints({ result, scale, candles, xStep });
+  const regressionLine = createStoredTrendLine({ trendLinePoints, options });
   const selectedLine =
     options.showSelectedPriceLine
       ? createPolyline(renderPoints, COLORS.selectedLine, `stroke-width="2" stroke-dasharray="7 7" opacity="0.85"`)
@@ -537,7 +565,7 @@ const createCandlestickSvgChart = (result, rawCandles, optionOverrides) => {
       ${matchedArea}
       ${grid}
       ${createMa5PriceGuide({ ma5Price, scale, chartWidth, margin, options })}
-      ${createTrendNextPriceGuide({ trendNextPrice: result.trendNextPrice, scale, chartWidth, margin, options })}
+      ${createTrendNextPriceGuide({ trendNextPrice: result.trendNextPrice, trendNextX: trendLinePoints?.nextX, scale, chartWidth, margin, options })}
       ${axisLabels}
       ${options.showAxisLabels ? `<line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${chartHeight - margin.bottom}" stroke="${COLORS.axis}" stroke-width="1"/>
       <line x1="${chartWidth - margin.right}" y1="${margin.top}" x2="${chartWidth - margin.right}" y2="${chartHeight - margin.bottom}" stroke="${COLORS.axis}" stroke-width="1"/>` : ""}
@@ -667,6 +695,8 @@ const renderResultCard = (result, visibleIndex, absoluteIndex) => {
         ${metric("EMA5 아래", result.isLastPriceBelowEma5 ? "YES" : "NO", result.isLastPriceBelowEma5 ? "signal" : "")}
         ${metric("EMA5-112 차이", formatPercent(result.ema5To112GapRate))}
         ${metric("EMA5 < EMA112 3% 이상", result.isEma5FarBelowEma112 ? "YES" : "NO", result.isEma5FarBelowEma112 ? "signal" : "")}
+        ${metric("추세 시작가", formatPrice(result.trendLineStartPrice))}
+        ${metric("추세 종료가", formatPrice(result.trendLineEndPrice))}
         ${metric("다음 추세선 기준가", formatPrice(result.trendNextPrice))}
         ${metric("EMA20", formatPrice(result.ema20))}
         ${metric("EMA60", formatPrice(result.ema60))}

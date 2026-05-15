@@ -202,6 +202,8 @@ try {
       ema5To112GapRate: stock.ema5To112GapRate,
       isEma5FarBelowEma112: stock.isEma5FarBelowEma112,
       regressionIntercept: stock.regressionIntercept,
+      trendLineStartPrice: stock.trendLineStartPrice,
+      trendLineEndPrice: stock.trendLineEndPrice,
       trendNextX: stock.trendNextX,
       trendNextY: stock.trendNextY,
       trendNextPrice: stock.trendNextPrice,

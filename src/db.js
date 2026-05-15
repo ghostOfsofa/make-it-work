@@ -73,6 +73,8 @@ const FILTERED_STOCK_EXTRA_COLUMNS = [
   ["ema5_to_112_gap_rate", "REAL"],
   ["is_ema5_far_below_ema112", "INTEGER DEFAULT 0"],
   ["regression_intercept", "REAL"],
+  ["trend_line_start_price", "REAL"],
+  ["trend_line_end_price", "REAL"],
   ["trend_next_x", "REAL"],
   ["trend_next_y", "REAL"],
   ["trend_next_price", "REAL"],
@@ -333,6 +335,8 @@ export const initDatabase = (db) => {
       ema5_to_112_gap_rate REAL,
       is_ema5_far_below_ema112 INTEGER DEFAULT 0,
       regression_intercept REAL,
+      trend_line_start_price REAL,
+      trend_line_end_price REAL,
       trend_next_x REAL,
       trend_next_y REAL,
       trend_next_price REAL,
@@ -669,10 +673,11 @@ export const insertFilteredStocks = (db, runId, results) => {
       return_rate, first_price, last_price, last_close, daily_change_rate,
       ema5, ema20, ema60, ema112, ema224, ema448, is_long_ema_bearish,
       is_last_price_below_ema5, ema5_to_112_gap_rate,
-      is_ema5_far_below_ema112, regression_intercept, trend_next_x,
+      is_ema5_far_below_ema112, regression_intercept,
+      trend_line_start_price, trend_line_end_price, trend_next_x,
       trend_next_y, trend_next_price, rank_no
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const insertMany = db.transaction((rows) => {
@@ -705,6 +710,8 @@ export const insertFilteredStocks = (db, runId, results) => {
         result.ema5To112GapRate ?? null,
         toFlag(result.isEma5FarBelowEma112),
         result.regressionIntercept ?? null,
+        result.trendLineStartPrice ?? null,
+        result.trendLineEndPrice ?? null,
         result.trendNextX ?? null,
         result.trendNextY ?? null,
         result.trendNextPrice ?? null,
@@ -796,6 +803,8 @@ const mapFilteredRow = (row) => ({
   ema5To112GapRate: row.ema5_to_112_gap_rate,
   isEma5FarBelowEma112: Boolean(row.is_ema5_far_below_ema112),
   regressionIntercept: row.regression_intercept,
+  trendLineStartPrice: row.trend_line_start_price,
+  trendLineEndPrice: row.trend_line_end_price,
   trendNextX: row.trend_next_x,
   trendNextY: row.trend_next_y,
   trendNextPrice: row.trend_next_price,

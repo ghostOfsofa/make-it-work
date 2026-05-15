@@ -1,9 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import {
-  calculateLinearRegressionByPoints,
   calculatePriceRange,
-  calculateRSquaredByPoints,
   createRenderPoints,
   getTrendPrice,
   mergeOptions,
@@ -175,6 +173,38 @@ const createTrendNextPriceGuide = ({ trendNextPrice, scale, chartWidth, margin }
   `;
 };
 
+const createStoredTrendLine = ({ stockResult, scale, candles, xStep }) => {
+  const startIndex = candles.findIndex((candle) => candle.date === stockResult.scanStartDate);
+  const endIndex = candles.findIndex((candle) => candle.date === stockResult.scanEndDate);
+  const resolvedStartIndex = startIndex >= 0
+    ? startIndex
+    : Math.max(0, candles.length - Number(stockResult.matchedPeriod || 0));
+  const resolvedEndIndex = endIndex >= 0 ? endIndex : candles.length - 1;
+  const startPrice = Number(stockResult.trendLineStartPrice);
+  const endPrice = Number(stockResult.trendLineEndPrice);
+  const nextPrice = Number(stockResult.trendNextPrice);
+
+  if (
+    !Number.isFinite(startPrice) ||
+    !Number.isFinite(endPrice) ||
+    !Number.isFinite(nextPrice)
+  ) {
+    return "";
+  }
+
+  const points = [
+    [scale.x(resolvedStartIndex), scale.y(startPrice)],
+    [scale.x(resolvedEndIndex), scale.y(endPrice)],
+    [scale.x(resolvedEndIndex) + xStep, scale.y(nextPrice)],
+  ];
+
+  if (points.some(([x, y]) => !Number.isFinite(x) || !Number.isFinite(y))) {
+    return "";
+  }
+
+  return `<polyline points="${points.map(([x, y]) => `${x},${y}`).join(" ")}" fill="none" stroke="${COLORS.regression}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`;
+};
+
 export const createCandlestickSvgChart = (stockResult, options = {}) => {
   const merged = mergeOptions({ ...options, showSelectedPriceLine: false });
   const candles = (stockResult.renderCandles ?? stockResult.prices ?? []).slice(-merged.renderPeriod);
@@ -197,14 +227,11 @@ export const createCandlestickSvgChart = (stockResult, options = {}) => {
   const ticks = calculateNicePriceTicks(minPrice, maxPrice, 7);
   const renderPoints = createRenderPoints(candles, merged);
   const scanPoints = renderPoints.slice(-stockResult.matchedPeriod);
-  const regression = calculateLinearRegressionByPoints(scanPoints);
-  const rSquared = calculateRSquaredByPoints(scanPoints, regression.slopePixel, regression.intercept);
   const firstScanX = scanPoints[0]?.xPixel;
   const lastScanX = scanPoints.at(-1)?.xPixel;
-  const regressionEndX = Math.min(chartWidth - margin.right, lastScanX + xStep);
   const regressionLine =
-    merged.showRegressionLine && Number.isFinite(regression.slopePixel)
-      ? `<line x1="${firstScanX}" y1="${regression.slopePixel * firstScanX + regression.intercept}" x2="${regressionEndX}" y2="${regression.slopePixel * regressionEndX + regression.intercept}" stroke="${COLORS.regression}" stroke-width="3"/>`
+    merged.showRegressionLine
+      ? createStoredTrendLine({ stockResult, scale, candles, xStep })
       : "";
   const selectedLine =
     merged.showSelectedPriceLine
@@ -259,7 +286,7 @@ export const createCandlestickSvgChart = (stockResult, options = {}) => {
       <rect x="${chartWidth - margin.right + 4}" y="${lastY - 18}" width="82" height="34" rx="4" fill="${lastColor}"/>
       <text x="${chartWidth - margin.right + 45}" y="${lastY + 6}" fill="white" font-size="20" text-anchor="middle">${formatPrice(lastCandle.close)}</text>
       <text x="${margin.left + 4}" y="30" fill="${COLORS.text}" font-size="22">${escapeHtml(stockResult.name)} ${escapeHtml(stockResult.code)} | 각도 ${formatNumber(stockResult.angleDegree)}° | R² ${formatNumber(stockResult.rSquared, 3)} | 수익률 ${formatPercent(stockResult.returnRate)}</text>
-      <text x="${chartWidth - margin.right - 8}" y="30" fill="${COLORS.muted}" font-size="20" text-anchor="end">회귀 R² ${Number.isFinite(rSquared) ? formatNumber(rSquared, 3) : "-"}</text>
+      <text x="${chartWidth - margin.right - 8}" y="30" fill="${COLORS.muted}" font-size="20" text-anchor="end">회귀 R² ${formatNumber(stockResult.rSquared, 3)}</text>
       ${createHoverAreas({ candles, margin, plotHeight, candleSlotWidth, scale })}
     </svg>
   `;
