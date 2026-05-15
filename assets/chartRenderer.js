@@ -36,14 +36,14 @@ const MOBILE_BREAKPOINT = 980;
 const DEFAULT_CHART_MODE = "detail";
 
 const MINI_CHART_OPTIONS = {
-  chartWidth: 480,
-  chartHeight: 270,
-  renderPeriod: 40,
+  chartWidth: 900,
+  chartHeight: 506,
+  renderPeriod: 80,
   rightPaddingBars: 3,
-  margin: { top: 18, right: 28, bottom: 20, left: 12 },
-  showGrid: false,
-  showAxisLabels: false,
-  showTooltip: false,
+  margin: { top: 28, right: 70, bottom: 42, left: 20 },
+  showGrid: true,
+  showAxisLabels: true,
+  showTooltip: true,
   showEMA5: true,
   showEMA20: false,
   showEMA60: false,
@@ -617,9 +617,14 @@ const renderResultCard = (result, visibleIndex, absoluteIndex) => {
         : `<div class="empty-chart compact">차트 보기 버튼으로 렌더링</div>`;
   const legendOptions = mode === "mini" ? MINI_CHART_OPTIONS : DETAIL_CHART_OPTIONS;
   const legend = mode === "none" ? "" : createEmaLegendHtml(result, legendOptions);
-  const ema5BelowBadge = result.isLastPriceBelowEma5
-    ? `<span class="filter-badge">EMA5 아래</span>`
-    : "";
+  const badges = [
+    result.isLongEmaBearish && `<span class="filter-badge">장기 역배열</span>`,
+    result.isLastPriceBelowEma5 && `<span class="filter-badge">EMA5 아래</span>`,
+    result.isEma5FarBelowEma112 && `<span class="filter-badge">Gap 3%+</span>`,
+    signal
+      ? `<span class="filter-badge signal">MA5 돌파 신호</span>`
+      : `<span class="filter-badge off">신호 없음</span>`,
+  ].filter(Boolean).join("");
 
   return `
     <article class="result-card ${signalClass}" data-code="${escapeHtml(result.code)}">
@@ -627,21 +632,20 @@ const renderResultCard = (result, visibleIndex, absoluteIndex) => {
         <div>
           <span class="rank">#${absoluteIndex + 1}</span>
           <h2>${escapeHtml(result.name)}</h2>
-          <p>${escapeHtml(result.code)} · ${escapeHtml(result.market ?? "-")} ${ema5BelowBadge}</p>
+          <p>${escapeHtml(result.code)} · ${escapeHtml(result.market ?? "-")}</p>
+          <div class="card-badges">${badges}</div>
         </div>
         <div class="price-box">
           <strong>${formatPrice(result.lastClose)}</strong>
-          <span class="${result.dailyChangeRate >= 0 ? "up" : "down"}">${formatPercent(result.dailyChangeRate)}</span>
+          <span class="${result.currentReturnRate >= 0 ? "up" : "down"}">현재 ${formatPercent(result.currentReturnRate ?? result.returnRate)}</span>
         </div>
       </header>
       ${legend ? `<div class="chart-card-header">${legend}</div>` : ""}
-      <div class="chart-controls">
-        <button type="button" data-action="mini" data-code="${escapeHtml(result.code)}">미니 차트 보기</button>
-        <button type="button" data-action="detail" data-code="${escapeHtml(result.code)}">상세 차트 보기</button>
-        <button type="button" data-action="collapse" data-code="${escapeHtml(result.code)}">차트 접기</button>
-      </div>
       <div class="chart-shell" id="chart-${escapeHtml(result.code)}">${chart}</div>
-      <div class="metrics">
+      <div class="card-actions">
+        <button type="button" class="detail-toggle" data-code="${escapeHtml(result.code)}" aria-expanded="false">상세 보기</button>
+      </div>
+      <div class="metrics detail-panel" id="detail-${escapeHtml(result.code)}">
         ${metric("구간", `${result.matchedPeriod}일`)}
         ${metric("검색 기간", `${escapeHtml(result.scanStartDate)} ~ ${escapeHtml(result.scanEndDate)}`)}
         ${metric("각도", `${formatNumber(result.angleDegree)}°`)}
@@ -851,6 +855,14 @@ const attachEvents = () => {
     if (button.id === "next-page") {
       currentPage += 1;
       renderResultPanel();
+    }
+    if (button.classList.contains("detail-toggle")) {
+      const code = button.dataset.code;
+      const panel = document.getElementById(`detail-${code}`);
+      const isOpen = panel?.classList.toggle("open");
+      button.textContent = isOpen ? "상세 숨기기" : "상세 보기";
+      button.setAttribute("aria-expanded", isOpen ? "true" : "false");
+      return;
     }
     const action = button.dataset.action;
     const code = button.dataset.code;

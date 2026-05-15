@@ -22,6 +22,10 @@ export const SCREEN_OPTIONS = Object.freeze({
   useLastPriceBelowEma5Filter: process.env.USE_LAST_PRICE_BELOW_EMA5_FILTER !== "0",
   useEma5To112GapFilter: process.env.USE_EMA5_TO_112_GAP_FILTER !== "0",
   minEma5To112GapRate: Number(process.env.MIN_EMA5_TO_112_GAP_RATE ?? DEFAULT_OPTIONS.minEma5To112GapRate),
+  allowedMarkets: (process.env.ALLOWED_MARKETS ?? "KOSPI,KOSDAQ")
+    .split(",")
+    .map((market) => market.trim().toUpperCase())
+    .filter(Boolean),
   emaPeriods: DEFAULT_OPTIONS.emaPeriods,
   bearishEmaPeriods: DEFAULT_OPTIONS.bearishEmaPeriods,
   excludeEtf: process.env.EXCLUDE_ETF !== "0" && DEFAULT_STOCK_EXCLUSION_OPTIONS.excludeEtf,
@@ -61,6 +65,7 @@ const stocks = loadStocksFromDatabase({
     ? Math.max(SCREEN_OPTIONS.scanMinPeriod, Math.max(...SCREEN_OPTIONS.emaPeriods))
     : SCREEN_OPTIONS.scanMinPeriod,
   exclusionOptions: SCREEN_OPTIONS,
+  allowedMarkets: SCREEN_OPTIONS.allowedMarkets,
 });
 const results = filterStrongDowntrendStocks(stocks, SCREEN_OPTIONS);
 const baseDate =
@@ -98,6 +103,8 @@ try {
   console.log(`excluded attention: ${universeStats.attentionCount}`);
   console.log(`excluded administrative: ${universeStats.administrativeCount}`);
   console.log(`excluded other non-common: ${universeStats.otherCount}`);
+  console.log(`excluded by market: ${universeStats.nonAllowedMarketCount}`);
+  console.log(`allowed markets: ${SCREEN_OPTIONS.allowedMarkets.join(", ")}`);
   console.log(`screening target stocks: ${universeStats.screeningTargetCount}`);
   console.log(`screening target stocks with enough candles: ${stocks.length}`);
   console.log(`EMA bearish filter: ${SCREEN_OPTIONS.useEmaBearishFilter ? "ON" : "OFF"}`);

@@ -247,7 +247,13 @@ python3 scripts/query-prices.py --code 005930 --csv --output samsung.csv
 
 ### 종목 universe 제외 규칙
 
-`npm run screen`은 기본적으로 일반 개별 보통주 위주로만 우하향 패턴을 검사합니다. `stocks` 테이블의 메타 컬럼과 종목명 기반 보정값을 사용해 아래 대상은 제외합니다.
+`npm run screen`은 기본적으로 `KOSPI`, `KOSDAQ` 시장의 일반 개별 보통주 위주로만 우하향 패턴을 검사합니다. `KONEX`, ETF, ETN, market이 비어 있거나 알 수 없는 종목은 스크리닝 대상에서 제외합니다. 허용 시장은 필요하면 실행 시 바꿀 수 있습니다.
+
+```bash
+ALLOWED_MARKETS=KOSPI,KOSDAQ npm run screen
+```
+
+`stocks` 테이블의 메타 컬럼과 종목명 기반 보정값을 사용해 아래 대상도 제외합니다.
 
 - ETF, ETN
 - SPAC
@@ -270,7 +276,7 @@ EXCLUDE_INVESTMENT_WARNING=1 npm run screen
 EXCLUDE_ETF=0 EXCLUDE_ETN=0 EXCLUDE_PREFERRED=0 npm run screen
 ```
 
-`scripts/check-db.py`는 ETF/ETN/우선주/스팩/리츠/환기종목 등 제외 현황과 실제 screening target 수를 함께 출력합니다.
+`scripts/check-db.py`는 market별 종목 수, ETF/ETN/우선주/스팩/리츠/환기종목 등 제외 현황과 실제 screening target 수를 함께 출력합니다.
 
 ### EMA 역배열 필터
 

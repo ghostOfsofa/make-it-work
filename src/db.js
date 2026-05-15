@@ -22,6 +22,13 @@ export const DEFAULT_STOCK_EXCLUSION_OPTIONS = Object.freeze({
   excludeOther: true,
 });
 
+export const DEFAULT_ALLOWED_MARKETS = Object.freeze(["KOSPI", "KOSDAQ"]);
+
+const normalizeAllowedMarkets = (allowedMarkets = DEFAULT_ALLOWED_MARKETS) =>
+  (Array.isArray(allowedMarkets) ? allowedMarkets : DEFAULT_ALLOWED_MARKETS)
+    .map((market) => String(market).trim().toUpperCase())
+    .filter(Boolean);
+
 const STOCK_META_COLUMNS = [
   ["is_etf", "INTEGER DEFAULT 0"],
   ["is_etn", "INTEGER DEFAULT 0"],
@@ -479,10 +486,11 @@ export const loadStocksFromDatabase = ({
   candleLimit = 700,
   minCandles = 10,
   exclusionOptions = DEFAULT_STOCK_EXCLUSION_OPTIONS,
+  allowedMarkets = DEFAULT_ALLOWED_MARKETS,
 } = {}) => {
   const db = openDatabase(dbPath);
   try {
-    const whereClause = buildStockExclusionWhere(exclusionOptions);
+    const whereClause = buildStockExclusionWhere(exclusionOptions, allowedMarkets);
     const stocks = db
       .prepare(`SELECT code, name, market FROM stocks ${whereClause} ORDER BY code`)
       .all();
@@ -520,20 +528,41 @@ const STOCK_EXCLUSION_FILTERS = [
   ["excludeInvestmentWarning", "is_investment_warning"],
 ];
 
-const buildStockExclusionWhere = (options = DEFAULT_STOCK_EXCLUSION_OPTIONS) => {
+const buildMarketClause = (allowedMarkets = DEFAULT_ALLOWED_MARKETS) => {
+  const markets = normalizeAllowedMarkets(allowedMarkets);
+  if (markets.length === 0) return null;
+  return `UPPER(COALESCE(market, '')) IN (${markets.map((market) => `'${market.replaceAll("'", "''")}'`).join(", ")})`;
+};
+
+const buildNotAllowedMarketClause = (allowedMarkets = DEFAULT_ALLOWED_MARKETS) => {
+  const marketClause = buildMarketClause(allowedMarkets);
+  return marketClause ? `NOT (${marketClause})` : "0";
+};
+
+const buildStockExclusionWhere = (
+  options = DEFAULT_STOCK_EXCLUSION_OPTIONS,
+  allowedMarkets = DEFAULT_ALLOWED_MARKETS,
+) => {
   const clauses = STOCK_EXCLUSION_FILTERS
     .filter(([optionName]) => options[optionName] !== false)
     .map(([, column]) => `COALESCE(${column}, 0) = 0`);
+  const marketClause = buildMarketClause(allowedMarkets);
+  if (marketClause) clauses.push(marketClause);
   if (options.excludeOther !== false) {
     clauses.push("COALESCE(stock_type, 'COMMON') != 'OTHER'");
   }
   return clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
 };
 
-const buildStockExcludedWhere = (options = DEFAULT_STOCK_EXCLUSION_OPTIONS) => {
+const buildStockExcludedWhere = (
+  options = DEFAULT_STOCK_EXCLUSION_OPTIONS,
+  allowedMarkets = DEFAULT_ALLOWED_MARKETS,
+) => {
   const clauses = STOCK_EXCLUSION_FILTERS
     .filter(([optionName]) => options[optionName] !== false)
     .map(([, column]) => `COALESCE(${column}, 0) = 1`);
+  const notAllowedMarketClause = buildNotAllowedMarketClause(allowedMarkets);
+  if (notAllowedMarketClause) clauses.push(notAllowedMarketClause);
   if (options.excludeOther !== false) {
     clauses.push("COALESCE(stock_type, 'COMMON') = 'OTHER'");
   }
@@ -545,13 +574,17 @@ export const getStockUniverseStats = (
   options = DEFAULT_STOCK_EXCLUSION_OPTIONS,
 ) => {
   const scalar = (sql) => db.prepare(sql).get()?.count ?? 0;
-  const excludedWhere = buildStockExcludedWhere(options);
+  const allowedMarkets = options.allowedMarkets ?? DEFAULT_ALLOWED_MARKETS;
+  const excludedWhere = buildStockExcludedWhere(options, allowedMarkets);
   const totalStockCount = scalar("SELECT COUNT(*) AS count FROM stocks");
   const excludedStockCount = scalar(`SELECT COUNT(*) AS count FROM stocks WHERE ${excludedWhere}`);
+  const targetWhere = buildStockExclusionWhere(options, allowedMarkets);
   return {
     totalStockCount,
     excludedStockCount,
-    screeningTargetCount: Math.max(0, totalStockCount - excludedStockCount),
+    screeningTargetCount: scalar(`SELECT COUNT(*) AS count FROM stocks ${targetWhere}`),
+    allowedMarkets: normalizeAllowedMarkets(allowedMarkets),
+    nonAllowedMarketCount: scalar(`SELECT COUNT(*) AS count FROM stocks WHERE ${buildNotAllowedMarketClause(allowedMarkets)}`),
     etfCount: scalar("SELECT COUNT(*) AS count FROM stocks WHERE COALESCE(is_etf, 0) = 1"),
     etnCount: scalar("SELECT COUNT(*) AS count FROM stocks WHERE COALESCE(is_etn, 0) = 1"),
     spacCount: scalar("SELECT COUNT(*) AS count FROM stocks WHERE COALESCE(is_spac, 0) = 1"),

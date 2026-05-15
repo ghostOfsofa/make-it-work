@@ -56,6 +56,17 @@ def count_other(conn):
     return scalar(conn, "SELECT COUNT(*) FROM stocks WHERE COALESCE(stock_type, 'COMMON') = 'OTHER'")
 
 
+def market_counts(conn):
+    return conn.execute(
+        """
+        SELECT COALESCE(NULLIF(market, ''), '-') AS market, COUNT(*) AS count
+        FROM stocks
+        GROUP BY COALESCE(NULLIF(market, ''), '-')
+        ORDER BY market
+        """
+    ).fetchall()
+
+
 def latest_run_id(conn):
     row = conn.execute("SELECT run_id FROM screening_runs ORDER BY run_id DESC LIMIT 1").fetchone()
     return row["run_id"] if row else None
@@ -89,6 +100,7 @@ def main():
         print(f"screening runs: {scalar(conn, 'SELECT COUNT(*) FROM screening_runs')}")
         print(f"filtered stocks: {scalar(conn, 'SELECT COUNT(*) FROM filtered_stocks')}")
         print(f"buy signals: {scalar(conn, 'SELECT COUNT(*) FROM buy_signals')}")
+        print_rows("market counts:", market_counts(conn))
         print("stock exclusion stats:")
         print(f"  ETF: {count_flag(conn, 'is_etf')}")
         print(f"  ETN: {count_flag(conn, 'is_etn')}")
