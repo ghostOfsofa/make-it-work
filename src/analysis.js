@@ -354,8 +354,11 @@ export const isLongEmaBearish = (
   const shortEma = emaValues?.[`ema${shortPeriod}`];
   const midEma = emaValues?.[`ema${midPeriod}`];
   const longEma = emaValues?.[`ema${longPeriod}`];
-  if ([shortEma, midEma, longEma].some((value) => value == null || !Number.isFinite(Number(value)))) {
+  if ([shortEma, midEma].some((value) => value == null || !Number.isFinite(Number(value)))) {
     return false;
+  }
+  if (longEma == null || !Number.isFinite(Number(longEma))) {
+    return shortEma < midEma;
   }
   return shortEma < midEma && midEma < longEma;
 };
