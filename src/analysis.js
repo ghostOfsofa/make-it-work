@@ -17,6 +17,8 @@ export const DEFAULT_OPTIONS = Object.freeze({
   minRSquared: 0.5,
   useEmaBearishFilter: true,
   useLastPriceBelowEma5Filter: true,
+  useEma5To112GapFilter: true,
+  minEma5To112GapRate: 3,
   emaPeriods: [5, 20, 60, 112, 224, 448],
   bearishEmaPeriods: [112, 224, 448],
   showEMA5: true,
@@ -350,6 +352,32 @@ export const isLastPriceBelowEma5 = (lastClose, emaValues) => {
   return close < ema5;
 };
 
+export const calculateEma5To112GapRate = (emaValues) => {
+  const ema5 = Number(emaValues?.ema5);
+  const ema112 = Number(emaValues?.ema112);
+  if (!Number.isFinite(ema5) || !Number.isFinite(ema112) || ema112 <= 0) {
+    return Number.NaN;
+  }
+  return ((ema112 - ema5) / ema112) * 100;
+};
+
+export const isEma5FarBelowEma112 = (
+  emaValues,
+  minGapRate = DEFAULT_OPTIONS.minEma5To112GapRate,
+) => {
+  const ema5 = Number(emaValues?.ema5);
+  const ema112 = Number(emaValues?.ema112);
+  const gapRate = calculateEma5To112GapRate(emaValues);
+  return (
+    Number.isFinite(ema5) &&
+    Number.isFinite(ema112) &&
+    ema112 > 0 &&
+    ema5 < ema112 &&
+    Number.isFinite(gapRate) &&
+    gapRate >= minGapRate
+  );
+};
+
 export const pickBestDowntrendMatch = (matches) => {
   if (!Array.isArray(matches) || matches.length === 0) return null;
   return [...matches].sort((a, b) => {
@@ -378,6 +406,13 @@ export const filterStrongDowntrendStocks = (stocks, options = {}) => {
       const lastCandle = candles.at(-1);
       const lastBelowEma5 = isLastPriceBelowEma5(lastCandle?.close, emaValues);
       if (merged.useLastPriceBelowEma5Filter && !lastBelowEma5) return null;
+
+      const ema5To112GapRate = calculateEma5To112GapRate(emaValues);
+      const ema5FarBelowEma112 = isEma5FarBelowEma112(
+        emaValues,
+        merged.minEma5To112GapRate,
+      );
+      if (merged.useEma5To112GapFilter && !ema5FarBelowEma112) return null;
 
       const trendPrices = candles.map(getTrendPrice);
       const range = calculatePriceRange(candles, trendPrices);
@@ -413,6 +448,10 @@ export const filterStrongDowntrendStocks = (stocks, options = {}) => {
         ),
         isLongEmaBearish: longEmaBearish,
         isLastPriceBelowEma5: lastBelowEma5,
+        ema5To112GapRate: Number.isFinite(ema5To112GapRate)
+          ? round(ema5To112GapRate, 2)
+          : null,
+        isEma5FarBelowEma112: ema5FarBelowEma112,
         ...bestMatch,
         prices: allCandles,
         renderCandles: candles,
@@ -468,6 +507,8 @@ export const exportResultsToCsv = (results) => {
     "ema448",
     "isLongEmaBearish",
     "isLastPriceBelowEma5",
+    "ema5To112GapRate",
+    "isEma5FarBelowEma112",
   ];
   const escapeCsv = (value) => `"${String(value ?? "").replaceAll('"', '""')}"`;
   return [

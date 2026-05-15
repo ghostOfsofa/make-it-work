@@ -510,6 +510,7 @@ const renderSummaryPanel = () => {
       ${metric("환기 제외", run.excludeAttention ? "ON" : "OFF")}
       ${metric("EMA 역배열 필터", run.useEmaBearishFilter ? "ON" : "OFF")}
       ${metric("종가 < EMA5 필터", run.useLastPriceBelowEma5Filter ? "ON" : "OFF")}
+      ${metric("EMA5-112 차이 필터", run.useEma5To112GapFilter ? `ON >= ${run.minEma5To112GapRate ?? 3}%` : "OFF")}
       ${metric("renderPeriod", run.renderPeriod)}
       ${metric("scan", `${run.scanMinPeriod}~${run.scanMaxPeriod}`)}
       ${metric("minAngle", `${run.minAngleDegree}°`)}
@@ -568,6 +569,8 @@ const renderResultCard = (result, visibleIndex, absoluteIndex) => {
         ${metric("EMA5", formatPrice(result.ema5))}
         ${metric("종가/EMA5", `${formatPrice(result.lastClose)} < ${formatPrice(result.ema5)}`)}
         ${metric("EMA5 아래", result.isLastPriceBelowEma5 ? "YES" : "NO", result.isLastPriceBelowEma5 ? "signal" : "")}
+        ${metric("EMA5-112 차이", formatPercent(result.ema5To112GapRate))}
+        ${metric("EMA5 < EMA112 3% 이상", result.isEma5FarBelowEma112 ? "YES" : "NO", result.isEma5FarBelowEma112 ? "signal" : "")}
         ${metric("EMA20", formatPrice(result.ema20))}
         ${metric("EMA60", formatPrice(result.ema60))}
         ${metric("EMA112", formatPrice(result.ema112))}
@@ -641,6 +644,8 @@ const downloadCsv = () => {
     "ema448",
     "isLongEmaBearish",
     "isLastPriceBelowEma5",
+    "ema5To112GapRate",
+    "isEma5FarBelowEma112",
     "buySignalStatus",
     "signalTime",
     "signalCurrentPrice",
@@ -672,6 +677,8 @@ const downloadCsv = () => {
       row.ema448,
       row.isLongEmaBearish ? 1 : 0,
       row.isLastPriceBelowEma5 ? 1 : 0,
+      row.ema5To112GapRate,
+      row.isEma5FarBelowEma112 ? 1 : 0,
       signal.status ?? "",
       signal.signalTime ?? "",
       signal.currentPrice ?? "",

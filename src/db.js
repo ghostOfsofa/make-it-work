@@ -50,6 +50,8 @@ const SCREENING_RUN_EXTRA_COLUMNS = [
   ["exclude_investment_warning", "INTEGER DEFAULT 0"],
   ["use_ema_bearish_filter", "INTEGER DEFAULT 1"],
   ["use_last_price_below_ema5_filter", "INTEGER DEFAULT 1"],
+  ["use_ema5_to_112_gap_filter", "INTEGER DEFAULT 1"],
+  ["min_ema5_to_112_gap_rate", "REAL DEFAULT 3"],
 ];
 
 const FILTERED_STOCK_EXTRA_COLUMNS = [
@@ -61,6 +63,8 @@ const FILTERED_STOCK_EXTRA_COLUMNS = [
   ["ema448", "REAL"],
   ["is_long_ema_bearish", "INTEGER DEFAULT 0"],
   ["is_last_price_below_ema5", "INTEGER DEFAULT 0"],
+  ["ema5_to_112_gap_rate", "REAL"],
+  ["is_ema5_far_below_ema112", "INTEGER DEFAULT 0"],
 ];
 
 const ensureColumns = (db, tableName, columns) => {
@@ -315,6 +319,8 @@ export const initDatabase = (db) => {
       ema448 REAL,
       is_long_ema_bearish INTEGER DEFAULT 0,
       is_last_price_below_ema5 INTEGER DEFAULT 0,
+      ema5_to_112_gap_rate REAL,
+      is_ema5_far_below_ema112 INTEGER DEFAULT 0,
       rank_no INTEGER,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (run_id) REFERENCES screening_runs(run_id),
@@ -579,9 +585,10 @@ export const insertScreeningRun = (db, runSummary, options) => {
       exclude_etf, exclude_etn, exclude_spac, exclude_reit, exclude_preferred,
       exclude_trading_halt, exclude_administrative, exclude_attention,
       exclude_investment_warning, use_ema_bearish_filter,
-      use_last_price_below_ema5_filter, note
+      use_last_price_below_ema5_filter, use_ema5_to_112_gap_filter,
+      min_ema5_to_112_gap_rate, note
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     runSummary.baseDate,
     runSummary.dataSource ?? "database",
@@ -606,6 +613,8 @@ export const insertScreeningRun = (db, runSummary, options) => {
     toFlag(options.excludeInvestmentWarning),
     toFlag(options.useEmaBearishFilter),
     toFlag(options.useLastPriceBelowEma5Filter),
+    toFlag(options.useEma5To112GapFilter),
+    options.minEma5To112GapRate ?? 3,
     runSummary.note ?? null,
   );
   return Number(result.lastInsertRowid);
@@ -618,9 +627,10 @@ export const insertFilteredStocks = (db, runId, results) => {
       scan_start_date, scan_end_date, slope_pixel, angle_degree, r_squared,
       return_rate, first_price, last_price, last_close, daily_change_rate,
       ema5, ema20, ema60, ema112, ema224, ema448, is_long_ema_bearish,
-      is_last_price_below_ema5, rank_no
+      is_last_price_below_ema5, ema5_to_112_gap_rate,
+      is_ema5_far_below_ema112, rank_no
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const insertMany = db.transaction((rows) => {
@@ -650,6 +660,8 @@ export const insertFilteredStocks = (db, runId, results) => {
         result.ema448 ?? null,
         toFlag(result.isLongEmaBearish),
         toFlag(result.isLastPriceBelowEma5),
+        result.ema5To112GapRate ?? null,
+        toFlag(result.isEma5FarBelowEma112),
         index + 1,
       );
     });
@@ -689,6 +701,8 @@ const mapFilteredRow = (row) => ({
   ema448: row.ema448,
   isLongEmaBearish: Boolean(row.is_long_ema_bearish),
   isLastPriceBelowEma5: Boolean(row.is_last_price_below_ema5),
+  ema5To112GapRate: row.ema5_to_112_gap_rate,
+  isEma5FarBelowEma112: Boolean(row.is_ema5_far_below_ema112),
   rankNo: row.rank_no,
   createdAt: row.created_at,
 });
