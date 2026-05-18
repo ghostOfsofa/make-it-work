@@ -145,6 +145,6 @@ if [ "${PUBLISH_HTML_TO_ROOT}" = "1" ]; then
 fi
 
 echo "Done. DB path: data/stocks.db"
-echo "Done. Screening: JJAP_SUBAK (짭수박지표)"
+echo "Done. Screening: JJAP_SUBAK (짭쩡)"
 echo "Done. Static files: dist/index.html dist/chart.html dist/assets/"
 echo "Upload dist/index.html, dist/chart.html, and dist/assets/ to a static server."

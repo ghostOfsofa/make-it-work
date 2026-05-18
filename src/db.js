@@ -15,7 +15,7 @@ export const SCREEN_TYPES = Object.freeze({
 });
 
 export const getScreenTypeName = (screenType) => {
-  if (screenType === SCREEN_TYPES.JJAP_SUBAK) return "짭수박지표";
+  if (screenType === SCREEN_TYPES.JJAP_SUBAK) return "짭쩡";
   if (screenType === SCREEN_TYPES.DOWNTREND) return "우하향 필터";
   return screenType ?? SCREEN_TYPES.DOWNTREND;
 };

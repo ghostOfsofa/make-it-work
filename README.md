@@ -211,7 +211,7 @@ python3 scripts/query-prices.py --code 005930 --csv --output samsung.csv
 - `npm run fetch:krx`: FinanceDataReader로 KRX OHLCV를 SQLite에 저장
 - `npm run create:sample-db`: 테스트용 SQLite DB 생성
 - `npm run screen`: 우하향 종목 필터링 후 DB 저장
-- `npm run screen:jjap-subak`: 짭수박지표 필터링 후 DB 저장
+- `npm run screen:jjap-subak`: 짭쩡 필터링 후 DB 저장
 - `npm run watch:buy`: filtered stocks 대상 MA5 돌파 감시
 - `npm run generate`: DB에서 읽어 `dist/chart.html` 생성
 - `npm run build`: Pages 배포용 HTML 생성
@@ -226,19 +226,19 @@ python3 scripts/query-prices.py --code 005930 --csv --output samsung.csv
 필터링 실행 이력과 결과는 `screen_type`으로 구분합니다.
 
 - `DOWNTREND`: 기존 우하향 필터 (`npm run screen`)
-- `JJAP_SUBAK`: 짭수박지표 (`npm run screen:jjap-subak`)
+- `JJAP_SUBAK`: 짭쩡 (`npm run screen:jjap-subak`)
 
-짭수박지표는 기존 우하향 필터와 별도로 동작하는 커스텀 필터이며, 결과는 `screening_runs`와 `filtered_stocks`에 `screen_type = 'JJAP_SUBAK'`으로 저장됩니다.
+짭쩡는 기존 우하향 필터와 별도로 동작하는 커스텀 필터이며, 결과는 `screening_runs`와 `filtered_stocks`에 `screen_type = 'JJAP_SUBAK'`으로 저장됩니다.
 
-짭수박지표의 스크리닝 대상도 `KOSPI`, `KOSDAQ` market 조건과 ETF/ETN, SPAC, REIT, 우선주, 거래정지, 환기/관리종목, 최신 일봉일 조건을 적용합니다.
+짭쩡의 스크리닝 대상도 `KOSPI`, `KOSDAQ` market 조건과 ETF/ETN, SPAC, REIT, 우선주, 거래정지, 환기/관리종목, 최신 일봉일 조건을 적용합니다.
 
-짭수박지표는 마지막 종가가 2,000원 초과인 종목만 통과시킵니다.
+짭쩡는 마지막 종가가 2,000원 초과인 종목만 통과시킵니다.
 
-짭수박지표 조건에는 일목균형표 구름 위 조건도 포함합니다. 전환선은 9봉, 기준선은 26봉, 선행스팬B는 52봉 기준입니다. 필터 판단은 Senkou Span A/B를 26봉 이동해서 현재 봉 위치에 표시되는 구름을 기준으로 `lastClose > shiftedCloudTop`을 사용합니다. `shiftedCloudTop = max(shiftedSenkouSpanA, shiftedSenkouSpanB)`이며, 최소 `52 + 26 = 78`봉 이상의 데이터가 필요합니다. 차트 표시도 같은 26봉 이동 구름을 그립니다. 기존 우하향 필터(`DOWNTREND`) 차트는 변경하지 않습니다.
+짭쩡 조건에는 일목균형표 구름 위 조건도 포함합니다. 전환선은 9봉, 기준선은 26봉, 선행스팬B는 52봉 기준입니다. 필터 판단은 Senkou Span A/B를 26봉 이동해서 현재 봉 위치에 표시되는 구름을 기준으로 `lastClose > shiftedCloudTop`을 사용합니다. 단, 구름 상단보다 13% 이상 높으면 제외하므로 `((lastClose - shiftedCloudTop) / shiftedCloudTop) * 100 < 13`이어야 합니다. `shiftedCloudTop = max(shiftedSenkouSpanA, shiftedSenkouSpanB)`이며, 최소 `52 + 26 = 78`봉 이상의 데이터가 필요합니다. 차트 표시도 같은 26봉 이동 구름을 그립니다. 기존 우하향 필터(`DOWNTREND`) 차트는 변경하지 않습니다.
 
-짭수박지표 차트의 일목균형표는 Senkou Span A/B와 그 사이 구름 영역만 표시합니다. 전환선과 기준선은 Senkou Span A 계산에는 사용되지만 차트에는 표시하지 않습니다.
+짭쩡 차트의 일목균형표는 Senkou Span A/B와 그 사이 구름 영역만 표시합니다. 전환선과 기준선은 Senkou Span A 계산에는 사용되지만 차트에는 표시하지 않습니다.
 
-짭수박지표는 close 기준 EMA112/224/448 장기 조건도 확인합니다. EMA112는 반드시 있어야 하며, 아래 중 하나라도 만족하면 통과합니다.
+짭쩡는 close 기준 EMA112/224/448 장기 조건도 확인합니다. EMA112는 반드시 있어야 하며, 아래 중 하나라도 만족하면 통과합니다.
 
 - EMA112, EMA224, EMA448의 최대/최소 차이가 3% 이내
 - `EMA112 < EMA224 < EMA448` 역배열
@@ -246,7 +246,7 @@ python3 scripts/query-prices.py --code 005930 --csv --output samsung.csv
 
 추가로 EMA112/224/448 중 존재하는 가장 높은 장기 EMA보다 마지막 종가가 30% 이상 위에 있으면 제외합니다. 이격률은 `((lastClose - highestLongEma) / highestLongEma) * 100`으로 계산하며, EMA 값이 없는 경우에는 존재하는 EMA만 사용합니다.
 
-짭수박지표 차트에는 close 기준 33일 볼린저밴드도 표시합니다. 표준편차 배수는 `0.1`, 밴드는 25봉 과거 방향으로 shift해서 사용하며, 종가가 shifted upper band를 넘으면 노란색 화살표로 표시합니다. 노란색 화살표는 기본 필터 통과 조건으로 사용하지 않습니다.
+짭쩡 차트에는 close 기준 33일 볼린저밴드도 표시합니다. 표준편차 배수는 `0.1`, 밴드는 25봉 미래 방향으로 shift해서 사용하며, 종가가 shifted upper band를 넘으면 노란색 화살표로 표시합니다. 노란색 화살표는 봉 아래에 표시하고, 최근 5거래일 중 노란색 화살표가 1개 이상 있는 종목만 통과합니다.
 
 기본 옵션:
 
@@ -433,7 +433,7 @@ npm run api
 curl http://127.0.0.1:3000/api/filtered-stocks/latest
 ```
 
-짭수박지표 결과 조회:
+짭쩡 결과 조회:
 
 ```bash
 curl 'http://127.0.0.1:3000/api/filtered-stocks/latest?screen_type=JJAP_SUBAK'

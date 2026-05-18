@@ -276,8 +276,8 @@ export const calculateShiftedBollingerBands = (candles, options = {}) => {
   });
 
   for (let index = 0; index < bands.length; index += 1) {
-    const targetIndex = index - shiftBars;
-    if (targetIndex >= 0) {
+    const targetIndex = index + shiftBars;
+    if (targetIndex < bands.length) {
       bands[targetIndex].shiftedMiddleBand = bands[index].middleBand;
       bands[targetIndex].shiftedUpperBand = bands[index].upperBand;
       bands[targetIndex].shiftedLowerBand = bands[index].lowerBand;
@@ -335,11 +335,13 @@ export const DEFAULT_JJAP_SUBAK_OPTIONS = Object.freeze({
   maxLongEmaConvergenceRate: 3,
   excludeOverHighestLongEmaGap: true,
   maxHighestLongEmaGapRate: 30,
+  excludeTooFarAboveIchimokuCloud: true,
+  maxIchimokuCloudGapRate: 13,
   bollingerPeriod: 33,
   bollingerStdDevMultiplier: 0.1,
   bollingerShiftBars: 25,
   ichimokuDisplacement: 26,
-  requireBollingerYellowArrowWithinRecentDays: false,
+  requireBollingerYellowArrowWithinRecentDays: true,
   bollingerYellowArrowLookbackDays: 5,
   shortVolumePeriod: 20,
   longVolumePeriod: 60,
@@ -396,6 +398,20 @@ export const analyzeJjapSubakStock = (stock, options = {}) => {
   if (lastClose <= ema5 || avgVolume20 <= avgVolume60 || !isAboveCloud) {
     return null;
   }
+  const shiftedCloudTop = Number(cloud.shiftedCloudTop);
+  if (!Number.isFinite(shiftedCloudTop) || shiftedCloudTop <= 0) {
+    return null;
+  }
+  const ichimokuCloudGapRate = ((lastClose - shiftedCloudTop) / shiftedCloudTop) * 100;
+  const isTooFarAboveIchimokuCloud =
+    ichimokuCloudGapRate >= (merged.maxIchimokuCloudGapRate ?? 13);
+
+  if (
+    merged.excludeTooFarAboveIchimokuCloud &&
+    isTooFarAboveIchimokuCloud
+  ) {
+    return null;
+  }
 
   const dailyChangeRate =
     prevCandle?.close > 0
@@ -446,6 +462,8 @@ export const analyzeJjapSubakStock = (stock, options = {}) => {
     shiftedSenkouSpanB: cloud.shiftedSenkouSpanB,
     shiftedCloudTop: cloud.shiftedCloudTop,
     shiftedCloudBottom: cloud.shiftedCloudBottom,
+    ichimokuCloudGapRate,
+    isTooFarAboveIchimokuCloud,
     isAboveIchimokuCloud: isAboveCloud,
     isLongEmaConverged: longEmaCheck.isLongEmaConverged,
     isMissingLongEma: longEmaCheck.isMissingLongEma,

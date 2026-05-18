@@ -343,8 +343,8 @@ const calculateShiftedBollingerBands = (candles, options = {}) => {
   });
 
   for (let index = 0; index < bands.length; index += 1) {
-    const targetIndex = index - shiftBars;
-    if (targetIndex >= 0) {
+    const targetIndex = index + shiftBars;
+    if (targetIndex < bands.length) {
       bands[targetIndex].shiftedMiddleBand = bands[index].middleBand;
       bands[targetIndex].shiftedUpperBand = bands[index].upperBand;
       bands[targetIndex].shiftedLowerBand = bands[index].lowerBand;
@@ -373,26 +373,31 @@ const calculateBollingerYellowArrowSignals = (candles, options = {}) => {
   });
 };
 
-const createBollingerBandLines = ({ result, signals, scale, options }) => {
+const createBollingerBandLines = ({ result, candles, scale, options, bollingerOptions }) => {
   if (result.screenType !== "JJAP_SUBAK" || !options.showBollingerBands) return "";
-  const points = signals.map((signal, index) => ({ ...signal, x: scale.x(index) }));
+  const shiftBars = bollingerOptions.bollingerShiftBars ?? 25;
+  const points = calculateShiftedBollingerBands(candles, bollingerOptions)
+    .map((band, index) => ({
+      ...band,
+      x: scale.x(index + shiftBars),
+    }));
   const toBandPoint = (point, key) => ({
     x: point.x,
     y: isFiniteValue(point[key]) ? scale.y(Number(point[key])) : Number.NaN,
   });
   return [
     createPolyline(
-      points.map((point) => toBandPoint(point, "shiftedUpperBand")),
+      points.map((point) => toBandPoint(point, "upperBand")),
       COLORS.bollingerUpper,
       `stroke-width="1.4" opacity="0.9"`,
     ),
     createPolyline(
-      points.map((point) => toBandPoint(point, "shiftedMiddleBand")),
+      points.map((point) => toBandPoint(point, "middleBand")),
       COLORS.bollingerMiddle,
       `stroke-width="1" opacity="0.55"`,
     ),
     createPolyline(
-      points.map((point) => toBandPoint(point, "shiftedLowerBand")),
+      points.map((point) => toBandPoint(point, "lowerBand")),
       COLORS.bollingerLower,
       `stroke-width="1" opacity="0.45"`,
     ),
@@ -405,9 +410,9 @@ const createBollingerYellowArrows = ({ result, signals, candles, scale, options 
     .map((signal, index) => {
       if (!signal.isYellowArrow) return "";
       const candle = candles[index];
-      const markerPrice = Math.max(Number(candle?.high), Number(signal.shiftedUpperBand));
       const x = scale.x(index);
-      const y = scale.y(markerPrice) - 10;
+      const lowY = scale.y(Number(candle?.low));
+      const y = Math.min(lowY + 10, options.margin.top + (options.chartHeight - options.margin.top - options.margin.bottom) - 8);
       if (!Number.isFinite(x) || !Number.isFinite(y)) return "";
       return `
         <polygon points="${x},${y} ${x - 7},${y + 12} ${x + 7},${y + 12}"
@@ -721,6 +726,11 @@ const createCandlestickSvgChart = (result, rawCandles, optionOverrides) => {
         ])
         .filter((value) => value != null)
     : [];
+  const bollingerBandValues = result.screenType === "JJAP_SUBAK"
+    ? calculateShiftedBollingerBands(candles, bollingerOptions)
+        .flatMap((band) => [band.upperBand, band.middleBand, band.lowerBand])
+        .filter((value) => value != null)
+    : [];
 
   const { chartWidth, chartHeight, margin } = options;
   const plotWidth = chartWidth - margin.left - margin.right;
@@ -735,6 +745,7 @@ const createCandlestickSvgChart = (result, rawCandles, optionOverrides) => {
     ...visibleEmaValues,
     ...ichimokuValues,
     ...bollingerValues,
+    ...bollingerBandValues,
   ]);
   if (!Number.isFinite(minPrice) || !Number.isFinite(maxPrice)) return `<div class="empty-chart">차트 범위 계산 실패</div>`;
 
@@ -760,9 +771,10 @@ const createCandlestickSvgChart = (result, rawCandles, optionOverrides) => {
   const ichimokuCloud = createIchimokuCloud({ result, series: ichimokuSeries, scale, options });
   const bollingerLines = createBollingerBandLines({
     result,
-    signals: bollingerSignals,
+    candles,
     scale,
     options,
+    bollingerOptions,
   });
   const selectedLine =
     options.showSelectedPriceLine
@@ -955,6 +967,8 @@ const renderResultCard = (result, visibleIndex, absoluteIndex) => {
         ${result.screenType === "JJAP_SUBAK" ? metric("구름 하단", formatPrice(result.shiftedCloudBottom ?? result.cloudBottom)) : ""}
         ${result.screenType === "JJAP_SUBAK" ? metric("Senkou A", formatPrice(result.shiftedSenkouSpanA ?? result.senkouSpanA)) : ""}
         ${result.screenType === "JJAP_SUBAK" ? metric("Senkou B", formatPrice(result.shiftedSenkouSpanB ?? result.senkouSpanB)) : ""}
+        ${result.screenType === "JJAP_SUBAK" ? metric("구름대 이격률", formatPercent(result.ichimokuCloudGapRate), result.ichimokuCloudGapRate > 0 ? "up" : result.ichimokuCloudGapRate < 0 ? "down" : "") : ""}
+        ${result.screenType === "JJAP_SUBAK" ? metric("이격 제한", "13% 미만") : ""}
         ${result.screenType === "JJAP_SUBAK" ? metric("장기 EMA 조건", escapeHtml(result.longEmaConditionReason ?? "-")) : ""}
         ${result.screenType === "JJAP_SUBAK" ? metric("EMA 모임", result.isLongEmaConverged ? "YES" : "NO", result.isLongEmaConverged ? "signal" : "") : ""}
         ${result.screenType === "JJAP_SUBAK" ? metric("EMA224/448 없음", result.isMissingLongEma ? "YES" : "NO") : ""}
@@ -963,7 +977,7 @@ const renderResultCard = (result, visibleIndex, absoluteIndex) => {
         ${result.screenType === "JJAP_SUBAK" ? metric("최고 장기 EMA 값", formatPrice(result.highestLongEmaValue)) : ""}
         ${result.screenType === "JJAP_SUBAK" ? metric("최고 장기 EMA 이격률", formatPercent(result.priceToHighestLongEmaGapRate), result.priceToHighestLongEmaGapRate > 0 ? "up" : result.priceToHighestLongEmaGapRate < 0 ? "down" : "") : ""}
         ${result.screenType === "JJAP_SUBAK" ? metric("최고 장기 EMA 과열", result.isOverHighestLongEmaGap ? "YES" : "NO", result.isOverHighestLongEmaGap ? "down" : "") : ""}
-        ${result.screenType === "JJAP_SUBAK" ? metric("볼린저밴드", `${result.bollingerPeriod ?? 33} / ${result.bollingerStdDevMultiplier ?? 0.1} / ${result.bollingerShiftBars ?? 25}봉 shift`) : ""}
+        ${result.screenType === "JJAP_SUBAK" ? metric("볼린저밴드", `${result.bollingerPeriod ?? 33} / ${result.bollingerStdDevMultiplier ?? 0.1} / ${result.bollingerShiftBars ?? 25}봉 앞으로 shift`) : ""}
         ${result.screenType === "JJAP_SUBAK" ? metric("최근 노란화살표", result.hasBollingerYellowArrowWithinRecentDays ? "YES" : "NO", result.hasBollingerYellowArrowWithinRecentDays ? "signal" : "") : ""}
         ${result.screenType === "JJAP_SUBAK" ? metric("최근 화살표 개수", result.bollingerYellowArrowCount ?? "-") : ""}
         ${result.screenType === "JJAP_SUBAK" ? metric("최근 상단선", formatPrice(result.latestShiftedUpperBand)) : ""}

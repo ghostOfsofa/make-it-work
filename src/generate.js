@@ -283,6 +283,8 @@ try {
       shiftedSenkouSpanB: stock.shiftedSenkouSpanB,
       shiftedCloudTop: stock.shiftedCloudTop,
       shiftedCloudBottom: stock.shiftedCloudBottom,
+      ichimokuCloudGapRate: stock.ichimokuCloudGapRate,
+      isTooFarAboveIchimokuCloud: stock.isTooFarAboveIchimokuCloud,
       isAboveIchimokuCloud: stock.isAboveIchimokuCloud,
       isLongEmaConverged: stock.isLongEmaConverged,
       isMissingLongEma: stock.isMissingLongEma,
