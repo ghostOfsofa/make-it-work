@@ -246,6 +246,24 @@ const createPolyline = (points, stroke, attrs = "") => {
   return `<polyline points="${valid.map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(" ")}" fill="none" stroke="${stroke}" ${attrs}/>`;
 };
 
+const splitValidLineSegments = (points) => {
+  const segments = [];
+  let current = [];
+
+  points.forEach((point) => {
+    if (Number.isFinite(point.x) && Number.isFinite(point.y)) {
+      current.push(point);
+      return;
+    }
+
+    if (current.length >= 2) segments.push(current);
+    current = [];
+  });
+
+  if (current.length >= 2) segments.push(current);
+  return segments;
+};
+
 const createIchimokuCloud = ({ result, series, scale, options }) => {
   if (result.screenType !== "JJAP_SUBAK" || !Array.isArray(series) || series.length < 2) {
     return "";
@@ -384,7 +402,7 @@ const calculateBollingerYellowArrowSignals = (candles, options = {}) => {
   });
 };
 
-const createBollingerBandLines = ({ result, candles, scale, options, bollingerOptions }) => {
+const createBollingerBandLines = ({ result, signals, scale, options }) => {
   if (
     result.screenType !== "JJAP_SUBAK" ||
     (!options.showBollingerUpperBand &&
@@ -393,33 +411,38 @@ const createBollingerBandLines = ({ result, candles, scale, options, bollingerOp
   ) {
     return "";
   }
-  const shiftBars = bollingerOptions.bollingerShiftBars ?? 25;
-  const points = calculateShiftedBollingerBands(candles, bollingerOptions)
-    .map((band, index) => ({
-      ...band,
-      x: scale.x(index + shiftBars),
-    }));
+  const points = (signals ?? []).map((signal, index) => ({
+    x: scale.x(index),
+    upperBand: signal.shiftedUpperBand,
+    middleBand: signal.shiftedMiddleBand,
+    lowerBand: signal.shiftedLowerBand,
+  }));
   const toBandPoint = (point, key) => ({
     x: point.x,
     y: isFiniteValue(point[key]) ? scale.y(Number(point[key])) : Number.NaN,
   });
+  const createSegmentedPolyline = (bandPoints, stroke, attrs) =>
+    splitValidLineSegments(bandPoints)
+      .map((segment) => createPolyline(segment, stroke, attrs))
+      .join("");
+
   return [
     options.showBollingerUpperBand
-      ? createPolyline(
+      ? createSegmentedPolyline(
           points.map((point) => toBandPoint(point, "upperBand")),
           COLORS.bollingerUpper,
           `stroke-width="3" opacity="1"`,
         )
       : "",
     options.showBollingerMiddleBand
-      ? createPolyline(
+      ? createSegmentedPolyline(
           points.map((point) => toBandPoint(point, "middleBand")),
           COLORS.bollingerMiddle,
           `stroke-width="1" opacity="0.55"`,
         )
       : "",
     options.showBollingerLowerBand
-      ? createPolyline(
+      ? createSegmentedPolyline(
           points.map((point) => toBandPoint(point, "lowerBand")),
           COLORS.bollingerLower,
           `stroke-width="1" opacity="0.45"`,
@@ -750,12 +773,6 @@ const createCandlestickSvgChart = (result, rawCandles, optionOverrides) => {
         ])
         .filter((value) => value != null)
     : [];
-  const bollingerBandValues = result.screenType === "JJAP_SUBAK"
-    ? calculateShiftedBollingerBands(candles, bollingerOptions)
-        .flatMap((band) => [band.upperBand, band.middleBand, band.lowerBand])
-        .filter((value) => value != null)
-    : [];
-
   const { chartWidth, chartHeight, margin } = options;
   const plotWidth = chartWidth - margin.left - margin.right;
   const plotHeight = chartHeight - margin.top - margin.bottom;
@@ -769,7 +786,6 @@ const createCandlestickSvgChart = (result, rawCandles, optionOverrides) => {
     ...visibleEmaValues,
     ...ichimokuValues,
     ...bollingerValues,
-    ...bollingerBandValues,
   ]);
   if (!Number.isFinite(minPrice) || !Number.isFinite(maxPrice)) return `<div class="empty-chart">차트 범위 계산 실패</div>`;
 
@@ -795,10 +811,9 @@ const createCandlestickSvgChart = (result, rawCandles, optionOverrides) => {
   const ichimokuCloud = createIchimokuCloud({ result, series: ichimokuSeries, scale, options });
   const bollingerLines = createBollingerBandLines({
     result,
-    candles,
+    signals: bollingerSignals,
     scale,
     options,
-    bollingerOptions,
   });
   const selectedLine =
     options.showSelectedPriceLine
