@@ -75,16 +75,27 @@ python3 scripts/fetch-krx-data.py --days 700
 옵션:
 
 - `--days`: 수집할 최근 캘린더 일수. EMA448 계산을 위해 `700` 이상 권장
-- `--incremental-days`: 이미 DB에 가격 데이터가 있는 종목의 재수집 범위, 기본값 `10`
+- `--skip-existing`: 충분한 기존 주가 데이터가 있으면 수집을 건너뜀, 기본 ON
+- `--force`: 기존 데이터 여부와 관계없이 전체 대상 재수집
+- `--min-price-rows`: skip 가능한 최소 일봉 row 수, 기본값 `448`
+- `--stale-days`: 마지막 저장 일봉이 오늘 기준 며칠 이상 오래되면 재수집할지, 기본값 `5`
 - `--max-stocks`: 테스트용 종목 수 제한
 - `--db-path`: SQLite DB 경로, 기본값 `data/stocks.db`
 - `--sleep`: 종목별 요청 간격
 
 수집 방식:
 
-- 종목별 `stock_prices` row가 없으면 초기 수집으로 `--days` 기준 넓은 기간을 가져옵니다.
-- 이미 가격 데이터가 있으면 최신 저장일을 확인하고, 기준 종료일 전 최근 `--incremental-days` 범위만 다시 가져와 UPSERT합니다.
-- 최신 저장일이 기준 종료일 이상이면 해당 종목은 건너뜁니다.
+- 기본적으로 DB에 기존 주가 데이터가 충분하면 다시 가져오지 않습니다.
+- 종목별 `stock_prices` row가 없거나, `--min-price-rows`보다 적거나, 마지막 저장 일봉이 `--stale-days`보다 오래되면 `--days` 범위를 다시 가져와 UPSERT합니다.
+- 기존 데이터를 무시하고 전체 대상 재수집이 필요하면 `--force`를 사용합니다.
+
+예:
+
+```bash
+python3 scripts/fetch-krx-data.py --days 700
+python3 scripts/fetch-krx-data.py --days 700 --force
+python3 scripts/fetch-krx-data.py --days 700 --min-price-rows 448 --stale-days 5
+```
 
 ## 샘플 DB 실행
 
@@ -200,6 +211,7 @@ python3 scripts/query-prices.py --code 005930 --csv --output samsung.csv
 - `npm run fetch:krx`: FinanceDataReader로 KRX OHLCV를 SQLite에 저장
 - `npm run create:sample-db`: 테스트용 SQLite DB 생성
 - `npm run screen`: 우하향 종목 필터링 후 DB 저장
+- `npm run screen:jjap-subak`: 짭수박지표 필터링 후 DB 저장
 - `npm run watch:buy`: filtered stocks 대상 MA5 돌파 감시
 - `npm run generate`: DB에서 읽어 `dist/chart.html` 생성
 - `npm run build`: Pages 배포용 HTML 생성
@@ -208,6 +220,31 @@ python3 scripts/query-prices.py --code 005930 --csv --output samsung.csv
 - `npm run prepare:db-upload`: 서버 업로드용 SQLite DB 사본 생성
 
 ## 필터 조건
+
+### screen_type
+
+필터링 실행 이력과 결과는 `screen_type`으로 구분합니다.
+
+- `DOWNTREND`: 기존 우하향 필터 (`npm run screen`)
+- `JJAP_SUBAK`: 짭수박지표 (`npm run screen:jjap-subak`)
+
+짭수박지표는 기존 우하향 필터와 별도로 동작하는 커스텀 필터이며, 결과는 `screening_runs`와 `filtered_stocks`에 `screen_type = 'JJAP_SUBAK'`으로 저장됩니다.
+
+짭수박지표의 스크리닝 대상도 `KOSPI`, `KOSDAQ` market 조건과 ETF/ETN, SPAC, REIT, 우선주, 거래정지, 환기/관리종목, 최신 일봉일 조건을 적용합니다.
+
+짭수박지표는 마지막 종가가 2,000원 초과인 종목만 통과시킵니다.
+
+짭수박지표 조건에는 일목균형표 구름 위 조건도 포함합니다. 선행스팬A는 `(전환선 + 기준선) / 2`, 선행스팬B는 최근 52일 최고가/최저가 평균이며, 마지막 종가가 `max(선행스팬A, 선행스팬B)`보다 위에 있어야 통과합니다. 최소 52개 이상의 일봉 데이터가 필요하고, 짭수박지표 차트에는 Senkou Span A/B와 구름이 함께 표시됩니다. 기존 우하향 필터(`DOWNTREND`) 차트는 변경하지 않습니다.
+
+짭수박지표는 close 기준 EMA112/224/448 장기 조건도 확인합니다. EMA112는 반드시 있어야 하며, 아래 중 하나라도 만족하면 통과합니다.
+
+- EMA112, EMA224, EMA448의 최대/최소 차이가 3% 이내
+- `EMA112 < EMA224 < EMA448` 역배열
+- EMA224 또는 EMA448을 계산할 수 없음
+
+추가로 EMA112/224/448 중 존재하는 가장 높은 장기 EMA보다 마지막 종가가 30% 이상 위에 있으면 제외합니다. 이격률은 `((lastClose - highestLongEma) / highestLongEma) * 100`으로 계산하며, EMA 값이 없는 경우에는 존재하는 EMA만 사용합니다.
+
+짭수박지표 차트에는 close 기준 33일 볼린저밴드도 표시합니다. 표준편차 배수는 `0.1`, 밴드는 25봉 과거 방향으로 shift해서 사용하며, 종가가 shifted upper band를 넘으면 노란색 화살표로 표시합니다. 노란색 화살표는 기본 필터 통과 조건으로 사용하지 않습니다.
 
 기본 옵션:
 
@@ -392,6 +429,12 @@ npm run api
 
 ```bash
 curl http://127.0.0.1:3000/api/filtered-stocks/latest
+```
+
+짭수박지표 결과 조회:
+
+```bash
+curl 'http://127.0.0.1:3000/api/filtered-stocks/latest?screen_type=JJAP_SUBAK'
 ```
 
 screening run 목록 조회:

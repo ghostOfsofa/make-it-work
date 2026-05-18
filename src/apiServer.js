@@ -2,6 +2,7 @@ import express from "express";
 import {
   closeDatabase,
   getLatestScreeningRun,
+  getScreenTypeName,
   loadBuySignalsByRunId,
   loadFilteredStocksByRunId,
   loadFilteredStocksWithCurrentPrice,
@@ -59,9 +60,9 @@ app.get("/api/health", (_req, res) => {
   res.json({ ok: true, service: "stock-screener-api" });
 });
 
-app.get("/api/latest-run", (_req, res) => {
+app.get("/api/latest-run", (req, res) => {
   withDatabase(res, (db) => {
-    const run = loadLatestScreeningRunForApi(db);
+    const run = loadLatestScreeningRunForApi(db, req.query.screen_type);
     if (!run) {
       jsonError(res, 404, "latest screening run not found");
       return;
@@ -81,6 +82,8 @@ app.get("/api/filtered-stocks/latest", (req, res) => {
       ok: true,
       runId: run.runId,
       baseDate: run.baseDate,
+      screenType: run.screenType,
+      screenName: run.screenName,
       count,
       results,
     });
@@ -95,7 +98,7 @@ app.get("/api/screening-runs", (req, res) => {
 
 app.get("/api/filtered-stocks", (req, res) => {
   withDatabase(res, (db) => {
-    const latestRun = getLatestScreeningRun(db);
+    const latestRun = getLatestScreeningRun(db, req.query.screen_type);
     const runId = Number(req.query.run_id ?? latestRun?.run_id);
     if (!Number.isFinite(runId)) {
       jsonError(res, 404, "screening run not found");
@@ -109,6 +112,8 @@ app.get("/api/filtered-stocks", (req, res) => {
     res.json({
       ok: true,
       runId,
+      screenType: latestRun?.screen_type,
+      screenName: getScreenTypeName(latestRun?.screen_type),
       count: results.length,
       results,
       buySignalCount: signals.length,

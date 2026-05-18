@@ -7,6 +7,7 @@ import {
   insertScreeningRun,
   loadStocksFromDatabase,
   openDatabase,
+  SCREEN_TYPES,
 } from "./db.js";
 import { hasReadableDb, resolveDbPath } from "./config.js";
 
@@ -41,6 +42,7 @@ export const SCREEN_OPTIONS = Object.freeze({
   excludeInvestmentWarning: process.env.EXCLUDE_INVESTMENT_WARNING === "1",
   excludeOther: process.env.EXCLUDE_OTHER !== "0" && DEFAULT_STOCK_EXCLUSION_OPTIONS.excludeOther,
   requireLatestPriceDate: process.env.REQUIRE_LATEST_PRICE_DATE !== "0",
+  screenType: SCREEN_TYPES.DOWNTREND,
 });
 
 const dbPath = resolveDbPath();
@@ -102,7 +104,7 @@ try {
     },
     SCREEN_OPTIONS,
   );
-  insertFilteredStocks(db, runId, results);
+  insertFilteredStocks(db, runId, results, { screenType: SCREEN_TYPES.DOWNTREND });
 
   console.log(`screening run created: ${runId}`);
   console.log(`baseDate: ${baseDate}`);

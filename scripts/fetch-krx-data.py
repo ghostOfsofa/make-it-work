@@ -477,80 +477,108 @@ def fetch_ohlcv(code, start_date, end_date):
     return rows
 
 
-def get_latest_price_date(conn, code):
+def get_price_data_status(conn, code):
     row = conn.execute(
-        "SELECT MAX(date) AS latest_date FROM stock_prices WHERE code = ?",
+        """
+        SELECT COUNT(*) AS price_count,
+               MIN(date) AS first_date,
+               MAX(date) AS last_date
+        FROM stock_prices
+        WHERE code = ?
+        """,
         (code,),
     ).fetchone()
-    return row[0] if row and row[0] else None
+    return {
+        "price_count": int(row[0]) if row else 0,
+        "first_date": row[1] if row else None,
+        "last_date": row[2] if row else None,
+    }
 
 
-def get_price_row_count(conn, code):
-    row = conn.execute(
-        "SELECT COUNT(*) FROM stock_prices WHERE code = ?",
-        (code,),
-    ).fetchone()
-    return int(row[0]) if row else 0
+def days_between(date1, date2):
+    if isinstance(date1, str):
+        date1 = datetime.strptime(date1, "%Y-%m-%d").date()
+    if isinstance(date2, str):
+        date2 = datetime.strptime(date2, "%Y-%m-%d").date()
+    return abs((date2 - date1).days)
 
 
-def calculate_fetch_start_date(conn, code, end_date, initial_days, incremental_days):
-    row_count = get_price_row_count(conn, code)
-    if row_count == 0:
-        # First collection uses a wider calendar range so about 180 trading days fit.
-        calendar_days = max(initial_days * 2, initial_days + 30)
-        return end_date - timedelta(days=calendar_days), "initial"
+def should_fetch_price_data(status, options):
+    if options.force:
+        return {"should_fetch": True, "reason": "FORCE"}
 
-    latest_date_text = get_latest_price_date(conn, code)
-    latest_date = datetime.strptime(latest_date_text, "%Y-%m-%d").date()
-    if latest_date >= end_date:
-        return None, "up-to-date"
+    if not options.skip_existing:
+        return {"should_fetch": True, "reason": "SKIP_EXISTING_DISABLED"}
 
-    # Subsequent runs intentionally collect only the recent window and upsert it.
-    # This keeps daily batch runs light while correcting recently revised rows.
-    return end_date - timedelta(days=max(1, incremental_days - 1)), "incremental"
+    price_count = int(status.get("price_count") or 0)
+    if price_count == 0:
+        return {"should_fetch": True, "reason": "NO_DATA"}
+
+    if price_count < options.min_price_rows:
+        return {"should_fetch": True, "reason": "NOT_ENOUGH_ROWS"}
+
+    last_date = status.get("last_date")
+    if not last_date:
+        return {"should_fetch": True, "reason": "NO_LAST_DATE"}
+
+    try:
+        stale_days = days_between(last_date, datetime.now().date())
+    except ValueError:
+        return {"should_fetch": True, "reason": "INVALID_LAST_DATE"}
+
+    if stale_days > options.stale_days:
+        return {"should_fetch": True, "reason": "STALE_DATA"}
+
+    return {"should_fetch": False, "reason": "OK_SKIP"}
 
 
 def save_stocks_to_database(
     stocks,
     db_path,
     end_date,
-    initial_days,
-    incremental_days,
+    options,
     sleep_seconds,
 ):
     conn = init_database(db_path)
-    saved = 0
+    fetched = 0
     skipped = 0
     failed = 0
+    skip_reasons = {}
+    fetch_reasons = {}
     try:
         for index, stock in enumerate(stocks, start=1):
             try:
-                start_date, fetch_mode = calculate_fetch_start_date(
-                    conn,
-                    stock["code"],
-                    end_date,
-                    initial_days,
-                    incremental_days,
-                )
-                if start_date is None:
-                    upsert_stock(conn, stock)
-                    conn.commit()
+                upsert_stock(conn, stock)
+                status = get_price_data_status(conn, stock["code"])
+                decision = should_fetch_price_data(status, options)
+                reason = decision["reason"]
+
+                if not decision["should_fetch"]:
                     skipped += 1
+                    skip_reasons[reason] = skip_reasons.get(reason, 0) + 1
+                    conn.commit()
                     print(
-                        f"[{index}/{len(stocks)}] skip {stock['code']} {stock['name']} - up to date"
+                        f"[{index}/{len(stocks)}] SKIP {stock['code']} {stock['name']} "
+                        f"reason={reason} count={status['price_count']} last_date={status['last_date']}"
                     )
                     continue
+
+                fetch_reasons[reason] = fetch_reasons.get(reason, 0) + 1
+                start_date = end_date - timedelta(days=options.days)
+                print(
+                    f"[{index}/{len(stocks)}] FETCH {stock['code']} {stock['name']} "
+                    f"reason={reason} count={status['price_count']} last_date={status['last_date']}"
+                )
                 prices = fetch_ohlcv(stock["code"], start_date, end_date)
                 if not prices:
                     print(f"[{index}/{len(stocks)}] skip {stock['code']} {stock['name']} - no OHLCV")
                     continue
-                upsert_stock(conn, stock)
                 upsert_price_rows(conn, stock["code"], prices)
                 conn.commit()
-                saved += 1
+                fetched += 1
                 print(
                     f"[{index}/{len(stocks)}] saved {stock['code']} {stock['name']} "
-                    f"mode={fetch_mode} range={start_date}~{end_date} rows={len(prices)}"
+                    f"range={start_date}~{end_date} rows={len(prices)}"
                 )
             except Exception as error:
                 conn.rollback()
@@ -560,7 +588,7 @@ def save_stocks_to_database(
                 time.sleep(sleep_seconds)
     finally:
         conn.close()
-    return saved, skipped, failed
+    return fetched, skipped, failed, fetch_reasons, skip_reasons
 
 
 def parse_args():
@@ -575,12 +603,36 @@ def parse_args():
         "--incremental-days",
         type=int,
         default=10,
-        help="Collection window for stocks that already have price rows",
+        help="Deprecated. Existing data is skipped unless missing, stale, insufficient, or --force is used.",
     )
     parser.add_argument("--max-stocks", type=int, default=None)
     parser.add_argument("--db-path", default="data/stocks.db")
     parser.add_argument("--sleep", type=float, default=0.1)
     parser.add_argument("--end-date", default=None)
+    parser.add_argument(
+        "--skip-existing",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Skip stocks with enough fresh price rows. Enabled by default.",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        default=False,
+        help="Fetch all stocks regardless of existing DB price rows.",
+    )
+    parser.add_argument(
+        "--min-price-rows",
+        type=int,
+        default=448,
+        help="Minimum stock_prices rows required before a stock can be skipped.",
+    )
+    parser.add_argument(
+        "--stale-days",
+        type=int,
+        default=5,
+        help="Fetch again if the latest stored price date is older than this many calendar days.",
+    )
     return parser.parse_args()
 
 
@@ -589,7 +641,7 @@ def main():
     end_date = (
         datetime.strptime(args.end_date, "%Y-%m-%d").date()
         if args.end_date
-        else (datetime.now() - timedelta(days=0)).date()
+        else (datetime.now() - timedelta(days=1)).date()
     )
     try:
         stocks = fetch_stock_list()
@@ -604,17 +656,25 @@ def main():
         stocks = stocks[: args.max_stocks]
     print(f"target stocks: {len(stocks)}")
     print(f"end date: {end_date}")
-    print(f"initial days: {args.days}")
-    print(f"incremental days: {args.incremental_days}")
-    saved, skipped, failed = save_stocks_to_database(
+    print(f"days: {args.days}")
+    print(f"skip existing: {args.skip_existing}")
+    print(f"force: {args.force}")
+    print(f"min price rows: {args.min_price_rows}")
+    print(f"stale days: {args.stale_days}")
+    fetched, skipped, failed, fetch_reasons, skip_reasons = save_stocks_to_database(
         stocks,
         args.db_path,
         end_date,
-        args.days,
-        args.incremental_days,
+        args,
         args.sleep,
     )
-    print(f"done. saved={saved}, skipped={skipped}, failed={failed}, db={args.db_path}")
+    print(f"done. total={len(stocks)}, fetched={fetched}, skipped={skipped}, failed={failed}, db={args.db_path}")
+    print("fetch reason:")
+    for reason, count in sorted(fetch_reasons.items()):
+        print(f"  {reason}: {count}")
+    print("skip reason:")
+    for reason, count in sorted(skip_reasons.items()):
+        print(f"  {reason}: {count}")
 
 
 if __name__ == "__main__":

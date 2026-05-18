@@ -18,6 +18,15 @@ const COLORS = {
   ema448: "#f8fafc",
   signal: "#22c55e",
   longEmaBadge: "#f59e0b",
+  ichimokuSpanA: "#22c55e",
+  ichimokuSpanB: "#f97316",
+  ichimokuBullishCloud: "rgba(34, 197, 94, 0.18)",
+  ichimokuBearishCloud: "rgba(249, 115, 22, 0.18)",
+  bollingerUpper: "#facc15",
+  bollingerMiddle: "#a3a3a3",
+  bollingerLower: "#a3a3a3",
+  bollingerArrow: "#facc15",
+  bollingerArrowStroke: "#f59e0b",
 };
 
 const EMA_STYLES = {
@@ -66,6 +75,10 @@ const MINI_CHART_OPTIONS = {
   showSelectedPriceLine: false,
   showMa5PriceGuide: true,
   showTrendNextPriceGuide: true,
+  showIchimokuCloud: true,
+  showIchimokuLines: true,
+  showBollingerBands: true,
+  showBollingerYellowArrows: true,
   showMatchedArea: true,
   showCandleWick: true,
 };
@@ -101,6 +114,10 @@ const DETAIL_CHART_OPTIONS = {
   showSelectedPriceLine: false,
   showMa5PriceGuide: true,
   showTrendNextPriceGuide: true,
+  showIchimokuCloud: true,
+  showIchimokuLines: true,
+  showBollingerBands: true,
+  showBollingerYellowArrows: true,
   showMatchedArea: true,
   showCandleWick: true,
 };
@@ -217,6 +234,179 @@ const createPolyline = (points, stroke, attrs = "") => {
   const valid = points.filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y));
   if (valid.length < 2) return "";
   return `<polyline points="${valid.map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(" ")}" fill="none" stroke="${stroke}" ${attrs}/>`;
+};
+
+const createIchimokuCloud = ({ result, series, scale, options }) => {
+  if (result.screenType !== "JJAP_SUBAK" || !Array.isArray(series) || series.length < 2) {
+    return "";
+  }
+
+  const points = series.map((item, index) => ({
+    x: scale.x(index),
+    spanA: Number(item.senkouSpanA),
+    spanB: Number(item.senkouSpanB),
+  })).filter((point) => Number.isFinite(point.spanA) && Number.isFinite(point.spanB));
+
+  if (points.length < 2) return "";
+
+  const spanALine = options.showIchimokuLines
+    ? createPolyline(
+        points.map((point) => ({ x: point.x, y: scale.y(point.spanA) })),
+        COLORS.ichimokuSpanA,
+        `stroke-width="1.6" opacity="0.9"`,
+      )
+    : "";
+  const spanBLine = options.showIchimokuLines
+    ? createPolyline(
+        points.map((point) => ({ x: point.x, y: scale.y(point.spanB) })),
+        COLORS.ichimokuSpanB,
+        `stroke-width="1.6" opacity="0.9"`,
+      )
+    : "";
+
+  const cloudFill = options.showIchimokuCloud
+    ? points.slice(1).map((point, index) => {
+        const prev = points[index];
+        const polygonPoints = [
+          [prev.x, scale.y(prev.spanA)],
+          [point.x, scale.y(point.spanA)],
+          [point.x, scale.y(point.spanB)],
+          [prev.x, scale.y(prev.spanB)],
+        ];
+        if (polygonPoints.some(([, y]) => !Number.isFinite(y))) return "";
+        const fill = point.spanA >= point.spanB
+          ? COLORS.ichimokuBullishCloud
+          : COLORS.ichimokuBearishCloud;
+        return `<polygon points="${polygonPoints.map(([x, y]) => `${x},${y}`).join(" ")}" fill="${fill}"/>`;
+      }).join("")
+    : "";
+
+  return `${cloudFill}${spanALine}${spanBLine}`;
+};
+
+const calculateSMA = (values) => {
+  if (!Array.isArray(values) || values.length === 0) return null;
+  const validValues = values.map(Number).filter(Number.isFinite);
+  if (validValues.length !== values.length) return null;
+  return validValues.reduce((sum, value) => sum + value, 0) / validValues.length;
+};
+
+const calculateStandardDeviation = (values) => {
+  const mean = calculateSMA(values);
+  if (mean == null) return null;
+  const variance =
+    values.reduce((sum, value) => {
+      const diff = Number(value) - mean;
+      return sum + diff * diff;
+    }, 0) / values.length;
+  return Math.sqrt(variance);
+};
+
+const calculateShiftedBollingerBands = (candles, options = {}) => {
+  const period = options.bollingerPeriod ?? 33;
+  const multiplier = options.bollingerStdDevMultiplier ?? 0.1;
+  const shiftBars = options.bollingerShiftBars ?? 25;
+  const emptyBand = (date) => ({
+    date,
+    middleBand: null,
+    upperBand: null,
+    lowerBand: null,
+    shiftedMiddleBand: null,
+    shiftedUpperBand: null,
+    shiftedLowerBand: null,
+  });
+
+  const bands = candles.map((candle, index) => {
+    if (index < period - 1) return emptyBand(candle.date);
+    const window = candles.slice(index - period + 1, index + 1);
+    const closes = window.map((item) => Number(item.close));
+    const middleBand = calculateSMA(closes);
+    const stdDev = calculateStandardDeviation(closes);
+    if (middleBand == null || stdDev == null) return emptyBand(candle.date);
+    return {
+      date: candle.date,
+      middleBand,
+      upperBand: middleBand + stdDev * multiplier,
+      lowerBand: middleBand - stdDev * multiplier,
+      shiftedMiddleBand: null,
+      shiftedUpperBand: null,
+      shiftedLowerBand: null,
+    };
+  });
+
+  for (let index = 0; index < bands.length; index += 1) {
+    const targetIndex = index - shiftBars;
+    if (targetIndex >= 0) {
+      bands[targetIndex].shiftedMiddleBand = bands[index].middleBand;
+      bands[targetIndex].shiftedUpperBand = bands[index].upperBand;
+      bands[targetIndex].shiftedLowerBand = bands[index].lowerBand;
+    }
+  }
+
+  return bands;
+};
+
+const calculateBollingerYellowArrowSignals = (candles, options = {}) => {
+  const bands = calculateShiftedBollingerBands(candles, options);
+  return candles.map((candle, index) => {
+    const close = Number(candle.close);
+    const shiftedUpperBand = bands[index]?.shiftedUpperBand;
+    return {
+      date: candle.date,
+      close,
+      shiftedUpperBand,
+      shiftedMiddleBand: bands[index]?.shiftedMiddleBand ?? null,
+      shiftedLowerBand: bands[index]?.shiftedLowerBand ?? null,
+      isYellowArrow:
+        Number.isFinite(close) &&
+        Number.isFinite(shiftedUpperBand) &&
+        close > shiftedUpperBand,
+    };
+  });
+};
+
+const createBollingerBandLines = ({ result, signals, scale, options }) => {
+  if (result.screenType !== "JJAP_SUBAK" || !options.showBollingerBands) return "";
+  const points = signals.map((signal, index) => ({ ...signal, x: scale.x(index) }));
+  const toBandPoint = (point, key) => ({
+    x: point.x,
+    y: isFiniteValue(point[key]) ? scale.y(Number(point[key])) : Number.NaN,
+  });
+  return [
+    createPolyline(
+      points.map((point) => toBandPoint(point, "shiftedUpperBand")),
+      COLORS.bollingerUpper,
+      `stroke-width="1.4" opacity="0.9"`,
+    ),
+    createPolyline(
+      points.map((point) => toBandPoint(point, "shiftedMiddleBand")),
+      COLORS.bollingerMiddle,
+      `stroke-width="1" opacity="0.55"`,
+    ),
+    createPolyline(
+      points.map((point) => toBandPoint(point, "shiftedLowerBand")),
+      COLORS.bollingerLower,
+      `stroke-width="1" opacity="0.45"`,
+    ),
+  ].join("");
+};
+
+const createBollingerYellowArrows = ({ result, signals, candles, scale, options }) => {
+  if (result.screenType !== "JJAP_SUBAK" || !options.showBollingerYellowArrows) return "";
+  return signals
+    .map((signal, index) => {
+      if (!signal.isYellowArrow) return "";
+      const candle = candles[index];
+      const markerPrice = Math.max(Number(candle?.high), Number(signal.shiftedUpperBand));
+      const x = scale.x(index);
+      const y = scale.y(markerPrice) - 10;
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return "";
+      return `
+        <polygon points="${x},${y} ${x - 7},${y + 12} ${x + 7},${y + 12}"
+          fill="${COLORS.bollingerArrow}" stroke="${COLORS.bollingerArrowStroke}" stroke-width="1.4"/>
+      `;
+    })
+    .join("");
 };
 
 const getEmaStyle = (period) => EMA_STYLES[`ema${period}`] ?? EMA_STYLES.ema20;
@@ -491,10 +681,34 @@ const createCandlestickSvgChart = (result, rawCandles, optionOverrides) => {
   const candles = rawCandles.slice(-options.renderPeriod);
   if (candles.length < 2) return `<div class="empty-chart">차트 데이터 부족</div>`;
   const emaValues = appData?.emaData?.[result.code] ?? {};
+  const ichimokuSeries = (appData?.ichimokuData?.[result.code] ?? []).slice(-options.renderPeriod);
   const visibleEmaPeriods = getVisibleEmaPeriods(options);
   const visibleEmaValues = visibleEmaPeriods
     .flatMap((period) => emaValues[`ema${period}`] ?? [])
     .filter((value) => value != null);
+  const ichimokuValues = result.screenType === "JJAP_SUBAK"
+    ? ichimokuSeries.flatMap((item) => [item.senkouSpanA, item.senkouSpanB]).filter((value) => value != null)
+    : [];
+  const bollingerOptions = {
+    bollingerPeriod: result.bollingerPeriod ?? 33,
+    bollingerStdDevMultiplier: result.bollingerStdDevMultiplier ?? 0.1,
+    bollingerShiftBars: result.bollingerShiftBars ?? 25,
+  };
+  const storedBollingerSignals = (appData?.bollingerData?.[result.code] ?? []).slice(-options.renderPeriod);
+  const bollingerSignals = result.screenType === "JJAP_SUBAK"
+    ? storedBollingerSignals.length
+      ? storedBollingerSignals
+      : calculateBollingerYellowArrowSignals(candles, bollingerOptions)
+    : [];
+  const bollingerValues = result.screenType === "JJAP_SUBAK"
+    ? bollingerSignals
+        .flatMap((signal) => [
+          signal.shiftedUpperBand,
+          signal.shiftedMiddleBand,
+          signal.shiftedLowerBand,
+        ])
+        .filter((value) => value != null)
+    : [];
 
   const { chartWidth, chartHeight, margin } = options;
   const plotWidth = chartWidth - margin.left - margin.right;
@@ -502,7 +716,11 @@ const createCandlestickSvgChart = (result, rawCandles, optionOverrides) => {
   const rightPaddingBars = Math.max(0, Math.floor(Number(options.rightPaddingBars) || 0));
   const virtualPeriod = candles.length + rightPaddingBars;
   const xStep = plotWidth / Math.max(1, virtualPeriod - 1);
-  const { minPrice, maxPrice } = calculatePriceRange(candles, visibleEmaValues);
+  const { minPrice, maxPrice } = calculatePriceRange(candles, [
+    ...visibleEmaValues,
+    ...ichimokuValues,
+    ...bollingerValues,
+  ]);
   if (!Number.isFinite(minPrice) || !Number.isFinite(maxPrice)) return `<div class="empty-chart">차트 범위 계산 실패</div>`;
 
   const scale = {
@@ -524,6 +742,13 @@ const createCandlestickSvgChart = (result, rawCandles, optionOverrides) => {
       : "";
   const trendLinePoints = getStoredTrendLinePoints({ result, scale, candles, xStep });
   const regressionLine = createStoredTrendLine({ trendLinePoints, options });
+  const ichimokuCloud = createIchimokuCloud({ result, series: ichimokuSeries, scale, options });
+  const bollingerLines = createBollingerBandLines({
+    result,
+    signals: bollingerSignals,
+    scale,
+    options,
+  });
   const selectedLine =
     options.showSelectedPriceLine
       ? createPolyline(renderPoints, COLORS.selectedLine, `stroke-width="2" stroke-dasharray="7 7" opacity="0.85"`)
@@ -550,6 +775,13 @@ const createCandlestickSvgChart = (result, rawCandles, optionOverrides) => {
       `;
     })
     .join("");
+  const bollingerArrows = createBollingerYellowArrows({
+    result,
+    signals: bollingerSignals,
+    candles,
+    scale,
+    options,
+  });
   const lastCandle = candles.at(-1);
   const previousCandle = candles.at(-2);
   const ma5Price = Number.isFinite(Number(result.ma5Price))
@@ -569,11 +801,14 @@ const createCandlestickSvgChart = (result, rawCandles, optionOverrides) => {
       ${axisLabels}
       ${options.showAxisLabels ? `<line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${chartHeight - margin.bottom}" stroke="${COLORS.axis}" stroke-width="1"/>
       <line x1="${chartWidth - margin.right}" y1="${margin.top}" x2="${chartWidth - margin.right}" y2="${chartHeight - margin.bottom}" stroke="${COLORS.axis}" stroke-width="1"/>` : ""}
+      ${ichimokuCloud}
+      ${bollingerLines}
       ${candleElements}
       ${selectedLine}
       ${shortEmaLines}
       ${longEmaLines}
       ${regressionLine}
+      ${bollingerArrows}
       ${createBuySignalMarker(result.buySignal, scale, chartWidth, margin, options.showAxisLabels)}
       ${options.showAxisLabels ? createPriceAndEma5Labels({ lastCandle, previousCandle, emaValues, scale, chartWidth, margin, plotHeight, options }) : ""}
       ${options.showAxisLabels ? `<text x="${margin.left + 4}" y="30" fill="${COLORS.text}" font-size="22">${escapeHtml(result.name)} ${escapeHtml(result.code)} | 각도 ${formatNumber(result.angleDegree)}° | R² ${formatNumber(result.rSquared, 3)} | 수익률 ${formatPercent(result.returnRate)}</text>` : ""}
@@ -608,13 +843,14 @@ const renderSummaryPanel = () => {
       <select id="run-select">
         ${screeningRuns.map((run) => `
           <option value="${run.runId}" ${run.runId === run.runId && run.runId === appData.run.runId ? "selected" : ""}>
-            ${escapeHtml(run.baseDate)} / run #${run.runId} / ${run.matchedStockCount ?? 0}종목
+            ${escapeHtml(run.baseDate)} / ${escapeHtml(run.screenName ?? run.screenType ?? "-")} / run #${run.runId} / ${run.matchedStockCount ?? 0}종목
           </option>
         `).join("")}
       </select>
     </label>
     <section class="summary-panel">
       ${metric("latest run", run.runId ?? "-")}
+      ${metric("필터명", run.screenName ?? run.screenType ?? "-")}
       ${metric("기준일", run.baseDate ?? "-")}
       ${metric("DB 전체", `${run.totalStockCount ?? 0}종목`)}
       ${metric("제외 종목", `${run.excludedStockCount ?? 0}종목`)}
@@ -698,6 +934,24 @@ const renderResultCard = (result, visibleIndex, absoluteIndex) => {
         ${metric("추세 시작가", formatPrice(result.trendLineStartPrice))}
         ${metric("추세 종료가", formatPrice(result.trendLineEndPrice))}
         ${metric("다음 추세선 기준가", formatPrice(result.trendNextPrice))}
+        ${result.screenType === "JJAP_SUBAK" ? metric("일목 구름 위", result.isAboveIchimokuCloud ? "YES" : "NO", result.isAboveIchimokuCloud ? "signal" : "") : ""}
+        ${result.screenType === "JJAP_SUBAK" ? metric("구름 상단", formatPrice(result.cloudTop)) : ""}
+        ${result.screenType === "JJAP_SUBAK" ? metric("구름 하단", formatPrice(result.cloudBottom)) : ""}
+        ${result.screenType === "JJAP_SUBAK" ? metric("선행스팬A", formatPrice(result.senkouSpanA)) : ""}
+        ${result.screenType === "JJAP_SUBAK" ? metric("선행스팬B", formatPrice(result.senkouSpanB)) : ""}
+        ${result.screenType === "JJAP_SUBAK" ? metric("장기 EMA 조건", escapeHtml(result.longEmaConditionReason ?? "-")) : ""}
+        ${result.screenType === "JJAP_SUBAK" ? metric("EMA 모임", result.isLongEmaConverged ? "YES" : "NO", result.isLongEmaConverged ? "signal" : "") : ""}
+        ${result.screenType === "JJAP_SUBAK" ? metric("EMA224/448 없음", result.isMissingLongEma ? "YES" : "NO") : ""}
+        ${result.screenType === "JJAP_SUBAK" ? metric("EMA 모임률", formatPercent(result.longEmaConvergenceRate)) : ""}
+        ${result.screenType === "JJAP_SUBAK" ? metric("최고 장기 EMA", result.highestLongEmaPeriod ? `EMA${result.highestLongEmaPeriod}` : "-") : ""}
+        ${result.screenType === "JJAP_SUBAK" ? metric("최고 장기 EMA 값", formatPrice(result.highestLongEmaValue)) : ""}
+        ${result.screenType === "JJAP_SUBAK" ? metric("최고 장기 EMA 이격률", formatPercent(result.priceToHighestLongEmaGapRate), result.priceToHighestLongEmaGapRate > 0 ? "up" : result.priceToHighestLongEmaGapRate < 0 ? "down" : "") : ""}
+        ${result.screenType === "JJAP_SUBAK" ? metric("최고 장기 EMA 과열", result.isOverHighestLongEmaGap ? "YES" : "NO", result.isOverHighestLongEmaGap ? "down" : "") : ""}
+        ${result.screenType === "JJAP_SUBAK" ? metric("볼린저밴드", `${result.bollingerPeriod ?? 33} / ${result.bollingerStdDevMultiplier ?? 0.1} / ${result.bollingerShiftBars ?? 25}봉 shift`) : ""}
+        ${result.screenType === "JJAP_SUBAK" ? metric("최근 노란화살표", result.hasBollingerYellowArrowWithinRecentDays ? "YES" : "NO", result.hasBollingerYellowArrowWithinRecentDays ? "signal" : "") : ""}
+        ${result.screenType === "JJAP_SUBAK" ? metric("최근 화살표 개수", result.bollingerYellowArrowCount ?? "-") : ""}
+        ${result.screenType === "JJAP_SUBAK" ? metric("최근 상단선", formatPrice(result.latestShiftedUpperBand)) : ""}
+        ${result.screenType === "JJAP_SUBAK" ? metric("종가 > 최근 상단선", result.latestCloseAboveShiftedUpperBand ? "YES" : "NO", result.latestCloseAboveShiftedUpperBand ? "signal" : "") : ""}
         ${metric("EMA20", formatPrice(result.ema20))}
         ${metric("EMA60", formatPrice(result.ema60))}
         ${metric("EMA112", formatPrice(result.ema112))}

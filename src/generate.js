@@ -15,6 +15,7 @@ import {
 } from "./db.js";
 import { calculateMA5 } from "./buySignal.js";
 import { hasReadableDb, resolveDbPath } from "./config.js";
+import { calculateBollingerYellowArrowSignals } from "./screeners/jjapSubakScreener.js";
 
 const dbPath = resolveDbPath();
 const distDir = process.env.DIST_DIR ?? "dist";
@@ -31,6 +32,40 @@ const generateOptions = {
   recentRunLimit: Number(process.env.RECENT_RUN_LIMIT ?? 10),
   maxEmbeddedCandlesPerStock: Number(process.env.MAX_EMBEDDED_CANDLES_PER_STOCK ?? DEFAULT_OPTIONS.renderPeriod),
 };
+
+const highestHigh = (candles) =>
+  Math.max(...candles.map((candle) => Number(candle.high)).filter(Number.isFinite));
+
+const lowestLow = (candles) =>
+  Math.min(...candles.map((candle) => Number(candle.low)).filter(Number.isFinite));
+
+const calculateIchimokuSeries = (candles) =>
+  candles.map((candle, index) => {
+    const upToCurrent = candles.slice(0, index + 1);
+    if (upToCurrent.length < 52) {
+      return {
+        date: candle.date,
+        tenkanSen: null,
+        kijunSen: null,
+        senkouSpanA: null,
+        senkouSpanB: null,
+      };
+    }
+    const last9 = upToCurrent.slice(-9);
+    const last26 = upToCurrent.slice(-26);
+    const last52 = upToCurrent.slice(-52);
+    const tenkanSen = (highestHigh(last9) + lowestLow(last9)) / 2;
+    const kijunSen = (highestHigh(last26) + lowestLow(last26)) / 2;
+    const senkouSpanA = (tenkanSen + kijunSen) / 2;
+    const senkouSpanB = (highestHigh(last52) + lowestLow(last52)) / 2;
+    return {
+      date: candle.date,
+      tenkanSen: Number.isFinite(tenkanSen) ? Number(tenkanSen.toFixed(2)) : null,
+      kijunSen: Number.isFinite(kijunSen) ? Number(kijunSen.toFixed(2)) : null,
+      senkouSpanA: Number.isFinite(senkouSpanA) ? Number(senkouSpanA.toFixed(2)) : null,
+      senkouSpanB: Number.isFinite(senkouSpanB) ? Number(senkouSpanB.toFixed(2)) : null,
+    };
+  });
 
 const ensureOutputDirs = () => {
   mkdirSync(distDir, { recursive: true });
@@ -58,6 +93,8 @@ const createShellHtml = () => `<!doctype html>
 const createEmptyData = () => ({
   run: {
     runId: "-",
+    screenType: "DOWNTREND",
+    screenName: "우하향 필터",
     baseDate: "-",
     runAt: null,
     totalStockCount: 0,
@@ -89,6 +126,8 @@ const createEmptyData = () => ({
   results: [],
   chartData: {},
   emaData: {},
+  ichimokuData: {},
+  bollingerData: {},
 });
 
 const writeShellOutputs = () => {
@@ -148,6 +187,8 @@ try {
 
   const chartData = {};
   const emaData = {};
+  const ichimokuData = {};
+  const bollingerData = {};
   const results = filteredStocks.map((stock) => {
     const indicatorCandles = candlesMap.get(stock.code) ?? [];
     const renderCandles = indicatorCandles.slice(-renderPeriod);
@@ -159,6 +200,16 @@ try {
       candle.close,
     ]);
     const allEmaValues = calculateEMAs(indicatorCandles, DEFAULT_OPTIONS.emaPeriods);
+    ichimokuData[stock.code] = calculateIchimokuSeries(indicatorCandles)
+      .slice(-renderPeriod);
+    bollingerData[stock.code] =
+      stock.screenType === "JJAP_SUBAK"
+        ? calculateBollingerYellowArrowSignals(indicatorCandles, {
+            bollingerPeriod: stock.bollingerPeriod ?? 33,
+            bollingerStdDevMultiplier: stock.bollingerStdDevMultiplier ?? 0.1,
+            bollingerShiftBars: stock.bollingerShiftBars ?? 25,
+          }).slice(-renderPeriod)
+        : [];
     emaData[stock.code] = Object.fromEntries(
       DEFAULT_OPTIONS.emaPeriods.map((period) => [
         `ema${period}`,
@@ -173,6 +224,8 @@ try {
       code: stock.code,
       name: stock.name,
       market: stock.market,
+      screenType: stock.screenType,
+      screenName: stock.screenName,
       rankNo: stock.rankNo,
       baseDate: stock.baseDate,
       matchedPeriod: stock.matchedPeriod,
@@ -207,6 +260,29 @@ try {
       trendNextX: stock.trendNextX,
       trendNextY: stock.trendNextY,
       trendNextPrice: stock.trendNextPrice,
+      tenkanSen: stock.tenkanSen,
+      kijunSen: stock.kijunSen,
+      senkouSpanA: stock.senkouSpanA,
+      senkouSpanB: stock.senkouSpanB,
+      cloudTop: stock.cloudTop,
+      cloudBottom: stock.cloudBottom,
+      isAboveIchimokuCloud: stock.isAboveIchimokuCloud,
+      isLongEmaConverged: stock.isLongEmaConverged,
+      isMissingLongEma: stock.isMissingLongEma,
+      longEmaConvergenceRate: stock.longEmaConvergenceRate,
+      longEmaConditionReason: stock.longEmaConditionReason,
+      highestLongEmaPeriod: stock.highestLongEmaPeriod,
+      highestLongEmaValue: stock.highestLongEmaValue,
+      priceToHighestLongEmaGapRate: stock.priceToHighestLongEmaGapRate,
+      isOverHighestLongEmaGap: stock.isOverHighestLongEmaGap,
+      bollingerPeriod: stock.bollingerPeriod,
+      bollingerStdDevMultiplier: stock.bollingerStdDevMultiplier,
+      bollingerShiftBars: stock.bollingerShiftBars,
+      bollingerYellowArrowLookbackDays: stock.bollingerYellowArrowLookbackDays,
+      hasBollingerYellowArrowWithinRecentDays: stock.hasBollingerYellowArrowWithinRecentDays,
+      bollingerYellowArrowCount: stock.bollingerYellowArrowCount,
+      latestShiftedUpperBand: stock.latestShiftedUpperBand,
+      latestCloseAboveShiftedUpperBand: stock.latestCloseAboveShiftedUpperBand,
       ma5Price: calculateMA5(renderCandles),
       buySignal: buySignal
         ? {
@@ -250,6 +326,8 @@ try {
     results,
     chartData,
     emaData,
+    ichimokuData,
+    bollingerData,
   };
   return data;
   };

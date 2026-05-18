@@ -9,6 +9,17 @@ const toNumber = (value) => {
 
 const toFlag = (value) => (Number(value) === 1 || value === true ? 1 : 0);
 
+export const SCREEN_TYPES = Object.freeze({
+  DOWNTREND: "DOWNTREND",
+  JJAP_SUBAK: "JJAP_SUBAK",
+});
+
+export const getScreenTypeName = (screenType) => {
+  if (screenType === SCREEN_TYPES.JJAP_SUBAK) return "짭수박지표";
+  if (screenType === SCREEN_TYPES.DOWNTREND) return "우하향 필터";
+  return screenType ?? SCREEN_TYPES.DOWNTREND;
+};
+
 export const DEFAULT_STOCK_EXCLUSION_OPTIONS = Object.freeze({
   excludeEtf: true,
   excludeEtn: true,
@@ -44,6 +55,7 @@ const STOCK_META_COLUMNS = [
 ];
 
 const SCREENING_RUN_EXTRA_COLUMNS = [
+  ["screen_type", "TEXT DEFAULT 'DOWNTREND'"],
   ["excluded_stock_count", "INTEGER DEFAULT 0"],
   ["screening_target_count", "INTEGER DEFAULT 0"],
   ["exclude_etf", "INTEGER DEFAULT 1"],
@@ -62,6 +74,7 @@ const SCREENING_RUN_EXTRA_COLUMNS = [
 ];
 
 const FILTERED_STOCK_EXTRA_COLUMNS = [
+  ["screen_type", "TEXT DEFAULT 'DOWNTREND'"],
   ["ema5", "REAL"],
   ["ema20", "REAL"],
   ["ema60", "REAL"],
@@ -78,6 +91,29 @@ const FILTERED_STOCK_EXTRA_COLUMNS = [
   ["trend_next_x", "REAL"],
   ["trend_next_y", "REAL"],
   ["trend_next_price", "REAL"],
+  ["tenkan_sen", "REAL"],
+  ["kijun_sen", "REAL"],
+  ["senkou_span_a", "REAL"],
+  ["senkou_span_b", "REAL"],
+  ["cloud_top", "REAL"],
+  ["cloud_bottom", "REAL"],
+  ["is_above_ichimoku_cloud", "INTEGER DEFAULT 0"],
+  ["is_long_ema_converged", "INTEGER DEFAULT 0"],
+  ["is_missing_long_ema", "INTEGER DEFAULT 0"],
+  ["long_ema_convergence_rate", "REAL"],
+  ["long_ema_condition_reason", "TEXT"],
+  ["highest_long_ema_period", "INTEGER"],
+  ["highest_long_ema_value", "REAL"],
+  ["price_to_highest_long_ema_gap_rate", "REAL"],
+  ["is_over_highest_long_ema_gap", "INTEGER DEFAULT 0"],
+  ["bollinger_period", "INTEGER"],
+  ["bollinger_std_dev_multiplier", "REAL"],
+  ["bollinger_shift_bars", "INTEGER"],
+  ["bollinger_yellow_arrow_lookback_days", "INTEGER"],
+  ["has_bollinger_yellow_arrow_within_recent_days", "INTEGER DEFAULT 0"],
+  ["bollinger_yellow_arrow_count", "INTEGER DEFAULT 0"],
+  ["latest_shifted_upper_band", "REAL"],
+  ["latest_close_above_shifted_upper_band", "INTEGER DEFAULT 0"],
 ];
 
 const ensureColumns = (db, tableName, columns) => {
@@ -280,6 +316,7 @@ export const initDatabase = (db) => {
     CREATE TABLE IF NOT EXISTS screening_runs (
       run_id INTEGER PRIMARY KEY AUTOINCREMENT,
       run_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      screen_type TEXT DEFAULT 'DOWNTREND',
       base_date TEXT NOT NULL,
       data_source TEXT DEFAULT 'database',
       total_stock_count INTEGER DEFAULT 0,
@@ -309,6 +346,7 @@ export const initDatabase = (db) => {
     CREATE TABLE IF NOT EXISTS filtered_stocks (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       run_id INTEGER NOT NULL,
+      screen_type TEXT DEFAULT 'DOWNTREND',
       code TEXT NOT NULL,
       name TEXT NOT NULL,
       market TEXT,
@@ -340,6 +378,29 @@ export const initDatabase = (db) => {
       trend_next_x REAL,
       trend_next_y REAL,
       trend_next_price REAL,
+      tenkan_sen REAL,
+      kijun_sen REAL,
+      senkou_span_a REAL,
+      senkou_span_b REAL,
+      cloud_top REAL,
+      cloud_bottom REAL,
+      is_above_ichimoku_cloud INTEGER DEFAULT 0,
+      is_long_ema_converged INTEGER DEFAULT 0,
+      is_missing_long_ema INTEGER DEFAULT 0,
+      long_ema_convergence_rate REAL,
+      long_ema_condition_reason TEXT,
+      highest_long_ema_period INTEGER,
+      highest_long_ema_value REAL,
+      price_to_highest_long_ema_gap_rate REAL,
+      is_over_highest_long_ema_gap INTEGER DEFAULT 0,
+      bollinger_period INTEGER,
+      bollinger_std_dev_multiplier REAL,
+      bollinger_shift_bars INTEGER,
+      bollinger_yellow_arrow_lookback_days INTEGER,
+      has_bollinger_yellow_arrow_within_recent_days INTEGER DEFAULT 0,
+      bollinger_yellow_arrow_count INTEGER DEFAULT 0,
+      latest_shifted_upper_band REAL,
+      latest_close_above_shifted_upper_band INTEGER DEFAULT 0,
       rank_no INTEGER,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (run_id) REFERENCES screening_runs(run_id),
@@ -637,9 +698,10 @@ export const loadRecentCandlesForCodes = (db, codes, candleLimit = 120) => {
 };
 
 export const insertScreeningRun = (db, runSummary, options) => {
+  const screenType = options.screenType ?? runSummary.screenType ?? SCREEN_TYPES.DOWNTREND;
   const result = db.prepare(`
     INSERT INTO screening_runs (
-      base_date, data_source, total_stock_count, matched_stock_count,
+      screen_type, base_date, data_source, total_stock_count, matched_stock_count,
       render_period, scan_min_period, scan_max_period,
       min_angle_degree, min_return_rate, min_r_squared,
       excluded_stock_count, screening_target_count,
@@ -649,8 +711,9 @@ export const insertScreeningRun = (db, runSummary, options) => {
       use_last_price_below_ema5_filter, use_ema5_to_112_gap_filter,
       min_ema5_to_112_gap_rate, note
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
+    screenType,
     runSummary.baseDate,
     runSummary.dataSource ?? "database",
     runSummary.totalStockCount ?? 0,
@@ -681,40 +744,52 @@ export const insertScreeningRun = (db, runSummary, options) => {
   return Number(result.lastInsertRowid);
 };
 
-export const insertFilteredStocks = (db, runId, results) => {
+export const insertFilteredStocks = (db, runId, results, options = {}) => {
   const statement = db.prepare(`
     INSERT INTO filtered_stocks (
-      run_id, code, name, market, base_date, matched_period,
+      run_id, screen_type, code, name, market, base_date, matched_period,
       scan_start_date, scan_end_date, slope_pixel, angle_degree, r_squared,
       return_rate, first_price, last_price, last_close, daily_change_rate,
       ema5, ema20, ema60, ema112, ema224, ema448, is_long_ema_bearish,
       is_last_price_below_ema5, ema5_to_112_gap_rate,
       is_ema5_far_below_ema112, regression_intercept,
       trend_line_start_price, trend_line_end_price, trend_next_x,
-      trend_next_y, trend_next_price, rank_no
+      trend_next_y, trend_next_price, tenkan_sen, kijun_sen,
+      senkou_span_a, senkou_span_b, cloud_top, cloud_bottom,
+      is_above_ichimoku_cloud, is_long_ema_converged,
+      is_missing_long_ema, long_ema_convergence_rate,
+      long_ema_condition_reason, highest_long_ema_period,
+      highest_long_ema_value, price_to_highest_long_ema_gap_rate,
+      is_over_highest_long_ema_gap, bollinger_period,
+      bollinger_std_dev_multiplier, bollinger_shift_bars,
+      bollinger_yellow_arrow_lookback_days,
+      has_bollinger_yellow_arrow_within_recent_days,
+      bollinger_yellow_arrow_count, latest_shifted_upper_band,
+      latest_close_above_shifted_upper_band, rank_no
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const insertMany = db.transaction((rows) => {
     rows.forEach((result, index) => {
       statement.run(
         runId,
+        result.screenType ?? options.screenType ?? SCREEN_TYPES.DOWNTREND,
         result.code,
         result.name,
         result.market ?? null,
-        result.scanEndDate,
-        result.matchedPeriod,
-        result.scanStartDate,
-        result.scanEndDate,
-        result.slopePixel,
-        result.angleDegree,
-        result.rSquared,
-        result.returnRate,
-        result.firstPrice,
-        result.lastPrice,
-        result.lastClose,
-        result.dailyChangeRate,
+        result.baseDate ?? result.scanEndDate,
+        result.matchedPeriod ?? 0,
+        result.scanStartDate ?? result.baseDate ?? result.scanEndDate,
+        result.scanEndDate ?? result.baseDate ?? result.scanStartDate,
+        result.slopePixel ?? 0,
+        result.angleDegree ?? 0,
+        result.rSquared ?? 0,
+        result.returnRate ?? 0,
+        result.firstPrice ?? result.lastClose ?? 0,
+        result.lastPrice ?? result.lastClose ?? 0,
+        result.lastClose ?? 0,
+        result.dailyChangeRate ?? null,
         result.ema5 ?? null,
         result.ema20 ?? null,
         result.ema60 ?? null,
@@ -731,6 +806,29 @@ export const insertFilteredStocks = (db, runId, results) => {
         result.trendNextX ?? null,
         result.trendNextY ?? null,
         result.trendNextPrice ?? null,
+        result.tenkanSen ?? null,
+        result.kijunSen ?? null,
+        result.senkouSpanA ?? null,
+        result.senkouSpanB ?? null,
+        result.cloudTop ?? null,
+        result.cloudBottom ?? null,
+        toFlag(result.isAboveIchimokuCloud),
+        toFlag(result.isLongEmaConverged),
+        toFlag(result.isMissingLongEma),
+        result.longEmaConvergenceRate ?? null,
+        result.longEmaConditionReason ?? null,
+        result.highestLongEmaPeriod ?? null,
+        result.highestLongEmaValue ?? null,
+        result.priceToHighestLongEmaGapRate ?? null,
+        toFlag(result.isOverHighestLongEmaGap),
+        result.bollingerPeriod ?? null,
+        result.bollingerStdDevMultiplier ?? null,
+        result.bollingerShiftBars ?? null,
+        result.bollingerYellowArrowLookbackDays ?? null,
+        toFlag(result.hasBollingerYellowArrowWithinRecentDays),
+        result.bollingerYellowArrowCount ?? 0,
+        result.latestShiftedUpperBand ?? null,
+        toFlag(result.latestCloseAboveShiftedUpperBand),
         index + 1,
       );
     });
@@ -739,15 +837,23 @@ export const insertFilteredStocks = (db, runId, results) => {
   insertMany(results ?? []);
 };
 
-export const getLatestScreeningRun = (db) =>
-  db
+export const getLatestScreeningRun = (db, screenType) => {
+  if (screenType) {
+    return db
+      .prepare("SELECT * FROM screening_runs WHERE screen_type = ? ORDER BY run_id DESC LIMIT 1")
+      .get(screenType) ?? null;
+  }
+  return db
     .prepare("SELECT * FROM screening_runs ORDER BY run_id DESC LIMIT 1")
     .get() ?? null;
+};
 
 const mapRunRow = (row) =>
   row
     ? {
         runId: row.run_id,
+        screenType: row.screen_type ?? SCREEN_TYPES.DOWNTREND,
+        screenName: getScreenTypeName(row.screen_type ?? SCREEN_TYPES.DOWNTREND),
         baseDate: row.base_date,
         runAt: row.run_at,
         dataSource: row.data_source,
@@ -793,6 +899,8 @@ export const loadScreeningRuns = (db, { limit = 10 } = {}) => {
 const mapFilteredRow = (row) => ({
   id: row.id,
   runId: row.run_id,
+  screenType: row.screen_type ?? SCREEN_TYPES.DOWNTREND,
+  screenName: getScreenTypeName(row.screen_type ?? SCREEN_TYPES.DOWNTREND),
   code: row.code,
   name: row.name,
   market: row.market,
@@ -824,6 +932,29 @@ const mapFilteredRow = (row) => ({
   trendNextX: row.trend_next_x,
   trendNextY: row.trend_next_y,
   trendNextPrice: row.trend_next_price,
+  tenkanSen: row.tenkan_sen,
+  kijunSen: row.kijun_sen,
+  senkouSpanA: row.senkou_span_a,
+  senkouSpanB: row.senkou_span_b,
+  cloudTop: row.cloud_top,
+  cloudBottom: row.cloud_bottom,
+  isAboveIchimokuCloud: Boolean(row.is_above_ichimoku_cloud),
+  isLongEmaConverged: Boolean(row.is_long_ema_converged),
+  isMissingLongEma: Boolean(row.is_missing_long_ema),
+  longEmaConvergenceRate: row.long_ema_convergence_rate,
+  longEmaConditionReason: row.long_ema_condition_reason,
+  highestLongEmaPeriod: row.highest_long_ema_period,
+  highestLongEmaValue: row.highest_long_ema_value,
+  priceToHighestLongEmaGapRate: row.price_to_highest_long_ema_gap_rate,
+  isOverHighestLongEmaGap: Boolean(row.is_over_highest_long_ema_gap),
+  bollingerPeriod: row.bollinger_period,
+  bollingerStdDevMultiplier: row.bollinger_std_dev_multiplier,
+  bollingerShiftBars: row.bollinger_shift_bars,
+  bollingerYellowArrowLookbackDays: row.bollinger_yellow_arrow_lookback_days,
+  hasBollingerYellowArrowWithinRecentDays: Boolean(row.has_bollinger_yellow_arrow_within_recent_days),
+  bollingerYellowArrowCount: row.bollinger_yellow_arrow_count,
+  latestShiftedUpperBand: row.latest_shifted_upper_band,
+  latestCloseAboveShiftedUpperBand: Boolean(row.latest_close_above_shifted_upper_band),
   rankNo: row.rank_no,
   createdAt: row.created_at,
 });
@@ -935,10 +1066,11 @@ const normalizePaging = ({ limit, offset } = {}) => ({
   offset: Math.max(Number.parseInt(offset ?? "0", 10) || 0, 0),
 });
 
-export const loadLatestScreeningRunForApi = (db) => mapRunRow(getLatestScreeningRun(db));
+export const loadLatestScreeningRunForApi = (db, screenType) =>
+  mapRunRow(getLatestScreeningRun(db, screenType));
 
 export const loadLatestFilteredStocksForApi = (db, paging = {}) => {
-  const latestRun = getLatestScreeningRun(db);
+  const latestRun = getLatestScreeningRun(db, paging.screen_type ?? paging.screenType);
   if (!latestRun) return { run: null, count: 0, results: [] };
   const { limit, offset } = normalizePaging(paging);
   const count = db

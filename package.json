@@ -10,6 +10,7 @@
     "prepare:db-upload": "python3 scripts/prepare-db-upload.py",
     "create:sample-db": "node src/createSampleDb.js",
     "screen": "node src/screen.js",
+    "screen:jjap-subak": "node src/screenJjapSubak.js",
     "watch:buy": "node src/watchBuySignals.js",
     "generate": "node src/generate.js",
     "api": "npx -y node@20 src/apiServer.js",
