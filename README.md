@@ -240,7 +240,8 @@ python3 scripts/query-prices.py --code 005930 --csv --output samsung.csv
 
 짭쩡는 close 기준 EMA112/224/448 장기 조건도 확인합니다. EMA112는 반드시 있어야 하며, 아래 중 하나라도 만족하면 통과합니다.
 
-- EMA112, EMA224, EMA448의 최대/최소 차이가 3% 이내
+- EMA112, EMA224, EMA448 세 개가 3% 이내로 모여 있음
+- 또는 EMA112-EMA224, EMA112-EMA448, EMA224-EMA448 중 하나라도 3% 이내로 모여 있음
 - `EMA112 < EMA224 < EMA448` 역배열
 - EMA224 또는 EMA448을 계산할 수 없음
 
@@ -332,9 +333,10 @@ EXCLUDE_ETF=0 EXCLUDE_ETN=0 EXCLUDE_PREFERRED=0 npm run screen
 
 우하향 필터링은 종가 `close` 기준 EMA를 함께 계산합니다. 기간은 `5, 20, 60, 112, 224, 448`이고, 장기 EMA 조건은 아래 중 하나라도 만족하면 통과합니다.
 
-1. EMA112, EMA224, EMA448이 3% 이내로 모여 있음
-2. `EMA112 < EMA224 < EMA448` 역배열
-3. EMA224 또는 EMA448을 계산할 수 없음
+1. EMA112, EMA224, EMA448 세 개가 3% 이내로 모여 있음
+2. EMA112-EMA224, EMA112-EMA448, EMA224-EMA448 중 하나라도 3% 이내로 모여 있음
+3. `EMA112 < EMA224 < EMA448` 역배열
+4. EMA224 또는 EMA448을 계산할 수 없음
 
 단, EMA112가 없으면 제외합니다.
 

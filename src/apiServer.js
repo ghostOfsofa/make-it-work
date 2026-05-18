@@ -12,6 +12,7 @@ import {
   loadScreeningRuns,
   loadStockDetailForApi,
   openDatabase,
+  SCREEN_TYPES,
 } from "./db.js";
 import { hasReadableDb, resolveDbPath } from "./config.js";
 
@@ -24,6 +25,21 @@ const app = express();
 
 const jsonError = (res, status, message) =>
   res.status(status).json({ ok: false, error: message });
+
+const normalizeScreenType = (value) => {
+  if (value == null || value === "") return null;
+  const screenType = String(value).toUpperCase();
+  return Object.values(SCREEN_TYPES).includes(screenType) ? screenType : undefined;
+};
+
+const getValidScreenTypeOrRespond = (req, res) => {
+  const screenType = normalizeScreenType(req.query.screen_type ?? req.query.screenType);
+  if (screenType === undefined) {
+    jsonError(res, 400, "Invalid screen_type");
+    return undefined;
+  }
+  return screenType;
+};
 
 const requireApiKey = (req, res, next) => {
   if (!API_KEY) {
@@ -61,8 +77,10 @@ app.get("/api/health", (_req, res) => {
 });
 
 app.get("/api/latest-run", (req, res) => {
+  const screenType = getValidScreenTypeOrRespond(req, res);
+  if (screenType === undefined) return;
   withDatabase(res, (db) => {
-    const run = loadLatestScreeningRunForApi(db, req.query.screen_type);
+    const run = loadLatestScreeningRunForApi(db, screenType);
     if (!run) {
       jsonError(res, 404, "latest screening run not found");
       return;
@@ -72,8 +90,13 @@ app.get("/api/latest-run", (req, res) => {
 });
 
 app.get("/api/filtered-stocks/latest", (req, res) => {
+  const screenType = getValidScreenTypeOrRespond(req, res);
+  if (screenType === undefined) return;
   withDatabase(res, (db) => {
-    const { run, count, results } = loadLatestFilteredStocksForApi(db, req.query);
+    const { run, count, results } = loadLatestFilteredStocksForApi(db, {
+      ...req.query,
+      screen_type: screenType,
+    });
     if (!run) {
       jsonError(res, 404, "latest screening run not found");
       return;
@@ -97,8 +120,10 @@ app.get("/api/screening-runs", (req, res) => {
 });
 
 app.get("/api/filtered-stocks", (req, res) => {
+  const screenType = getValidScreenTypeOrRespond(req, res);
+  if (screenType === undefined) return;
   withDatabase(res, (db) => {
-    const latestRun = getLatestScreeningRun(db, req.query.screen_type);
+    const latestRun = getLatestScreeningRun(db, screenType);
     const runId = Number(req.query.run_id ?? latestRun?.run_id);
     if (!Number.isFinite(runId)) {
       jsonError(res, 404, "screening run not found");
@@ -106,14 +131,14 @@ app.get("/api/filtered-stocks", (req, res) => {
     }
     const includeCurrent = String(req.query.include_current ?? "false") === "true";
     const results = includeCurrent
-      ? loadFilteredStocksWithCurrentPrice(db, runId)
-      : loadFilteredStocksByRunId(db, runId);
+      ? loadFilteredStocksWithCurrentPrice(db, runId, screenType)
+      : loadFilteredStocksByRunId(db, runId, screenType);
     const signals = loadBuySignalsByRunId(db, runId);
     res.json({
       ok: true,
       runId,
-      screenType: latestRun?.screen_type,
-      screenName: getScreenTypeName(latestRun?.screen_type),
+      screenType: latestRun?.screen_type ?? screenType,
+      screenName: getScreenTypeName(latestRun?.screen_type ?? screenType),
       count: results.length,
       results,
       buySignalCount: signals.length,

@@ -199,6 +199,12 @@ const formatDateLabel = (date) => {
 const metric = (label, value, className = "") =>
   `<span class="metric ${className}"><b>${escapeHtml(label)}</b>${value}</span>`;
 
+const formatLongEmaConvergenceLabel = (result) => {
+  if (result.longEmaConditionReason === "THREE_EMA_CONVERGED") return "3개 모임";
+  if (result.longEmaConditionReason === "TWO_EMA_CONVERGED") return "2개 모임";
+  return result.isLongEmaConverged ? "YES" : "NO";
+};
+
 const trendPrice = (candle) => candle.high;
 
 const unpackCandles = (rows = []) =>
@@ -1009,7 +1015,7 @@ const renderResultCard = (result, visibleIndex, absoluteIndex) => {
         ${result.screenType === "JJAP_SUBAK" ? metric("구름대 이격률", formatPercent(result.ichimokuCloudGapRate), result.ichimokuCloudGapRate > 0 ? "up" : result.ichimokuCloudGapRate < 0 ? "down" : "") : ""}
         ${result.screenType === "JJAP_SUBAK" ? metric("이격 제한", "13% 미만") : ""}
         ${metric("장기 EMA 조건", escapeHtml(result.longEmaConditionReason ?? "-"))}
-        ${metric("EMA 모임", result.isLongEmaConverged ? "YES" : "NO", result.isLongEmaConverged ? "signal" : "")}
+        ${metric("EMA 모임", formatLongEmaConvergenceLabel(result), result.isLongEmaConverged ? "signal" : "")}
         ${metric("EMA224/448 없음", result.isMissingLongEma ? "YES" : "NO")}
         ${metric("EMA 모임률", formatPercent(result.longEmaConvergenceRate))}
         ${result.screenType === "JJAP_SUBAK" ? metric("장기 EMA 정배열", result.isBullishLongEmaAlignment ? "YES" : "NO") : ""}

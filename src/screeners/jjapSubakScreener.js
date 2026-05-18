@@ -127,6 +127,82 @@ export const isPriceAboveShiftedIchimokuCloud = (candles, options = {}) => {
   };
 };
 
+export const calculatePairGapRate = (leftValue, rightValue) => {
+  const left = Number(leftValue);
+  const right = Number(rightValue);
+  if (!Number.isFinite(left) || !Number.isFinite(right) || left <= 0 || right <= 0) {
+    return null;
+  }
+
+  const maxValue = Math.max(left, right);
+  const minValue = Math.min(left, right);
+  return ((maxValue - minValue) / maxValue) * 100;
+};
+
+export const evaluateLongEmaConvergence = (emaValues, options = {}) => {
+  const threshold = options.maxLongEmaConvergenceRate ?? 3;
+  const available = [
+    { period: 112, value: Number(emaValues.ema112) },
+    { period: 224, value: Number(emaValues.ema224) },
+    { period: 448, value: Number(emaValues.ema448) },
+  ].filter((item) => Number.isFinite(item.value) && item.value > 0);
+
+  if (available.length < 2) {
+    return {
+      isLongEmaConverged: false,
+      longEmaConvergenceType: null,
+      longEmaConvergenceRate: null,
+      allLongEmaConvergenceRate: null,
+      convergedPairs: [],
+    };
+  }
+
+  const pairs = [];
+  for (let leftIndex = 0; leftIndex < available.length; leftIndex += 1) {
+    for (let rightIndex = leftIndex + 1; rightIndex < available.length; rightIndex += 1) {
+      const left = available[leftIndex];
+      const right = available[rightIndex];
+      const gapRate = calculatePairGapRate(left.value, right.value);
+      if (gapRate == null) continue;
+      pairs.push({
+        pair: `${left.period}-${right.period}`,
+        leftPeriod: left.period,
+        rightPeriod: right.period,
+        gapRate,
+        isConverged: gapRate <= threshold,
+      });
+    }
+  }
+
+  const convergedPairs = pairs.filter((pair) => pair.isConverged);
+  const values = available.map((item) => item.value);
+  const maxValue = Math.max(...values);
+  const minValue = Math.min(...values);
+  const allLongEmaConvergenceRate =
+    maxValue > 0 ? ((maxValue - minValue) / maxValue) * 100 : null;
+  const isAllThreeConverged =
+    available.length === 3 &&
+    allLongEmaConvergenceRate != null &&
+    allLongEmaConvergenceRate <= threshold;
+  const isAnyPairConverged = convergedPairs.length >= 1;
+  const isLongEmaConverged = isAllThreeConverged || isAnyPairConverged;
+  const longEmaConvergenceType = isAllThreeConverged
+    ? "THREE_EMA_CONVERGED"
+    : isAnyPairConverged
+      ? "TWO_EMA_CONVERGED"
+      : null;
+
+  return {
+    isLongEmaConverged,
+    longEmaConvergenceType,
+    longEmaConvergenceRate: isAllThreeConverged
+      ? allLongEmaConvergenceRate
+      : convergedPairs[0]?.gapRate ?? null,
+    allLongEmaConvergenceRate,
+    convergedPairs,
+  };
+};
+
 export const evaluateJjapSubakLongEmaCondition = (emaValues, options = {}) => {
   const ema112 = emaValues.ema112;
   const ema224 = emaValues.ema224;
@@ -160,14 +236,8 @@ export const evaluateJjapSubakLongEmaCondition = (emaValues, options = {}) => {
     };
   }
 
-  const maxLongEma = Math.max(ema112, ema224, ema448);
-  const minLongEma = Math.min(ema112, ema224, ema448);
-  const longEmaConvergenceRate =
-    maxLongEma > 0 ? ((maxLongEma - minLongEma) / maxLongEma) * 100 : null;
-  const maxLongEmaConvergenceRate = options.maxLongEmaConvergenceRate ?? 3;
-  const isLongEmaConverged =
-    longEmaConvergenceRate != null &&
-    longEmaConvergenceRate <= maxLongEmaConvergenceRate;
+  const convergenceCheck = evaluateLongEmaConvergence(emaValues, options);
+  const isLongEmaConverged = convergenceCheck.isLongEmaConverged;
   const isLongEmaBearish = ema112 < ema224 && ema224 < ema448;
   const passed = isLongEmaConverged || isLongEmaBearish || isMissingLongEma;
 
@@ -175,7 +245,7 @@ export const evaluateJjapSubakLongEmaCondition = (emaValues, options = {}) => {
     passed,
     reason: passed
       ? isLongEmaConverged
-        ? "LONG_EMA_CONVERGED"
+        ? convergenceCheck.longEmaConvergenceType
         : isLongEmaBearish
           ? "LONG_EMA_BEARISH"
           : "EMA224_OR_448_MISSING"
@@ -183,7 +253,10 @@ export const evaluateJjapSubakLongEmaCondition = (emaValues, options = {}) => {
     isLongEmaConverged,
     isLongEmaBearish,
     isMissingLongEma,
-    longEmaConvergenceRate,
+    longEmaConvergenceType: convergenceCheck.longEmaConvergenceType,
+    longEmaConvergenceRate: convergenceCheck.longEmaConvergenceRate,
+    allLongEmaConvergenceRate: convergenceCheck.allLongEmaConvergenceRate,
+    convergedPairs: convergenceCheck.convergedPairs,
   };
 };
 
@@ -576,7 +649,10 @@ export const analyzeJjapSubakStock = (stock, options = {}) => {
     isAboveIchimokuCloud: isAboveCloud,
     isLongEmaConverged: longEmaCheck.isLongEmaConverged,
     isMissingLongEma: longEmaCheck.isMissingLongEma,
+    longEmaConvergenceType: longEmaCheck.longEmaConvergenceType,
     longEmaConvergenceRate: longEmaCheck.longEmaConvergenceRate,
+    allLongEmaConvergenceRate: longEmaCheck.allLongEmaConvergenceRate,
+    convergedPairs: longEmaCheck.convergedPairs,
     longEmaConditionReason: longEmaCheck.reason,
     isBullishLongEmaAlignment: bullishLongEmaPairGapCheck.isBullishLongEmaAlignment,
     ema112To224GapRate: bullishLongEmaPairGapCheck.ema112To224GapRate,

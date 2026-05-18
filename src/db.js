@@ -990,14 +990,17 @@ const mapFilteredRow = (row) => ({
   createdAt: row.created_at,
 });
 
-export const loadFilteredStocksByRunId = (db, runId) =>
-  db
-    .prepare("SELECT * FROM filtered_stocks WHERE run_id = ? ORDER BY rank_no, angle_degree DESC")
-    .all(runId)
+export const loadFilteredStocksByRunId = (db, runId, screenType) => {
+  const where = screenType ? "WHERE run_id = ? AND screen_type = ?" : "WHERE run_id = ?";
+  const params = screenType ? [runId, screenType] : [runId];
+  return db
+    .prepare(`SELECT * FROM filtered_stocks ${where} ORDER BY rank_no, angle_degree DESC`)
+    .all(...params)
     .map(mapFilteredRow);
+};
 
-export const loadFilteredStocksWithCurrentPrice = (db, runId) => {
-  const rows = loadFilteredStocksByRunId(db, runId);
+export const loadFilteredStocksWithCurrentPrice = (db, runId, screenType) => {
+  const rows = loadFilteredStocksByRunId(db, runId, screenType);
   const latestPrice = db.prepare(`
     SELECT date, close
     FROM stock_prices
@@ -1101,22 +1104,35 @@ export const loadLatestScreeningRunForApi = (db, screenType) =>
   mapRunRow(getLatestScreeningRun(db, screenType));
 
 export const loadLatestFilteredStocksForApi = (db, paging = {}) => {
-  const latestRun = getLatestScreeningRun(db, paging.screen_type ?? paging.screenType);
+  const screenType = paging.screen_type ?? paging.screenType;
+  const latestRun = getLatestScreeningRun(db, screenType);
   if (!latestRun) return { run: null, count: 0, results: [] };
-  const { limit, offset } = normalizePaging(paging);
+  const where = screenType ? "WHERE run_id = ? AND screen_type = ?" : "WHERE run_id = ?";
+  const params = screenType ? [latestRun.run_id, screenType] : [latestRun.run_id];
   const count = db
-    .prepare("SELECT COUNT(*) AS count FROM filtered_stocks WHERE run_id = ?")
-    .get(latestRun.run_id)?.count ?? 0;
-  const results = db
-    .prepare(`
-      SELECT *
-      FROM filtered_stocks
-      WHERE run_id = ?
-      ORDER BY rank_no, angle_degree DESC
-      LIMIT ? OFFSET ?
-    `)
-    .all(latestRun.run_id, limit, offset)
-    .map(mapFilteredRow);
+    .prepare(`SELECT COUNT(*) AS count FROM filtered_stocks ${where}`)
+    .get(...params)?.count ?? 0;
+  const hasLimit = paging.limit != null && paging.limit !== "";
+  const results = hasLimit
+    ? db
+        .prepare(`
+          SELECT *
+          FROM filtered_stocks
+          ${where}
+          ORDER BY rank_no, angle_degree DESC
+          LIMIT ? OFFSET ?
+        `)
+        .all(...params, normalizePaging(paging).limit, normalizePaging(paging).offset)
+        .map(mapFilteredRow)
+    : db
+        .prepare(`
+          SELECT *
+          FROM filtered_stocks
+          ${where}
+          ORDER BY rank_no, angle_degree DESC
+        `)
+        .all(...params)
+        .map(mapFilteredRow);
   return { run: mapRunRow(latestRun), count, results };
 };
 
