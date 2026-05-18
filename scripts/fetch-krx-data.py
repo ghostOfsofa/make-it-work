@@ -641,7 +641,7 @@ def main():
     end_date = (
         datetime.strptime(args.end_date, "%Y-%m-%d").date()
         if args.end_date
-        else (datetime.now() - timedelta(days=1)).date()
+        else (datetime.now() - timedelta(days=0)).date()
     )
     try:
         stocks = fetch_stock_list()

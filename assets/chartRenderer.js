@@ -80,7 +80,9 @@ const MINI_CHART_OPTIONS = {
   showTenkanLine: false,
   showKijunLine: false,
   ichimokuDisplacement: 26,
-  showBollingerBands: true,
+  showBollingerUpperBand: true,
+  showBollingerMiddleBand: false,
+  showBollingerLowerBand: false,
   showBollingerYellowArrows: true,
   showMatchedArea: true,
   showCandleWick: true,
@@ -122,7 +124,9 @@ const DETAIL_CHART_OPTIONS = {
   showTenkanLine: false,
   showKijunLine: false,
   ichimokuDisplacement: 26,
-  showBollingerBands: true,
+  showBollingerUpperBand: true,
+  showBollingerMiddleBand: false,
+  showBollingerLowerBand: false,
   showBollingerYellowArrows: true,
   showMatchedArea: true,
   showCandleWick: true,
@@ -381,7 +385,14 @@ const calculateBollingerYellowArrowSignals = (candles, options = {}) => {
 };
 
 const createBollingerBandLines = ({ result, candles, scale, options, bollingerOptions }) => {
-  if (result.screenType !== "JJAP_SUBAK" || !options.showBollingerBands) return "";
+  if (
+    result.screenType !== "JJAP_SUBAK" ||
+    (!options.showBollingerUpperBand &&
+      !options.showBollingerMiddleBand &&
+      !options.showBollingerLowerBand)
+  ) {
+    return "";
+  }
   const shiftBars = bollingerOptions.bollingerShiftBars ?? 25;
   const points = calculateShiftedBollingerBands(candles, bollingerOptions)
     .map((band, index) => ({
@@ -393,21 +404,27 @@ const createBollingerBandLines = ({ result, candles, scale, options, bollingerOp
     y: isFiniteValue(point[key]) ? scale.y(Number(point[key])) : Number.NaN,
   });
   return [
-    createPolyline(
-      points.map((point) => toBandPoint(point, "upperBand")),
-      COLORS.bollingerUpper,
-      `stroke-width="1.4" opacity="0.9"`,
-    ),
-    createPolyline(
-      points.map((point) => toBandPoint(point, "middleBand")),
-      COLORS.bollingerMiddle,
-      `stroke-width="1" opacity="0.55"`,
-    ),
-    createPolyline(
-      points.map((point) => toBandPoint(point, "lowerBand")),
-      COLORS.bollingerLower,
-      `stroke-width="1" opacity="0.45"`,
-    ),
+    options.showBollingerUpperBand
+      ? createPolyline(
+          points.map((point) => toBandPoint(point, "upperBand")),
+          COLORS.bollingerUpper,
+          `stroke-width="3" opacity="1"`,
+        )
+      : "",
+    options.showBollingerMiddleBand
+      ? createPolyline(
+          points.map((point) => toBandPoint(point, "middleBand")),
+          COLORS.bollingerMiddle,
+          `stroke-width="1" opacity="0.55"`,
+        )
+      : "",
+    options.showBollingerLowerBand
+      ? createPolyline(
+          points.map((point) => toBandPoint(point, "lowerBand")),
+          COLORS.bollingerLower,
+          `stroke-width="1" opacity="0.45"`,
+        )
+      : "",
   ].join("");
 };
 
