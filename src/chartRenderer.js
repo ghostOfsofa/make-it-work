@@ -973,6 +973,13 @@ const renderResultCard = (result, visibleIndex, absoluteIndex) => {
         ${result.screenType === "JJAP_SUBAK" ? metric("EMA 모임", result.isLongEmaConverged ? "YES" : "NO", result.isLongEmaConverged ? "signal" : "") : ""}
         ${result.screenType === "JJAP_SUBAK" ? metric("EMA224/448 없음", result.isMissingLongEma ? "YES" : "NO") : ""}
         ${result.screenType === "JJAP_SUBAK" ? metric("EMA 모임률", formatPercent(result.longEmaConvergenceRate)) : ""}
+        ${result.screenType === "JJAP_SUBAK" ? metric("장기 EMA 정배열", result.isBullishLongEmaAlignment ? "YES" : "NO") : ""}
+        ${result.screenType === "JJAP_SUBAK" ? metric("112-224 이격률", formatPercent(result.ema112To224GapRate)) : ""}
+        ${result.screenType === "JJAP_SUBAK" ? metric("224-448 이격률", formatPercent(result.ema224To448GapRate)) : ""}
+        ${result.screenType === "JJAP_SUBAK" ? metric("정배열 최대 이격", formatPercent(result.maxBullishLongEmaPairGapRate)) : ""}
+        ${result.screenType === "JJAP_SUBAK" ? metric("정배열 이격 과다", result.isWideBullishLongEmaGap ? "YES" : "NO", result.isWideBullishLongEmaGap ? "down" : "") : ""}
+        ${result.screenType === "JJAP_SUBAK" ? metric("구름 상단 > EMA112", result.isCloudTopAboveEma112 ? "YES" : "NO", result.isCloudTopAboveEma112 ? "down" : "") : ""}
+        ${result.screenType === "JJAP_SUBAK" ? metric("구름상단 EMA112 제외", result.isExcludedByCloudTopAboveEma112 ? "YES" : "NO", result.isExcludedByCloudTopAboveEma112 ? "down" : "") : ""}
         ${result.screenType === "JJAP_SUBAK" ? metric("최고 장기 EMA", result.highestLongEmaPeriod ? `EMA${result.highestLongEmaPeriod}` : "-") : ""}
         ${result.screenType === "JJAP_SUBAK" ? metric("최고 장기 EMA 값", formatPrice(result.highestLongEmaValue)) : ""}
         ${result.screenType === "JJAP_SUBAK" ? metric("최고 장기 EMA 이격률", formatPercent(result.priceToHighestLongEmaGapRate), result.priceToHighestLongEmaGapRate > 0 ? "up" : result.priceToHighestLongEmaGapRate < 0 ? "down" : "") : ""}

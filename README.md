@@ -244,6 +244,10 @@ python3 scripts/query-prices.py --code 005930 --csv --output samsung.csv
 - `EMA112 < EMA224 < EMA448` 역배열
 - EMA224 또는 EMA448을 계산할 수 없음
 
+추가로 EMA112 > EMA224 > EMA448 정배열 상태에서 EMA112-EMA224 또는 EMA224-EMA448 이격률이 5% 이상이면 제외합니다. 이격률은 `((EMA112 - EMA224) / EMA224) * 100`, `((EMA224 - EMA448) / EMA448) * 100`으로 계산하며, 기본 `maxBullishLongEmaPairGapRate`는 `5`입니다.
+
+또한 EMA112 > EMA224 > EMA448 정배열 상태에서 26봉 이동 기준 일목균형표 구름대 상단이 EMA112보다 위에 있으면 제외합니다. 조건은 `shiftedCloudTop > EMA112`입니다.
+
 추가로 EMA112/224/448 중 존재하는 가장 높은 장기 EMA보다 마지막 종가가 30% 이상 위에 있으면 제외합니다. 이격률은 `((lastClose - highestLongEma) / highestLongEma) * 100`으로 계산하며, EMA 값이 없는 경우에는 존재하는 EMA만 사용합니다.
 
 짭쩡 차트에는 close 기준 33일 볼린저밴드도 표시합니다. 표준편차 배수는 `0.1`, 밴드는 25봉 미래 방향으로 shift해서 사용하며, 종가가 shifted upper band를 넘으면 노란색 화살표로 표시합니다. 노란색 화살표는 봉 아래에 표시하고, 최근 5거래일 중 노란색 화살표가 1개 이상 있는 종목만 통과합니다.

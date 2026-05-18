@@ -221,6 +221,86 @@ export const evaluateHighestLongEmaGap = ({ lastClose, emaValues, options = {} }
   };
 };
 
+export const evaluateBullishLongEmaPairGap = (emaValues, options = {}) => {
+  const ema112 = Number(emaValues.ema112);
+  const ema224 = Number(emaValues.ema224);
+  const ema448 = Number(emaValues.ema448);
+
+  if (
+    !Number.isFinite(ema112) ||
+    !Number.isFinite(ema224) ||
+    !Number.isFinite(ema448) ||
+    ema224 <= 0 ||
+    ema448 <= 0
+  ) {
+    return {
+      shouldExclude: false,
+      isBullishLongEmaAlignment: false,
+      ema112To224GapRate: null,
+      ema224To448GapRate: null,
+      maxBullishLongEmaPairGapRate: null,
+    };
+  }
+
+  const isBullishLongEmaAlignment = ema112 > ema224 && ema224 > ema448;
+
+  if (!isBullishLongEmaAlignment) {
+    return {
+      shouldExclude: false,
+      isBullishLongEmaAlignment,
+      ema112To224GapRate: null,
+      ema224To448GapRate: null,
+      maxBullishLongEmaPairGapRate: null,
+    };
+  }
+
+  const ema112To224GapRate = ((ema112 - ema224) / ema224) * 100;
+  const ema224To448GapRate = ((ema224 - ema448) / ema448) * 100;
+  const maxAllowedGapRate = options.maxBullishLongEmaPairGapRate ?? 5;
+  const maxBullishLongEmaPairGapRate = Math.max(ema112To224GapRate, ema224To448GapRate);
+  const shouldExclude =
+    ema112To224GapRate >= maxAllowedGapRate ||
+    ema224To448GapRate >= maxAllowedGapRate;
+
+  return {
+    shouldExclude,
+    isBullishLongEmaAlignment,
+    ema112To224GapRate,
+    ema224To448GapRate,
+    maxBullishLongEmaPairGapRate,
+  };
+};
+
+export const evaluateBullishCloudTopAboveEma112 = ({ emaValues, shiftedCloudTop }) => {
+  const ema112 = Number(emaValues.ema112);
+  const ema224 = Number(emaValues.ema224);
+  const ema448 = Number(emaValues.ema448);
+  const cloudTop = Number(shiftedCloudTop);
+
+  if (
+    !Number.isFinite(ema112) ||
+    !Number.isFinite(ema224) ||
+    !Number.isFinite(ema448) ||
+    !Number.isFinite(cloudTop)
+  ) {
+    return {
+      shouldExclude: false,
+      isBullishLongEmaAlignment: false,
+      isCloudTopAboveEma112: false,
+    };
+  }
+
+  const isBullishLongEmaAlignment = ema112 > ema224 && ema224 > ema448;
+  const isCloudTopAboveEma112 = cloudTop > ema112;
+  const shouldExclude = isBullishLongEmaAlignment && isCloudTopAboveEma112;
+
+  return {
+    shouldExclude,
+    isBullishLongEmaAlignment,
+    isCloudTopAboveEma112,
+  };
+};
+
 export const calculateSMA = (values) => {
   if (!Array.isArray(values) || values.length === 0) return null;
   const validValues = values.map(Number).filter(Number.isFinite);
@@ -333,6 +413,9 @@ export const DEFAULT_JJAP_SUBAK_OPTIONS = Object.freeze({
   minIchimokuCandles: 52,
   minLastClosePrice: 2000,
   maxLongEmaConvergenceRate: 3,
+  excludeWideBullishLongEmaGap: true,
+  maxBullishLongEmaPairGapRate: 5,
+  excludeBullishWhenCloudTopAboveEma112: true,
   excludeOverHighestLongEmaGap: true,
   maxHighestLongEmaGapRate: 30,
   excludeTooFarAboveIchimokuCloud: true,
@@ -362,6 +445,7 @@ export const analyzeJjapSubakStock = (stock, options = {}) => {
   const emaValues = getLatestEMAValues(candles, merged.emaPeriods);
   const ema5 = emaValues.ema5;
   const longEmaCheck = evaluateJjapSubakLongEmaCondition(emaValues, merged);
+  const bullishLongEmaPairGapCheck = evaluateBullishLongEmaPairGap(emaValues, merged);
   const highestLongEmaGapCheck = evaluateHighestLongEmaGap({
     lastClose,
     emaValues,
@@ -388,6 +472,13 @@ export const analyzeJjapSubakStock = (stock, options = {}) => {
   }
 
   if (
+    merged.excludeWideBullishLongEmaGap &&
+    bullishLongEmaPairGapCheck.shouldExclude
+  ) {
+    return null;
+  }
+
+  if (
     merged.requireBollingerYellowArrowWithinRecentDays &&
     !bollingerCheck.passed
   ) {
@@ -405,10 +496,21 @@ export const analyzeJjapSubakStock = (stock, options = {}) => {
   const ichimokuCloudGapRate = ((lastClose - shiftedCloudTop) / shiftedCloudTop) * 100;
   const isTooFarAboveIchimokuCloud =
     ichimokuCloudGapRate >= (merged.maxIchimokuCloudGapRate ?? 13);
+  const cloudTopAboveEma112Check = evaluateBullishCloudTopAboveEma112({
+    emaValues,
+    shiftedCloudTop,
+  });
 
   if (
     merged.excludeTooFarAboveIchimokuCloud &&
     isTooFarAboveIchimokuCloud
+  ) {
+    return null;
+  }
+
+  if (
+    merged.excludeBullishWhenCloudTopAboveEma112 &&
+    cloudTopAboveEma112Check.shouldExclude
   ) {
     return null;
   }
@@ -469,6 +571,13 @@ export const analyzeJjapSubakStock = (stock, options = {}) => {
     isMissingLongEma: longEmaCheck.isMissingLongEma,
     longEmaConvergenceRate: longEmaCheck.longEmaConvergenceRate,
     longEmaConditionReason: longEmaCheck.reason,
+    isBullishLongEmaAlignment: bullishLongEmaPairGapCheck.isBullishLongEmaAlignment,
+    ema112To224GapRate: bullishLongEmaPairGapCheck.ema112To224GapRate,
+    ema224To448GapRate: bullishLongEmaPairGapCheck.ema224To448GapRate,
+    maxBullishLongEmaPairGapRate: bullishLongEmaPairGapCheck.maxBullishLongEmaPairGapRate,
+    isWideBullishLongEmaGap: bullishLongEmaPairGapCheck.shouldExclude,
+    isCloudTopAboveEma112: cloudTopAboveEma112Check.isCloudTopAboveEma112,
+    isExcludedByCloudTopAboveEma112: cloudTopAboveEma112Check.shouldExclude,
     highestLongEmaPeriod: highestLongEmaGapCheck.highestLongEmaPeriod,
     highestLongEmaValue: highestLongEmaGapCheck.highestLongEmaValue,
     priceToHighestLongEmaGapRate: highestLongEmaGapCheck.priceToHighestLongEmaGapRate,
