@@ -1008,10 +1008,10 @@ const renderResultCard = (result, visibleIndex, absoluteIndex) => {
         ${result.screenType === "JJAP_SUBAK" ? metric("Senkou B", formatPrice(result.shiftedSenkouSpanB ?? result.senkouSpanB)) : ""}
         ${result.screenType === "JJAP_SUBAK" ? metric("구름대 이격률", formatPercent(result.ichimokuCloudGapRate), result.ichimokuCloudGapRate > 0 ? "up" : result.ichimokuCloudGapRate < 0 ? "down" : "") : ""}
         ${result.screenType === "JJAP_SUBAK" ? metric("이격 제한", "13% 미만") : ""}
-        ${result.screenType === "JJAP_SUBAK" ? metric("장기 EMA 조건", escapeHtml(result.longEmaConditionReason ?? "-")) : ""}
-        ${result.screenType === "JJAP_SUBAK" ? metric("EMA 모임", result.isLongEmaConverged ? "YES" : "NO", result.isLongEmaConverged ? "signal" : "") : ""}
-        ${result.screenType === "JJAP_SUBAK" ? metric("EMA224/448 없음", result.isMissingLongEma ? "YES" : "NO") : ""}
-        ${result.screenType === "JJAP_SUBAK" ? metric("EMA 모임률", formatPercent(result.longEmaConvergenceRate)) : ""}
+        ${metric("장기 EMA 조건", escapeHtml(result.longEmaConditionReason ?? "-"))}
+        ${metric("EMA 모임", result.isLongEmaConverged ? "YES" : "NO", result.isLongEmaConverged ? "signal" : "")}
+        ${metric("EMA224/448 없음", result.isMissingLongEma ? "YES" : "NO")}
+        ${metric("EMA 모임률", formatPercent(result.longEmaConvergenceRate))}
         ${result.screenType === "JJAP_SUBAK" ? metric("장기 EMA 정배열", result.isBullishLongEmaAlignment ? "YES" : "NO") : ""}
         ${result.screenType === "JJAP_SUBAK" ? metric("112-224 이격률", formatPercent(result.ema112To224GapRate)) : ""}
         ${result.screenType === "JJAP_SUBAK" ? metric("224-448 이격률", formatPercent(result.ema224To448GapRate)) : ""}

@@ -280,13 +280,13 @@ python3 scripts/query-prices.py --code 005930 --csv --output samsung.csv
 - `angleDegree >= minAngleDegree`
 - `rSquared >= minRSquared`
 - `returnRate <= minReturnRate`
-- `EMA112 < EMA224 < EMA448`
+- 장기 EMA 조건: EMA112/224/448 모임, `EMA112 < EMA224 < EMA448` 역배열, 또는 EMA224/448 없음
 - 마지막 종가가 `EMA5` 아래
 - `EMA5`가 `EMA112`보다 3% 이상 아래
 
 검색 종료일은 항상 가장 최근 거래일입니다. 최근 10봉, 11봉, 12봉처럼 시작점만 과거로 확장하며 검사합니다.
 
-본 스크리너는 장기 EMA 역배열 상태이면서, 마지막 종가가 EMA5 아래에 있고 EMA5가 EMA112보다 충분히 아래에 있는 종목만 우하향 후보로 저장합니다. 이후 장중 현재가가 EMA5를 상향 돌파하면 `buy_signals`에 매수 후보로 기록합니다.
+본 스크리너는 장기 EMA 조건을 통과하고, 마지막 종가가 EMA5 아래에 있으며 EMA5가 EMA112보다 충분히 아래에 있는 종목만 우하향 후보로 저장합니다. 이후 장중 현재가가 EMA5를 상향 돌파하면 `buy_signals`에 매수 후보로 기록합니다.
 
 ### 종목 universe 제외 규칙
 
@@ -328,13 +328,15 @@ EXCLUDE_ETF=0 EXCLUDE_ETN=0 EXCLUDE_PREFERRED=0 npm run screen
 
 `scripts/check-db.py`는 market별 종목 수, ETF/ETN/우선주/스팩/리츠/환기종목 등 제외 현황과 실제 screening target 수를 함께 출력합니다.
 
-### EMA 역배열 필터
+### 장기 EMA 필터
 
-우하향 필터링은 종가 `close` 기준 EMA를 함께 계산합니다. 기간은 `5, 20, 60, 112, 224, 448`이고, 최종 필터 통과 조건에는 장기 EMA 역배열이 포함됩니다.
+우하향 필터링은 종가 `close` 기준 EMA를 함께 계산합니다. 기간은 `5, 20, 60, 112, 224, 448`이고, 장기 EMA 조건은 아래 중 하나라도 만족하면 통과합니다.
 
-```js
-ema112 < ema224 && ema224 < ema448
-```
+1. EMA112, EMA224, EMA448이 3% 이내로 모여 있음
+2. `EMA112 < EMA224 < EMA448` 역배열
+3. EMA224 또는 EMA448을 계산할 수 없음
+
+단, EMA112가 없으면 제외합니다.
 
 EMA5와 EMA112의 차이율도 함께 확인합니다.
 
@@ -342,7 +344,7 @@ EMA5와 EMA112의 차이율도 함께 확인합니다.
 ((ema112 - ema5) / ema112) * 100 >= 3
 ```
 
-추세선 각도 계산은 `high` 기준이고, EMA는 반드시 `close` 기준입니다. EMA448 계산에는 최소 448개 이상의 일봉이 필요하므로 데이터가 부족한 종목은 EMA 역배열 필터에서 제외됩니다. 실제 데이터 수집은 캘린더 기준 `--days 700` 이상을 권장합니다.
+추세선 각도 계산은 `high` 기준이고, EMA는 반드시 `close` 기준입니다. EMA448 계산에는 최소 448개 이상의 일봉이 필요하지만, EMA224 또는 EMA448이 없으면 장기 EMA 조건에서는 통과할 수 있습니다. 실제 데이터 수집은 캘린더 기준 `--days 700` 이상을 권장합니다.
 
 필요하면 테스트 목적으로 EMA 필터를 끌 수 있습니다.
 

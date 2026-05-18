@@ -19,6 +19,8 @@ export const DEFAULT_OPTIONS = Object.freeze({
   excludeLongTradingGap: true,
   maxTradingGapDays: 40,
   useEmaBearishFilter: true,
+  useLongEmaFlexibleCondition: true,
+  maxLongEmaConvergenceRate: 3,
   useLastPriceBelowEma5Filter: true,
   useEma5To112GapFilter: true,
   minEma5To112GapRate: 3,
@@ -400,6 +402,69 @@ export const isLongEmaBearish = (
   return shortEma < midEma && midEma < longEma;
 };
 
+export const evaluateFlexibleLongEmaCondition = (emaValues, options = {}) => {
+  const ema112 = emaValues?.ema112;
+  const ema224 = emaValues?.ema224;
+  const ema448 = emaValues?.ema448;
+
+  if (ema112 == null || Number.isNaN(Number(ema112))) {
+    return {
+      passed: false,
+      reason: "EMA112_MISSING",
+      isLongEmaConverged: false,
+      isLongEmaBearish: false,
+      isMissingLongEma: true,
+      longEmaConvergenceRate: null,
+    };
+  }
+
+  const isMissingLongEma =
+    ema224 == null ||
+    ema448 == null ||
+    Number.isNaN(Number(ema224)) ||
+    Number.isNaN(Number(ema448));
+
+  if (isMissingLongEma) {
+    return {
+      passed: true,
+      reason: "EMA224_OR_448_MISSING",
+      isLongEmaConverged: false,
+      isLongEmaBearish: false,
+      isMissingLongEma: true,
+      longEmaConvergenceRate: null,
+    };
+  }
+
+  const numericEma112 = Number(ema112);
+  const numericEma224 = Number(ema224);
+  const numericEma448 = Number(ema448);
+  const maxLongEma = Math.max(numericEma112, numericEma224, numericEma448);
+  const minLongEma = Math.min(numericEma112, numericEma224, numericEma448);
+  const longEmaConvergenceRate =
+    maxLongEma > 0 ? ((maxLongEma - minLongEma) / maxLongEma) * 100 : null;
+  const maxLongEmaConvergenceRate = options.maxLongEmaConvergenceRate ?? 3;
+  const isLongEmaConverged =
+    longEmaConvergenceRate != null &&
+    longEmaConvergenceRate <= maxLongEmaConvergenceRate;
+  const isLongEmaBearish = numericEma112 < numericEma224 && numericEma224 < numericEma448;
+  const passed = isLongEmaConverged || isLongEmaBearish || isMissingLongEma;
+
+  return {
+    passed,
+    reason: passed
+      ? isLongEmaConverged
+        ? "LONG_EMA_CONVERGED"
+        : isLongEmaBearish
+          ? "LONG_EMA_BEARISH"
+          : "EMA224_OR_448_MISSING"
+      : "LONG_EMA_CONDITION_NOT_MATCHED",
+    isLongEmaConverged,
+    isLongEmaBearish,
+    isMissingLongEma,
+    longEmaConvergenceRate,
+  };
+};
+
 export const isLastPriceBelowEma5 = (lastClose, emaValues) => {
   const close = Number(lastClose);
   const ema5 = Number(emaValues?.ema5);
@@ -595,8 +660,17 @@ export const filterStrongDowntrendStocks = (stocks, options = {}) => {
       }
 
       const emaValues = getLatestEMAValues(allCandles, merged.emaPeriods);
-      const longEmaBearish = isLongEmaBearish(emaValues, merged.bearishEmaPeriods);
-      if (merged.useEmaBearishFilter && !longEmaBearish) return null;
+      const longEmaCheck = merged.useLongEmaFlexibleCondition
+        ? evaluateFlexibleLongEmaCondition(emaValues, merged)
+        : {
+            passed: isLongEmaBearish(emaValues, merged.bearishEmaPeriods),
+            reason: "LONG_EMA_BEARISH",
+            isLongEmaConverged: false,
+            isLongEmaBearish: isLongEmaBearish(emaValues, merged.bearishEmaPeriods),
+            isMissingLongEma: false,
+            longEmaConvergenceRate: null,
+          };
+      if (merged.useEmaBearishFilter && !longEmaCheck.passed) return null;
 
       const lastCandle = candles.at(-1);
       const lastBelowEma5 = isLastPriceBelowEma5(lastCandle?.close, emaValues);
@@ -641,7 +715,13 @@ export const filterStrongDowntrendStocks = (stocks, options = {}) => {
             return [`ema${period}`, value == null ? null : round(value, 2)];
           }),
         ),
-        isLongEmaBearish: longEmaBearish,
+        isLongEmaBearish: longEmaCheck.isLongEmaBearish,
+        isLongEmaConverged: longEmaCheck.isLongEmaConverged,
+        isMissingLongEma: longEmaCheck.isMissingLongEma,
+        longEmaConvergenceRate: Number.isFinite(longEmaCheck.longEmaConvergenceRate)
+          ? round(longEmaCheck.longEmaConvergenceRate, 2)
+          : null,
+        longEmaConditionReason: longEmaCheck.reason,
         isLastPriceBelowEma5: lastBelowEma5,
         ema5To112GapRate: Number.isFinite(ema5To112GapRate)
           ? round(ema5To112GapRate, 2)
