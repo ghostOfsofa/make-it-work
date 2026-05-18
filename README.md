@@ -145,14 +145,14 @@ git push
 
 서버에서 다시 스크리닝하거나 HTML을 다시 생성하려는 경우에만 DB를 올립니다.
 
-`npm run generate`는 최근 screening run 목록과 run별 결과 JSON을 분리해서 생성합니다.
+`npm run generate`는 최근 20개 screening run 목록과 run별 결과 JSON을 분리해서 생성합니다.
 
 ```text
 dist/assets/screening-runs.json
 dist/assets/runs/run-{runId}.json
 ```
 
-`chart.html`에서는 필터링 일자를 선택해 과거 run의 필터링 당시 가격과 DB 최신 일봉 종가를 비교할 수 있습니다. 현재 기준 주가는 실시간 가격이 아니라 `stock_prices`의 최신 `close`입니다.
+`chart.html`에서는 최근 20개 필터링 일자를 선택해 과거 run의 필터링 당시 가격과 DB 최신 일봉 종가를 비교할 수 있습니다. 현재 기준 주가는 실시간 가격이 아니라 `stock_prices`의 최신 `close`입니다.
 
 ```js
 currentReturnRate = ((currentPrice - filteredLastPrice) / filteredLastPrice) * 100
@@ -450,6 +450,8 @@ screening run 목록 조회:
 ```bash
 curl http://127.0.0.1:3000/api/screening-runs
 ```
+
+기본 응답은 최근 20개 run이며, 더 많이 보려면 `?limit=50`처럼 지정할 수 있습니다.
 
 특정 run의 필터링 결과와 DB 최신 종가 비교:
 

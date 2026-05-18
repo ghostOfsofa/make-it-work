@@ -907,8 +907,8 @@ const mapRunRow = (row) =>
       }
     : null;
 
-export const loadScreeningRuns = (db, { limit = 10 } = {}) => {
-  const safeLimit = Math.min(Math.max(Number.parseInt(limit, 10) || 10, 1), 100);
+export const loadScreeningRuns = (db, { limit = 20 } = {}) => {
+  const safeLimit = Math.min(Math.max(Number.parseInt(limit, 10) || 20, 1), 100);
   return db
     .prepare(`
       SELECT *

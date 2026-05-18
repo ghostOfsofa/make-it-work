@@ -29,7 +29,7 @@ const stylePath = `${assetsDir}/styles.css`;
 const rendererPath = `${assetsDir}/chartRenderer.js`;
 const assetVersion = (process.env.ASSET_VERSION ?? new Date().toISOString()).replace(/[^0-9A-Za-z]/g, "");
 const generateOptions = {
-  recentRunLimit: Number(process.env.RECENT_RUN_LIMIT ?? 10),
+  recentRunLimit: Number(process.env.RECENT_RUN_LIMIT ?? 20),
   maxEmbeddedCandlesPerStock: Number(process.env.MAX_EMBEDDED_CANDLES_PER_STOCK ?? DEFAULT_OPTIONS.renderPeriod),
 };
 
