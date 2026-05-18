@@ -6,6 +6,10 @@ VENV_DIR="${ROOT_DIR}/.venv"
 PYTHON_BIN="${PYTHON_BIN:-python3}"
 DAYS="${DAYS:-5}"
 INCREMENTAL_DAYS="${INCREMENTAL_DAYS:-2}"
+SKIP_EXISTING="${SKIP_EXISTING:-1}"
+FORCE_FETCH="${FORCE_FETCH:-0}"
+MIN_PRICE_ROWS="${MIN_PRICE_ROWS:-448}"
+STALE_DAYS="${STALE_DAYS:-5}"
 SLEEP_SECONDS="${SLEEP_SECONDS:-0.1}"
 MAX_STOCKS="${MAX_STOCKS:-}"
 RUN_SCREEN="${RUN_SCREEN:-1}"
@@ -42,8 +46,20 @@ FETCH_ARGS=(
   scripts/fetch-krx-data.py
   --days "${DAYS}"
   --incremental-days "${INCREMENTAL_DAYS}"
+  --min-price-rows "${MIN_PRICE_ROWS}"
+  --stale-days "${STALE_DAYS}"
   --sleep "${SLEEP_SECONDS}"
 )
+
+if [ "${SKIP_EXISTING}" = "1" ]; then
+  FETCH_ARGS+=(--skip-existing)
+else
+  FETCH_ARGS+=(--no-skip-existing)
+fi
+
+if [ "${FORCE_FETCH}" = "1" ]; then
+  FETCH_ARGS+=(--force)
+fi
 
 if [ -n "${MAX_STOCKS}" ]; then
   FETCH_ARGS+=(--max-stocks "${MAX_STOCKS}")
