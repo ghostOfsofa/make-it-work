@@ -39,18 +39,19 @@ const highestHigh = (candles) =>
 const lowestLow = (candles) =>
   Math.min(...candles.map((candle) => Number(candle.low)).filter(Number.isFinite));
 
-const calculateIchimokuSeries = (candles) =>
-  candles.map((candle, index) => {
+const calculateIchimokuSeries = (candles, { displacement = 26 } = {}) => {
+  const series = Array.from({ length: candles.length + displacement }, (_, index) => ({
+    date: candles[index]?.date ?? null,
+    tenkanSen: null,
+    kijunSen: null,
+    senkouSpanA: null,
+    senkouSpanB: null,
+  }));
+
+  candles.forEach((candle, index) => {
     const upToCurrent = candles.slice(0, index + 1);
-    if (upToCurrent.length < 52) {
-      return {
-        date: candle.date,
-        tenkanSen: null,
-        kijunSen: null,
-        senkouSpanA: null,
-        senkouSpanB: null,
-      };
-    }
+    if (upToCurrent.length < 52) return;
+
     const last9 = upToCurrent.slice(-9);
     const last26 = upToCurrent.slice(-26);
     const last52 = upToCurrent.slice(-52);
@@ -58,14 +59,22 @@ const calculateIchimokuSeries = (candles) =>
     const kijunSen = (highestHigh(last26) + lowestLow(last26)) / 2;
     const senkouSpanA = (tenkanSen + kijunSen) / 2;
     const senkouSpanB = (highestHigh(last52) + lowestLow(last52)) / 2;
-    return {
-      date: candle.date,
-      tenkanSen: Number.isFinite(tenkanSen) ? Number(tenkanSen.toFixed(2)) : null,
-      kijunSen: Number.isFinite(kijunSen) ? Number(kijunSen.toFixed(2)) : null,
-      senkouSpanA: Number.isFinite(senkouSpanA) ? Number(senkouSpanA.toFixed(2)) : null,
-      senkouSpanB: Number.isFinite(senkouSpanB) ? Number(senkouSpanB.toFixed(2)) : null,
-    };
+    series[index].tenkanSen = Number.isFinite(tenkanSen) ? Number(tenkanSen.toFixed(2)) : null;
+    series[index].kijunSen = Number.isFinite(kijunSen) ? Number(kijunSen.toFixed(2)) : null;
+
+    const displayIndex = index + displacement;
+    if (displayIndex < series.length) {
+      series[displayIndex].senkouSpanA = Number.isFinite(senkouSpanA)
+        ? Number(senkouSpanA.toFixed(2))
+        : null;
+      series[displayIndex].senkouSpanB = Number.isFinite(senkouSpanB)
+        ? Number(senkouSpanB.toFixed(2))
+        : null;
+    }
   });
+
+  return series;
+};
 
 const ensureOutputDirs = () => {
   mkdirSync(distDir, { recursive: true });
@@ -200,8 +209,11 @@ try {
       candle.close,
     ]);
     const allEmaValues = calculateEMAs(indicatorCandles, DEFAULT_OPTIONS.emaPeriods);
-    ichimokuData[stock.code] = calculateIchimokuSeries(indicatorCandles)
-      .slice(-renderPeriod);
+    const ichimokuDisplacement = 26;
+    const renderStartIndex = Math.max(0, indicatorCandles.length - renderPeriod);
+    ichimokuData[stock.code] = calculateIchimokuSeries(indicatorCandles, {
+      displacement: ichimokuDisplacement,
+    }).slice(renderStartIndex, renderStartIndex + renderPeriod + ichimokuDisplacement);
     bollingerData[stock.code] =
       stock.screenType === "JJAP_SUBAK"
         ? calculateBollingerYellowArrowSignals(indicatorCandles, {
@@ -266,6 +278,11 @@ try {
       senkouSpanB: stock.senkouSpanB,
       cloudTop: stock.cloudTop,
       cloudBottom: stock.cloudBottom,
+      ichimokuDisplacement: stock.ichimokuDisplacement,
+      shiftedSenkouSpanA: stock.shiftedSenkouSpanA,
+      shiftedSenkouSpanB: stock.shiftedSenkouSpanB,
+      shiftedCloudTop: stock.shiftedCloudTop,
+      shiftedCloudBottom: stock.shiftedCloudBottom,
       isAboveIchimokuCloud: stock.isAboveIchimokuCloud,
       isLongEmaConverged: stock.isLongEmaConverged,
       isMissingLongEma: stock.isMissingLongEma,

@@ -45,14 +45,85 @@ export const calculateIchimokuSnapshot = (candles) => {
   };
 };
 
-export const isPriceAboveIchimokuCloud = (candles) => {
-  const cloud = calculateIchimokuSnapshot(candles);
-  if (!cloud) return { isAboveCloud: false, cloud: null };
+export const calculateIchimokuRawSeries = (candles, options = {}) => {
+  const tenkanPeriod = options.tenkanPeriod ?? 9;
+  const kijunPeriod = options.kijunPeriod ?? 26;
+  const spanBPeriod = options.senkouSpanBPeriod ?? 52;
 
-  const lastClose = Number(candles.at(-1)?.close);
+  return candles.map((candle, index) => {
+    if (index < spanBPeriod - 1) {
+      return {
+        date: candle.date,
+        tenkanSen: null,
+        kijunSen: null,
+        senkouSpanA: null,
+        senkouSpanB: null,
+      };
+    }
+
+    const lastTenkan = candles.slice(index - tenkanPeriod + 1, index + 1);
+    const lastKijun = candles.slice(index - kijunPeriod + 1, index + 1);
+    const lastSpanB = candles.slice(index - spanBPeriod + 1, index + 1);
+    const tenkanSen = (getHighestHigh(lastTenkan) + getLowestLow(lastTenkan)) / 2;
+    const kijunSen = (getHighestHigh(lastKijun) + getLowestLow(lastKijun)) / 2;
+    const senkouSpanA = (tenkanSen + kijunSen) / 2;
+    const senkouSpanB = (getHighestHigh(lastSpanB) + getLowestLow(lastSpanB)) / 2;
+
+    return {
+      date: candle.date,
+      tenkanSen,
+      kijunSen,
+      senkouSpanA,
+      senkouSpanB,
+    };
+  });
+};
+
+export const isPriceAboveShiftedIchimokuCloud = (candles, options = {}) => {
+  const displacement = options.ichimokuDisplacement ?? 26;
+  const spanBPeriod = options.senkouSpanBPeriod ?? 52;
+
+  if (!Array.isArray(candles) || candles.length < spanBPeriod + displacement) {
+    return { isAboveCloud: false, cloud: null };
+  }
+
+  const rawSeries = calculateIchimokuRawSeries(candles, options);
+  const lastIndex = candles.length - 1;
+  const sourceIndex = lastIndex - displacement;
+  const source = rawSeries[sourceIndex];
+  const current = rawSeries[lastIndex];
+  const lastClose = Number(candles[lastIndex]?.close);
+
+  if (
+    !source ||
+    !Number.isFinite(source.senkouSpanA) ||
+    !Number.isFinite(source.senkouSpanB) ||
+    !Number.isFinite(lastClose)
+  ) {
+    return { isAboveCloud: false, cloud: null };
+  }
+
+  const shiftedSenkouSpanA = source.senkouSpanA;
+  const shiftedSenkouSpanB = source.senkouSpanB;
+  const shiftedCloudTop = Math.max(shiftedSenkouSpanA, shiftedSenkouSpanB);
+  const shiftedCloudBottom = Math.min(shiftedSenkouSpanA, shiftedSenkouSpanB);
   return {
-    isAboveCloud: Number.isFinite(lastClose) && lastClose > cloud.cloudTop,
-    cloud,
+    isAboveCloud: lastClose > shiftedCloudTop,
+    cloud: {
+      tenkanSen: current?.tenkanSen ?? null,
+      kijunSen: current?.kijunSen ?? null,
+      senkouSpanA: current?.senkouSpanA ?? null,
+      senkouSpanB: current?.senkouSpanB ?? null,
+      cloudTop: shiftedCloudTop,
+      cloudBottom: shiftedCloudBottom,
+      shiftedSenkouSpanA,
+      shiftedSenkouSpanB,
+      shiftedCloudTop,
+      shiftedCloudBottom,
+      displacement,
+      sourceIndex,
+      lastIndex,
+    },
   };
 };
 
@@ -267,6 +338,7 @@ export const DEFAULT_JJAP_SUBAK_OPTIONS = Object.freeze({
   bollingerPeriod: 33,
   bollingerStdDevMultiplier: 0.1,
   bollingerShiftBars: 25,
+  ichimokuDisplacement: 26,
   requireBollingerYellowArrowWithinRecentDays: false,
   bollingerYellowArrowLookbackDays: 5,
   shortVolumePeriod: 20,
@@ -320,7 +392,7 @@ export const analyzeJjapSubakStock = (stock, options = {}) => {
     return null;
   }
 
-  const { isAboveCloud, cloud } = isPriceAboveIchimokuCloud(candles);
+  const { isAboveCloud, cloud } = isPriceAboveShiftedIchimokuCloud(candles, merged);
   if (lastClose <= ema5 || avgVolume20 <= avgVolume60 || !isAboveCloud) {
     return null;
   }
@@ -369,6 +441,11 @@ export const analyzeJjapSubakStock = (stock, options = {}) => {
     senkouSpanB: cloud.senkouSpanB,
     cloudTop: cloud.cloudTop,
     cloudBottom: cloud.cloudBottom,
+    ichimokuDisplacement: cloud.displacement,
+    shiftedSenkouSpanA: cloud.shiftedSenkouSpanA,
+    shiftedSenkouSpanB: cloud.shiftedSenkouSpanB,
+    shiftedCloudTop: cloud.shiftedCloudTop,
+    shiftedCloudBottom: cloud.shiftedCloudBottom,
     isAboveIchimokuCloud: isAboveCloud,
     isLongEmaConverged: longEmaCheck.isLongEmaConverged,
     isMissingLongEma: longEmaCheck.isMissingLongEma,

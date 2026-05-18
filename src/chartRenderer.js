@@ -77,6 +77,7 @@ const MINI_CHART_OPTIONS = {
   showTrendNextPriceGuide: true,
   showIchimokuCloud: true,
   showIchimokuLines: true,
+  ichimokuDisplacement: 26,
   showBollingerBands: true,
   showBollingerYellowArrows: true,
   showMatchedArea: true,
@@ -116,6 +117,7 @@ const DETAIL_CHART_OPTIONS = {
   showTrendNextPriceGuide: true,
   showIchimokuCloud: true,
   showIchimokuLines: true,
+  ichimokuDisplacement: 26,
   showBollingerBands: true,
   showBollingerYellowArrows: true,
   showMatchedArea: true,
@@ -681,7 +683,11 @@ const createCandlestickSvgChart = (result, rawCandles, optionOverrides) => {
   const candles = rawCandles.slice(-options.renderPeriod);
   if (candles.length < 2) return `<div class="empty-chart">차트 데이터 부족</div>`;
   const emaValues = appData?.emaData?.[result.code] ?? {};
-  const ichimokuSeries = (appData?.ichimokuData?.[result.code] ?? []).slice(-options.renderPeriod);
+  const ichimokuDisplacement = result.screenType === "JJAP_SUBAK"
+    ? Math.max(0, Number(options.ichimokuDisplacement) || 26)
+    : 0;
+  const ichimokuSeries = (appData?.ichimokuData?.[result.code] ?? [])
+    .slice(0, options.renderPeriod + ichimokuDisplacement);
   const visibleEmaPeriods = getVisibleEmaPeriods(options);
   const visibleEmaValues = visibleEmaPeriods
     .flatMap((period) => emaValues[`ema${period}`] ?? [])
@@ -713,7 +719,10 @@ const createCandlestickSvgChart = (result, rawCandles, optionOverrides) => {
   const { chartWidth, chartHeight, margin } = options;
   const plotWidth = chartWidth - margin.left - margin.right;
   const plotHeight = chartHeight - margin.top - margin.bottom;
-  const rightPaddingBars = Math.max(0, Math.floor(Number(options.rightPaddingBars) || 0));
+  const rightPaddingBars = Math.max(
+    Math.floor(Number(options.rightPaddingBars) || 0),
+    ichimokuDisplacement,
+  );
   const virtualPeriod = candles.length + rightPaddingBars;
   const xStep = plotWidth / Math.max(1, virtualPeriod - 1);
   const { minPrice, maxPrice } = calculatePriceRange(candles, [
@@ -935,10 +944,11 @@ const renderResultCard = (result, visibleIndex, absoluteIndex) => {
         ${metric("추세 종료가", formatPrice(result.trendLineEndPrice))}
         ${metric("다음 추세선 기준가", formatPrice(result.trendNextPrice))}
         ${result.screenType === "JJAP_SUBAK" ? metric("일목 구름 위", result.isAboveIchimokuCloud ? "YES" : "NO", result.isAboveIchimokuCloud ? "signal" : "") : ""}
-        ${result.screenType === "JJAP_SUBAK" ? metric("구름 상단", formatPrice(result.cloudTop)) : ""}
-        ${result.screenType === "JJAP_SUBAK" ? metric("구름 하단", formatPrice(result.cloudBottom)) : ""}
-        ${result.screenType === "JJAP_SUBAK" ? metric("선행스팬A", formatPrice(result.senkouSpanA)) : ""}
-        ${result.screenType === "JJAP_SUBAK" ? metric("선행스팬B", formatPrice(result.senkouSpanB)) : ""}
+        ${result.screenType === "JJAP_SUBAK" ? metric("기준 구름", `${result.ichimokuDisplacement ?? 26}봉 이동 구름`) : ""}
+        ${result.screenType === "JJAP_SUBAK" ? metric("구름 상단", formatPrice(result.shiftedCloudTop ?? result.cloudTop)) : ""}
+        ${result.screenType === "JJAP_SUBAK" ? metric("구름 하단", formatPrice(result.shiftedCloudBottom ?? result.cloudBottom)) : ""}
+        ${result.screenType === "JJAP_SUBAK" ? metric("Senkou A", formatPrice(result.shiftedSenkouSpanA ?? result.senkouSpanA)) : ""}
+        ${result.screenType === "JJAP_SUBAK" ? metric("Senkou B", formatPrice(result.shiftedSenkouSpanB ?? result.senkouSpanB)) : ""}
         ${result.screenType === "JJAP_SUBAK" ? metric("장기 EMA 조건", escapeHtml(result.longEmaConditionReason ?? "-")) : ""}
         ${result.screenType === "JJAP_SUBAK" ? metric("EMA 모임", result.isLongEmaConverged ? "YES" : "NO", result.isLongEmaConverged ? "signal" : "") : ""}
         ${result.screenType === "JJAP_SUBAK" ? metric("EMA224/448 없음", result.isMissingLongEma ? "YES" : "NO") : ""}
