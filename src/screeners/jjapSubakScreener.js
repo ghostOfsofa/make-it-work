@@ -372,9 +372,14 @@ export const calculateBollingerYellowArrowSignals = (candles, options = {}) => {
   return candles.map((candle, index) => {
     const close = Number(candle.close);
     const shiftedUpperBand = bands[index]?.shiftedUpperBand;
+    const prevClose = index > 0 ? Number(candles[index - 1]?.close) : null;
+    const prevShiftedUpperBand = index > 0 ? bands[index - 1]?.shiftedUpperBand : null;
     const isYellowArrow =
+      Number.isFinite(prevClose) &&
+      Number.isFinite(prevShiftedUpperBand) &&
       Number.isFinite(close) &&
       Number.isFinite(shiftedUpperBand) &&
+      prevClose <= prevShiftedUpperBand &&
       close > shiftedUpperBand;
 
     return {
@@ -383,6 +388,8 @@ export const calculateBollingerYellowArrowSignals = (candles, options = {}) => {
       shiftedUpperBand,
       shiftedMiddleBand: bands[index]?.shiftedMiddleBand ?? null,
       shiftedLowerBand: bands[index]?.shiftedLowerBand ?? null,
+      prevClose,
+      prevShiftedUpperBand,
       isYellowArrow,
     };
   });
