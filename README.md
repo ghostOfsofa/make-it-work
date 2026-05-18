@@ -236,6 +236,8 @@ python3 scripts/query-prices.py --code 005930 --csv --output samsung.csv
 
 짭수박지표 조건에는 일목균형표 구름 위 조건도 포함합니다. 전환선은 9봉, 기준선은 26봉, 선행스팬B는 52봉 기준입니다. 필터 판단은 Senkou Span A/B를 26봉 이동해서 현재 봉 위치에 표시되는 구름을 기준으로 `lastClose > shiftedCloudTop`을 사용합니다. `shiftedCloudTop = max(shiftedSenkouSpanA, shiftedSenkouSpanB)`이며, 최소 `52 + 26 = 78`봉 이상의 데이터가 필요합니다. 차트 표시도 같은 26봉 이동 구름을 그립니다. 기존 우하향 필터(`DOWNTREND`) 차트는 변경하지 않습니다.
 
+짭수박지표 차트의 일목균형표는 Senkou Span A/B와 그 사이 구름 영역만 표시합니다. 전환선과 기준선은 Senkou Span A 계산에는 사용되지만 차트에는 표시하지 않습니다.
+
 짭수박지표는 close 기준 EMA112/224/448 장기 조건도 확인합니다. EMA112는 반드시 있어야 하며, 아래 중 하나라도 만족하면 통과합니다.
 
 - EMA112, EMA224, EMA448의 최대/최소 차이가 3% 이내

@@ -18,8 +18,8 @@ const COLORS = {
   ema448: "#f8fafc",
   signal: "#22c55e",
   longEmaBadge: "#f59e0b",
-  ichimokuSpanA: "#22c55e",
-  ichimokuSpanB: "#f97316",
+  ichimokuSpanA: "#38bdf8",
+  ichimokuSpanB: "#38bdf8",
   ichimokuBullishCloud: "rgba(34, 197, 94, 0.18)",
   ichimokuBearishCloud: "rgba(249, 115, 22, 0.18)",
   bollingerUpper: "#facc15",
@@ -76,7 +76,9 @@ const MINI_CHART_OPTIONS = {
   showMa5PriceGuide: true,
   showTrendNextPriceGuide: true,
   showIchimokuCloud: true,
-  showIchimokuLines: true,
+  showSenkouSpanLines: true,
+  showTenkanLine: false,
+  showKijunLine: false,
   ichimokuDisplacement: 26,
   showBollingerBands: true,
   showBollingerYellowArrows: true,
@@ -116,7 +118,9 @@ const DETAIL_CHART_OPTIONS = {
   showMa5PriceGuide: true,
   showTrendNextPriceGuide: true,
   showIchimokuCloud: true,
-  showIchimokuLines: true,
+  showSenkouSpanLines: true,
+  showTenkanLine: false,
+  showKijunLine: false,
   ichimokuDisplacement: 26,
   showBollingerBands: true,
   showBollingerYellowArrows: true,
@@ -251,14 +255,16 @@ const createIchimokuCloud = ({ result, series, scale, options }) => {
 
   if (points.length < 2) return "";
 
-  const spanALine = options.showIchimokuLines
+  const showSenkouSpanLines =
+    options.showSenkouSpanLines ?? options.showIchimokuLines ?? true;
+  const spanALine = showSenkouSpanLines
     ? createPolyline(
         points.map((point) => ({ x: point.x, y: scale.y(point.spanA) })),
         COLORS.ichimokuSpanA,
         `stroke-width="1.6" opacity="0.9"`,
       )
     : "";
-  const spanBLine = options.showIchimokuLines
+  const spanBLine = showSenkouSpanLines
     ? createPolyline(
         points.map((point) => ({ x: point.x, y: scale.y(point.spanB) })),
         COLORS.ichimokuSpanB,
