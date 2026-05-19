@@ -32,6 +32,7 @@ const SCREEN_OPTIONS = Object.freeze({
   excludeInvestmentWarning: process.env.EXCLUDE_INVESTMENT_WARNING === "1",
   excludeOther: process.env.EXCLUDE_OTHER !== "0" && DEFAULT_STOCK_EXCLUSION_OPTIONS.excludeOther,
   requireLatestPriceDate: process.env.REQUIRE_LATEST_PRICE_DATE !== "0",
+  debugJjapSubak: process.env.DEBUG_JJAP_SUBAK === "1",
   screenType: SCREEN_TYPES.JJAP_SUBAK,
 });
 
@@ -46,9 +47,11 @@ const statsDb = openDatabase(dbPath);
 const universeStats = getStockUniverseStats(statsDb, SCREEN_OPTIONS);
 closeDatabase(statsDb);
 
+const requiredEmaCandles = Math.max(...(SCREEN_OPTIONS.emaPeriods ?? [SCREEN_OPTIONS.minCandles]));
 const candleLimit = Math.max(
-  Number(process.env.CANDLE_LIMIT ?? 120),
+  Number(process.env.CANDLE_LIMIT ?? 700),
   SCREEN_OPTIONS.minCandles,
+  requiredEmaCandles,
 );
 const stocks = loadStocksFromDatabase({
   dbPath,

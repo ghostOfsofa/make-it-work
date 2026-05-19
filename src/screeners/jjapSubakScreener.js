@@ -360,6 +360,7 @@ export const evaluateBullishCloudTopAboveEma112 = ({ emaValues, shiftedCloudTop 
       shouldExclude: false,
       isBullishLongEmaAlignment: false,
       isCloudTopAboveEma112: false,
+      reason: "INSUFFICIENT_VALUES",
     };
   }
 
@@ -371,6 +372,7 @@ export const evaluateBullishCloudTopAboveEma112 = ({ emaValues, shiftedCloudTop 
     shouldExclude,
     isBullishLongEmaAlignment,
     isCloudTopAboveEma112,
+    reason: shouldExclude ? "BULLISH_CLOUD_TOP_ABOVE_EMA112" : "OK",
   };
 };
 
@@ -496,6 +498,7 @@ export const DEFAULT_JJAP_SUBAK_OPTIONS = Object.freeze({
   excludeWideBullishLongEmaGap: true,
   maxBullishLongEmaPairGapRate: 5,
   excludeBullishWhenCloudTopAboveEma112: true,
+  debugJjapSubak: false,
   excludeOverHighestLongEmaGap: true,
   maxHighestLongEmaGapRate: 30,
   excludeTooFarAboveIchimokuCloud: true,
@@ -578,8 +581,23 @@ export const analyzeJjapSubakStock = (stock, options = {}) => {
     ichimokuCloudGapRate >= (merged.maxIchimokuCloudGapRate ?? 13);
   const cloudTopAboveEma112Check = evaluateBullishCloudTopAboveEma112({
     emaValues,
-    shiftedCloudTop,
+    shiftedCloudTop: cloud?.shiftedCloudTop,
   });
+
+  if (merged.debugJjapSubak) {
+    console.debug("[JJAP_SUBAK cloud/ema112 check]", {
+      code: stock.code,
+      name: stock.name,
+      ema112: emaValues.ema112,
+      ema224: emaValues.ema224,
+      ema448: emaValues.ema448,
+      shiftedCloudTop,
+      isBullishLongEmaAlignment: cloudTopAboveEma112Check.isBullishLongEmaAlignment,
+      isCloudTopAboveEma112: cloudTopAboveEma112Check.isCloudTopAboveEma112,
+      shouldExclude: cloudTopAboveEma112Check.shouldExclude,
+      reason: cloudTopAboveEma112Check.reason,
+    });
+  }
 
   if (
     merged.excludeTooFarAboveIchimokuCloud &&

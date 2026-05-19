@@ -247,7 +247,7 @@ python3 scripts/query-prices.py --code 005930 --csv --output samsung.csv
 
 추가로 EMA112 > EMA224 > EMA448 정배열 상태에서 EMA112-EMA224 또는 EMA224-EMA448 이격률이 5% 이상이면 제외합니다. 이격률은 `((EMA112 - EMA224) / EMA224) * 100`, `((EMA224 - EMA448) / EMA448) * 100`으로 계산하며, 기본 `maxBullishLongEmaPairGapRate`는 `5`입니다.
 
-또한 EMA112 > EMA224 > EMA448 정배열 상태에서 26봉 이동 기준 일목균형표 구름대 상단이 EMA112보다 위에 있으면 제외합니다. 조건은 `shiftedCloudTop > EMA112`입니다.
+또한 EMA112 > EMA224 > EMA448 정배열 상태에서 26봉 이동 기준 일목균형표 구름대 상단이 EMA112보다 위에 있으면 제외합니다. 조건은 `ema112 > ema224 && ema224 > ema448 && shiftedCloudTop > ema112`입니다. 확인이 필요하면 `DEBUG_JJAP_SUBAK=1 npm run screen:jjap-subak`으로 구름 상단과 EMA112 비교 로그를 볼 수 있습니다.
 
 추가로 EMA112/224/448 중 존재하는 가장 높은 장기 EMA보다 마지막 종가가 30% 이상 위에 있으면 제외합니다. 이격률은 `((lastClose - highestLongEma) / highestLongEma) * 100`으로 계산하며, EMA 값이 없는 경우에는 존재하는 EMA만 사용합니다.
 
