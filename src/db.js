@@ -70,7 +70,7 @@ const SCREENING_RUN_EXTRA_COLUMNS = [
   ["use_ema_bearish_filter", "INTEGER DEFAULT 1"],
   ["use_last_price_below_ema5_filter", "INTEGER DEFAULT 1"],
   ["use_ema5_to_112_gap_filter", "INTEGER DEFAULT 1"],
-  ["min_ema5_to_112_gap_rate", "REAL DEFAULT 3"],
+  ["min_ema5_to_112_gap_rate", "REAL DEFAULT 10"],
 ];
 
 const FILTERED_STOCK_EXTRA_COLUMNS = [
@@ -752,7 +752,7 @@ export const insertScreeningRun = (db, runSummary, options) => {
     toFlag(options.useEmaBearishFilter),
     toFlag(options.useLastPriceBelowEma5Filter),
     toFlag(options.useEma5To112GapFilter),
-    options.minEma5To112GapRate ?? 3,
+    options.minEma5To112GapRate ?? options.minEma5ToNearestLongEmaGapRate ?? 10,
     runSummary.note ?? null,
   );
   return Number(result.lastInsertRowid);
@@ -904,8 +904,51 @@ const mapRunRow = (row) =>
         useLastPriceBelowEma5Filter: row.use_last_price_below_ema5_filter == null ? null : Boolean(row.use_last_price_below_ema5_filter),
         useEma5To112GapFilter: row.use_ema5_to_112_gap_filter == null ? null : Boolean(row.use_ema5_to_112_gap_filter),
         minEma5To112GapRate: row.min_ema5_to_112_gap_rate,
+        useEma5ToNearestLongEmaGapFilter: row.use_ema5_to_112_gap_filter == null ? null : Boolean(row.use_ema5_to_112_gap_filter),
+        minEma5ToNearestLongEmaGapRate: row.min_ema5_to_112_gap_rate,
       }
     : null;
+
+const evaluateEma5ToNearestLongEmaGapForRow = (row) => {
+  const ema5 = Number(row.ema5);
+  if (!Number.isFinite(ema5) || ema5 <= 0) {
+    return {
+      nearestLongEmaAboveEma5Period: null,
+      nearestLongEmaAboveEma5Value: null,
+      ema5ToNearestLongEmaGapRate: null,
+      ema5ToNearestLongEmaGapReason: "EMA5_MISSING",
+    };
+  }
+
+  const candidates = [
+    { period: 112, value: Number(row.ema112) },
+    { period: 224, value: Number(row.ema224) },
+    { period: 448, value: Number(row.ema448) },
+  ]
+    .filter((item) => Number.isFinite(item.value) && item.value > ema5)
+    .sort((left, right) => left.value - right.value);
+
+  const nearest = candidates[0];
+  if (!nearest) {
+    return {
+      nearestLongEmaAboveEma5Period: null,
+      nearestLongEmaAboveEma5Value: null,
+      ema5ToNearestLongEmaGapRate: null,
+      ema5ToNearestLongEmaGapReason: "NO_LONG_EMA_ABOVE_EMA5",
+    };
+  }
+
+  const gapRate = ((nearest.value - ema5) / nearest.value) * 100;
+  return {
+    nearestLongEmaAboveEma5Period: nearest.period,
+    nearestLongEmaAboveEma5Value: nearest.value,
+    ema5ToNearestLongEmaGapRate: gapRate,
+    ema5ToNearestLongEmaGapReason:
+      gapRate >= 10
+        ? "EMA5_TO_NEAREST_LONG_EMA_GAP_OK"
+        : "EMA5_TO_NEAREST_LONG_EMA_GAP_TOO_SMALL",
+  };
+};
 
 export const loadScreeningRuns = (db, { limit = 20 } = {}) => {
   const safeLimit = Math.min(Math.max(Number.parseInt(limit, 10) || 20, 1), 100);
@@ -920,7 +963,9 @@ export const loadScreeningRuns = (db, { limit = 20 } = {}) => {
     .map(mapRunRow);
 };
 
-const mapFilteredRow = (row) => ({
+const mapFilteredRow = (row) => {
+  const ema5Gap = evaluateEma5ToNearestLongEmaGapForRow(row);
+  return {
   id: row.id,
   runId: row.run_id,
   screenType: row.screen_type ?? SCREEN_TYPES.DOWNTREND,
@@ -950,6 +995,10 @@ const mapFilteredRow = (row) => ({
   isLastPriceBelowEma5: Boolean(row.is_last_price_below_ema5),
   ema5To112GapRate: row.ema5_to_112_gap_rate,
   isEma5FarBelowEma112: Boolean(row.is_ema5_far_below_ema112),
+  nearestLongEmaAboveEma5Period: ema5Gap.nearestLongEmaAboveEma5Period,
+  nearestLongEmaAboveEma5Value: ema5Gap.nearestLongEmaAboveEma5Value,
+  ema5ToNearestLongEmaGapRate: ema5Gap.ema5ToNearestLongEmaGapRate,
+  ema5ToNearestLongEmaGapReason: ema5Gap.ema5ToNearestLongEmaGapReason,
   regressionIntercept: row.regression_intercept,
   trendLineStartPrice: row.trend_line_start_price,
   trendLineEndPrice: row.trend_line_end_price,
@@ -988,7 +1037,8 @@ const mapFilteredRow = (row) => ({
   latestCloseAboveShiftedUpperBand: Boolean(row.latest_close_above_shifted_upper_band),
   rankNo: row.rank_no,
   createdAt: row.created_at,
-});
+  };
+};
 
 const buildFilteredStocksWhere = ({ runId, screenType, name } = {}) => {
   const clauses = ["run_id = ?"];

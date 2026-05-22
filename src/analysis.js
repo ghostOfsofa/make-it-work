@@ -23,7 +23,9 @@ export const DEFAULT_OPTIONS = Object.freeze({
   maxLongEmaConvergenceRate: 3,
   useLastPriceBelowEma5Filter: true,
   useEma5To112GapFilter: true,
-  minEma5To112GapRate: 3,
+  minEma5To112GapRate: 10,
+  useEma5ToNearestLongEmaGapFilter: true,
+  minEma5ToNearestLongEmaGapRate: 10,
   emaPeriods: [5, 20, 60, 112, 224, 448],
   bearishEmaPeriods: [112, 224, 448],
   showEMA5: true,
@@ -579,6 +581,56 @@ export const isEma5FarBelowEma112 = (
   );
 };
 
+export const evaluateEma5ToNearestLongEmaGap = (emaValues, options = {}) => {
+  const ema5 = Number(emaValues?.ema5);
+  if (!Number.isFinite(ema5) || ema5 <= 0) {
+    return {
+      passed: false,
+      nearestLongEmaAboveEma5Period: null,
+      nearestLongEmaAboveEma5Value: null,
+      ema5ToNearestLongEmaGapRate: null,
+      reason: "EMA5_MISSING",
+    };
+  }
+
+  const candidates = [
+    { period: 112, value: Number(emaValues?.ema112) },
+    { period: 224, value: Number(emaValues?.ema224) },
+    { period: 448, value: Number(emaValues?.ema448) },
+  ]
+    .filter((item) => Number.isFinite(item.value) && item.value > ema5)
+    .sort((left, right) => left.value - right.value);
+
+  const nearest = candidates[0];
+  if (!nearest) {
+    return {
+      passed: false,
+      nearestLongEmaAboveEma5Period: null,
+      nearestLongEmaAboveEma5Value: null,
+      ema5ToNearestLongEmaGapRate: null,
+      reason: "NO_LONG_EMA_ABOVE_EMA5",
+    };
+  }
+
+  const ema5ToNearestLongEmaGapRate =
+    ((nearest.value - ema5) / nearest.value) * 100;
+  const minGapRate =
+    options.minEma5ToNearestLongEmaGapRate ??
+    options.minEma5To112GapRate ??
+    DEFAULT_OPTIONS.minEma5ToNearestLongEmaGapRate;
+  const passed = ema5ToNearestLongEmaGapRate >= minGapRate;
+
+  return {
+    passed,
+    nearestLongEmaAboveEma5Period: nearest.period,
+    nearestLongEmaAboveEma5Value: nearest.value,
+    ema5ToNearestLongEmaGapRate,
+    reason: passed
+      ? "EMA5_TO_NEAREST_LONG_EMA_GAP_OK"
+      : "EMA5_TO_NEAREST_LONG_EMA_GAP_TOO_SMALL",
+  };
+};
+
 export const pickBestDowntrendMatch = (matches) => {
   if (!Array.isArray(matches) || matches.length === 0) return null;
   return [...matches].sort((a, b) => {
@@ -755,12 +807,10 @@ export const filterStrongDowntrendStocks = (stocks, options = {}) => {
       const lastBelowEma5 = isLastPriceBelowEma5(lastCandle?.close, emaValues);
       if (merged.useLastPriceBelowEma5Filter && !lastBelowEma5) return null;
 
-      const ema5To112GapRate = calculateEma5To112GapRate(emaValues);
-      const ema5FarBelowEma112 = isEma5FarBelowEma112(
-        emaValues,
-        merged.minEma5To112GapRate,
-      );
-      if (merged.useEma5To112GapFilter && !ema5FarBelowEma112) return null;
+      const ema5GapCheck = evaluateEma5ToNearestLongEmaGap(emaValues, merged);
+      const useEma5GapFilter =
+        merged.useEma5ToNearestLongEmaGapFilter ?? merged.useEma5To112GapFilter;
+      if (useEma5GapFilter && !ema5GapCheck.passed) return null;
 
       const trendPrices = candles.map(getTrendPrice);
       const range = calculatePriceRange(candles, trendPrices);
@@ -807,10 +857,19 @@ export const filterStrongDowntrendStocks = (stocks, options = {}) => {
         convergedPairs: longEmaCheck.convergedPairs,
         longEmaConditionReason: longEmaCheck.reason,
         isLastPriceBelowEma5: lastBelowEma5,
-        ema5To112GapRate: Number.isFinite(ema5To112GapRate)
-          ? round(ema5To112GapRate, 2)
+        nearestLongEmaAboveEma5Period: ema5GapCheck.nearestLongEmaAboveEma5Period,
+        nearestLongEmaAboveEma5Value:
+          ema5GapCheck.nearestLongEmaAboveEma5Value == null
+            ? null
+            : round(ema5GapCheck.nearestLongEmaAboveEma5Value, 2),
+        ema5ToNearestLongEmaGapRate: Number.isFinite(ema5GapCheck.ema5ToNearestLongEmaGapRate)
+          ? round(ema5GapCheck.ema5ToNearestLongEmaGapRate, 2)
           : null,
-        isEma5FarBelowEma112: ema5FarBelowEma112,
+        ema5ToNearestLongEmaGapReason: ema5GapCheck.reason,
+        ema5To112GapRate: Number.isFinite(ema5GapCheck.ema5ToNearestLongEmaGapRate)
+          ? round(ema5GapCheck.ema5ToNearestLongEmaGapRate, 2)
+          : null,
+        isEma5FarBelowEma112: ema5GapCheck.passed,
         ...bestMatch,
         regressionIntercept: bestMatch.regressionIntercept == null
           ? null
@@ -889,6 +948,10 @@ export const exportResultsToCsv = (results) => {
     "isLastPriceBelowEma5",
     "ema5To112GapRate",
     "isEma5FarBelowEma112",
+    "nearestLongEmaAboveEma5Period",
+    "nearestLongEmaAboveEma5Value",
+    "ema5ToNearestLongEmaGapRate",
+    "ema5ToNearestLongEmaGapReason",
     "regressionIntercept",
     "trendNextX",
     "trendNextY",

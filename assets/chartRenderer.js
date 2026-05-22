@@ -957,7 +957,7 @@ const renderSummaryPanel = () => {
       ${metric("환기 제외", run.excludeAttention ? "ON" : "OFF")}
       ${metric("EMA 역배열 필터", run.useEmaBearishFilter ? "ON" : "OFF")}
       ${metric("종가 < EMA5 필터", run.useLastPriceBelowEma5Filter ? "ON" : "OFF")}
-      ${metric("EMA5-112 차이 필터", run.useEma5To112GapFilter ? `ON >= ${run.minEma5To112GapRate ?? 3}%` : "OFF")}
+      ${metric("EMA5-장기선 갭 필터", run.useEma5ToNearestLongEmaGapFilter ?? run.useEma5To112GapFilter ? `ON >= ${run.minEma5ToNearestLongEmaGapRate ?? run.minEma5To112GapRate ?? 10}%` : "OFF")}
       ${metric("renderPeriod", run.renderPeriod)}
       ${metric("scan", `${run.scanMinPeriod}~${run.scanMaxPeriod}`)}
       ${metric("minAngle", `${run.minAngleDegree}°`)}
@@ -984,7 +984,7 @@ const renderResultCard = (result, visibleIndex, absoluteIndex) => {
   const badges = [
     result.isLongEmaBearish && `<span class="filter-badge">장기 역배열</span>`,
     result.isLastPriceBelowEma5 && `<span class="filter-badge">EMA5 아래</span>`,
-    result.isEma5FarBelowEma112 && `<span class="filter-badge">Gap 3%+</span>`,
+    result.isEma5FarBelowEma112 && `<span class="filter-badge">Gap 10%+</span>`,
     signal
       ? `<span class="filter-badge signal">MA5 돌파 신호</span>`
       : `<span class="filter-badge off">신호 없음</span>`,
@@ -1024,8 +1024,10 @@ const renderResultCard = (result, visibleIndex, absoluteIndex) => {
         ${metric("EMA5", formatPrice(result.ema5))}
         ${metric("종가/EMA5", `${formatPrice(result.lastClose)} < ${formatPrice(result.ema5)}`)}
         ${metric("EMA5 아래", result.isLastPriceBelowEma5 ? "YES" : "NO", result.isLastPriceBelowEma5 ? "signal" : "")}
-        ${metric("EMA5-112 차이", formatPercent(result.ema5To112GapRate))}
-        ${metric("EMA5 < EMA112 3% 이상", result.isEma5FarBelowEma112 ? "YES" : "NO", result.isEma5FarBelowEma112 ? "signal" : "")}
+        ${metric("EMA5 위 장기선", result.nearestLongEmaAboveEma5Period ? `EMA${result.nearestLongEmaAboveEma5Period}` : "없음")}
+        ${metric("EMA5 위 장기선 값", formatPrice(result.nearestLongEmaAboveEma5Value))}
+        ${metric("EMA5-장기선 갭", formatPercent(result.ema5ToNearestLongEmaGapRate ?? result.ema5To112GapRate))}
+        ${metric("EMA5-장기선 10% 이상", result.isEma5FarBelowEma112 ? "YES" : "NO", result.isEma5FarBelowEma112 ? "signal" : "")}
         ${metric("추세 시작가", formatPrice(result.trendLineStartPrice))}
         ${metric("추세 종료가", formatPrice(result.trendLineEndPrice))}
         ${metric("다음 추세선 기준가", formatPrice(result.trendNextPrice))}
@@ -1140,6 +1142,10 @@ const downloadCsv = () => {
     "isLastPriceBelowEma5",
     "ema5To112GapRate",
     "isEma5FarBelowEma112",
+    "nearestLongEmaAboveEma5Period",
+    "nearestLongEmaAboveEma5Value",
+    "ema5ToNearestLongEmaGapRate",
+    "ema5ToNearestLongEmaGapReason",
     "regressionIntercept",
     "trendNextX",
     "trendNextY",
@@ -1181,6 +1187,10 @@ const downloadCsv = () => {
       row.isLastPriceBelowEma5 ? 1 : 0,
       row.ema5To112GapRate,
       row.isEma5FarBelowEma112 ? 1 : 0,
+      row.nearestLongEmaAboveEma5Period,
+      row.nearestLongEmaAboveEma5Value,
+      row.ema5ToNearestLongEmaGapRate,
+      row.ema5ToNearestLongEmaGapReason,
       row.regressionIntercept,
       row.trendNextX,
       row.trendNextY,

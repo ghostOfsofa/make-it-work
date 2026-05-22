@@ -23,8 +23,22 @@ export const SCREEN_OPTIONS = Object.freeze({
   maxTradingGapDays: Number(process.env.MAX_TRADING_GAP_DAYS ?? DEFAULT_OPTIONS.maxTradingGapDays),
   useEmaBearishFilter: process.env.USE_EMA_BEARISH_FILTER !== "0",
   useLastPriceBelowEma5Filter: process.env.USE_LAST_PRICE_BELOW_EMA5_FILTER !== "0",
-  useEma5To112GapFilter: process.env.USE_EMA5_TO_112_GAP_FILTER !== "0",
-  minEma5To112GapRate: Number(process.env.MIN_EMA5_TO_112_GAP_RATE ?? DEFAULT_OPTIONS.minEma5To112GapRate),
+  useEma5ToNearestLongEmaGapFilter:
+    (process.env.USE_EMA5_TO_NEAREST_LONG_EMA_GAP_FILTER ??
+      process.env.USE_EMA5_TO_112_GAP_FILTER) !== "0",
+  minEma5ToNearestLongEmaGapRate: Number(
+    process.env.MIN_EMA5_TO_NEAREST_LONG_EMA_GAP_RATE ??
+      process.env.MIN_EMA5_TO_112_GAP_RATE ??
+      DEFAULT_OPTIONS.minEma5ToNearestLongEmaGapRate,
+  ),
+  useEma5To112GapFilter:
+    (process.env.USE_EMA5_TO_NEAREST_LONG_EMA_GAP_FILTER ??
+      process.env.USE_EMA5_TO_112_GAP_FILTER) !== "0",
+  minEma5To112GapRate: Number(
+    process.env.MIN_EMA5_TO_NEAREST_LONG_EMA_GAP_RATE ??
+      process.env.MIN_EMA5_TO_112_GAP_RATE ??
+      DEFAULT_OPTIONS.minEma5ToNearestLongEmaGapRate,
+  ),
   allowedMarkets: (process.env.ALLOWED_MARKETS ?? "KOSPI,KOSDAQ")
     .split(",")
     .map((market) => market.trim().toUpperCase())
@@ -126,7 +140,7 @@ try {
   console.log(`EMA bearish filter: ${SCREEN_OPTIONS.useEmaBearishFilter ? "ON" : "OFF"}`);
   console.log(`last close below EMA5 filter: ${SCREEN_OPTIONS.useLastPriceBelowEma5Filter ? "ON" : "OFF"}`);
   console.log(
-    `EMA5 to EMA112 gap filter: ${SCREEN_OPTIONS.useEma5To112GapFilter ? `ON >= ${SCREEN_OPTIONS.minEma5To112GapRate}%` : "OFF"}`,
+    `EMA5 to nearest long EMA gap filter: ${SCREEN_OPTIONS.useEma5ToNearestLongEmaGapFilter ? `ON >= ${SCREEN_OPTIONS.minEma5ToNearestLongEmaGapRate}%` : "OFF"}`,
   );
   console.log(`matched stocks: ${results.length}`);
   console.table(

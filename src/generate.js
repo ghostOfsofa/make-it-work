@@ -124,6 +124,8 @@ const createEmptyData = () => ({
     useLastPriceBelowEma5Filter: DEFAULT_OPTIONS.useLastPriceBelowEma5Filter,
     useEma5To112GapFilter: DEFAULT_OPTIONS.useEma5To112GapFilter,
     minEma5To112GapRate: DEFAULT_OPTIONS.minEma5To112GapRate,
+    useEma5ToNearestLongEmaGapFilter: DEFAULT_OPTIONS.useEma5ToNearestLongEmaGapFilter,
+    minEma5ToNearestLongEmaGapRate: DEFAULT_OPTIONS.minEma5ToNearestLongEmaGapRate,
     emaPeriods: DEFAULT_OPTIONS.emaPeriods,
     bearishEmaPeriods: DEFAULT_OPTIONS.bearishEmaPeriods,
   },
@@ -266,6 +268,10 @@ try {
       isLastPriceBelowEma5: stock.isLastPriceBelowEma5,
       ema5To112GapRate: stock.ema5To112GapRate,
       isEma5FarBelowEma112: stock.isEma5FarBelowEma112,
+      nearestLongEmaAboveEma5Period: stock.nearestLongEmaAboveEma5Period,
+      nearestLongEmaAboveEma5Value: stock.nearestLongEmaAboveEma5Value,
+      ema5ToNearestLongEmaGapRate: stock.ema5ToNearestLongEmaGapRate,
+      ema5ToNearestLongEmaGapReason: stock.ema5ToNearestLongEmaGapReason,
       regressionIntercept: stock.regressionIntercept,
       trendLineStartPrice: stock.trendLineStartPrice,
       trendLineEndPrice: stock.trendLineEndPrice,
@@ -341,6 +347,10 @@ try {
         ? DEFAULT_OPTIONS.useEma5To112GapFilter
         : run.useEma5To112GapFilter,
       minEma5To112GapRate: run.minEma5To112GapRate ?? DEFAULT_OPTIONS.minEma5To112GapRate,
+      useEma5ToNearestLongEmaGapFilter: run.useEma5To112GapFilter == null
+        ? DEFAULT_OPTIONS.useEma5ToNearestLongEmaGapFilter
+        : run.useEma5To112GapFilter,
+      minEma5ToNearestLongEmaGapRate: run.minEma5To112GapRate ?? DEFAULT_OPTIONS.minEma5ToNearestLongEmaGapRate,
       emaPeriods: DEFAULT_OPTIONS.emaPeriods,
       bearishEmaPeriods: DEFAULT_OPTIONS.bearishEmaPeriods,
     },
