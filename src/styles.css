@@ -84,6 +84,29 @@ select {
   width: 100%;
 }
 
+.search-control {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.search-control input {
+  width: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.9);
+  color: #e5e7eb;
+  padding: 8px 10px;
+  outline: none;
+}
+
+.search-control input:focus {
+  border-color: #38bdf8;
+}
+
 .metric {
   display: flex;
   justify-content: space-between;

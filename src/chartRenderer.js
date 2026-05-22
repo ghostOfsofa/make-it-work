@@ -933,6 +933,16 @@ const renderSummaryPanel = () => {
         `).join("")}
       </select>
     </label>
+    <label class="search-control" for="stock-name-search">
+      <span>종목 검색</span>
+      <input
+        id="stock-name-search"
+        type="search"
+        value="${escapeHtml(filters.stockName)}"
+        placeholder="종목명 또는 코드 입력"
+        autocomplete="off"
+      />
+    </label>
     <section class="summary-panel">
       ${metric("latest run", run.runId ?? "-")}
       ${metric("필터명", run.screenName ?? run.screenType ?? "-")}
@@ -1077,13 +1087,6 @@ const renderResultPanel = () => {
         <p>검색 결과: ${sorted.length} / ${totalCount}${isMobileLayout ? " · 모바일에서는 결과를 세로 스크롤로 확인합니다." : " · PC에서는 한 화면에 하나의 상세차트만 표시합니다."}</p>
       </div>
       <div class="actions">
-        <input
-          id="stock-name-search"
-          type="text"
-          value="${escapeHtml(filters.stockName)}"
-          placeholder="종목명 검색"
-          autocomplete="off"
-        />
         <select id="sort-select">
           <option value="angle" ${sortKey === "angle" ? "selected" : ""}>각도 내림차순</option>
           <option value="rankNo" ${sortKey === "rankNo" ? "selected" : ""}>필터링 순위 순</option>
