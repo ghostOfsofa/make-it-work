@@ -990,17 +990,34 @@ const mapFilteredRow = (row) => ({
   createdAt: row.created_at,
 });
 
-export const loadFilteredStocksByRunId = (db, runId, screenType) => {
-  const where = screenType ? "WHERE run_id = ? AND screen_type = ?" : "WHERE run_id = ?";
-  const params = screenType ? [runId, screenType] : [runId];
+const buildFilteredStocksWhere = ({ runId, screenType, name } = {}) => {
+  const clauses = ["run_id = ?"];
+  const params = [runId];
+  if (screenType) {
+    clauses.push("screen_type = ?");
+    params.push(screenType);
+  }
+  const keyword = String(name ?? "").trim();
+  if (keyword) {
+    clauses.push("(name LIKE ? OR code LIKE ?)");
+    params.push(`%${keyword}%`, `%${keyword}%`);
+  }
+  return {
+    where: `WHERE ${clauses.join(" AND ")}`,
+    params,
+  };
+};
+
+export const loadFilteredStocksByRunId = (db, runId, screenType, filters = {}) => {
+  const { where, params } = buildFilteredStocksWhere({ runId, screenType, name: filters.name });
   return db
     .prepare(`SELECT * FROM filtered_stocks ${where} ORDER BY rank_no, angle_degree DESC`)
     .all(...params)
     .map(mapFilteredRow);
 };
 
-export const loadFilteredStocksWithCurrentPrice = (db, runId, screenType) => {
-  const rows = loadFilteredStocksByRunId(db, runId, screenType);
+export const loadFilteredStocksWithCurrentPrice = (db, runId, screenType, filters = {}) => {
+  const rows = loadFilteredStocksByRunId(db, runId, screenType, filters);
   const latestPrice = db.prepare(`
     SELECT date, close
     FROM stock_prices
@@ -1105,10 +1122,10 @@ export const loadLatestScreeningRunForApi = (db, screenType) =>
 
 export const loadLatestFilteredStocksForApi = (db, paging = {}) => {
   const screenType = paging.screen_type ?? paging.screenType;
+  const name = String(paging.name ?? "").trim();
   const latestRun = getLatestScreeningRun(db, screenType);
   if (!latestRun) return { run: null, count: 0, results: [] };
-  const where = screenType ? "WHERE run_id = ? AND screen_type = ?" : "WHERE run_id = ?";
-  const params = screenType ? [latestRun.run_id, screenType] : [latestRun.run_id];
+  const { where, params } = buildFilteredStocksWhere({ runId: latestRun.run_id, screenType, name });
   const count = db
     .prepare(`SELECT COUNT(*) AS count FROM filtered_stocks ${where}`)
     .get(...params)?.count ?? 0;

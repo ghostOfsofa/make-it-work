@@ -429,6 +429,8 @@ GitHub Pages 설정에서 Source를 **GitHub Actions**로 지정하세요.
 
 ## REST API
 
+차트 화면에서는 종목명 검색창에 종목명 또는 종목코드를 입력해 현재 선택한 필터링 일자의 결과를 좁혀볼 수 있습니다.
+
 API 서버 실행:
 
 ```bash
@@ -445,6 +447,13 @@ curl http://127.0.0.1:3000/api/filtered-stocks/latest
 
 ```bash
 curl 'http://127.0.0.1:3000/api/filtered-stocks/latest?screen_type=JJAP_SUBAK'
+```
+
+종목명 또는 종목코드 검색:
+
+```bash
+curl 'http://127.0.0.1:3000/api/filtered-stocks/latest?screen_type=JJAP_SUBAK&name=삼성'
+curl 'http://127.0.0.1:3000/api/filtered-stocks/latest?screen_type=DOWNTREND&name=부방'
 ```
 
 screening run 목록 조회:

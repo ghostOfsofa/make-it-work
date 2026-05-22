@@ -167,6 +167,7 @@ code {
   align-items: center;
 }
 
+input,
 select,
 button {
   height: 38px;
@@ -175,6 +176,10 @@ button {
   background: #0f172a;
   color: #e5e7eb;
   padding: 0 12px;
+}
+
+input::placeholder {
+  color: #64748b;
 }
 
 button {

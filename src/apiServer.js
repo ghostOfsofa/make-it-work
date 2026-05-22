@@ -107,6 +107,9 @@ app.get("/api/filtered-stocks/latest", (req, res) => {
       baseDate: run.baseDate,
       screenType: run.screenType,
       screenName: run.screenName,
+      query: {
+        name: String(req.query.name ?? "").trim(),
+      },
       count,
       results,
     });
@@ -130,15 +133,21 @@ app.get("/api/filtered-stocks", (req, res) => {
       return;
     }
     const includeCurrent = String(req.query.include_current ?? "false") === "true";
+    const filters = {
+      name: req.query.name,
+    };
     const results = includeCurrent
-      ? loadFilteredStocksWithCurrentPrice(db, runId, screenType)
-      : loadFilteredStocksByRunId(db, runId, screenType);
+      ? loadFilteredStocksWithCurrentPrice(db, runId, screenType, filters)
+      : loadFilteredStocksByRunId(db, runId, screenType, filters);
     const signals = loadBuySignalsByRunId(db, runId);
     res.json({
       ok: true,
       runId,
       screenType: latestRun?.screen_type ?? screenType,
       screenName: getScreenTypeName(latestRun?.screen_type ?? screenType),
+      query: {
+        name: String(req.query.name ?? "").trim(),
+      },
       count: results.length,
       results,
       buySignalCount: signals.length,
