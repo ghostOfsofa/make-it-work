@@ -137,6 +137,9 @@ let screeningRuns = [];
 let sortKey = "angle";
 let currentPage = 1;
 let isMobileLayout = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`).matches;
+const filters = {
+  stockName: "",
+};
 const chartModes = new Map();
 
 const escapeHtml = (value) =>
@@ -890,8 +893,18 @@ const createCandlestickSvgChart = (result, rawCandles, optionOverrides) => {
   `;
 };
 
+const filterResults = (results) => {
+  const keyword = String(filters.stockName ?? "").trim().toLowerCase();
+  if (!keyword) return [...results];
+  return results.filter((item) => {
+    const name = String(item.name ?? "").toLowerCase();
+    const code = String(item.code ?? "").toLowerCase();
+    return name.includes(keyword) || code.includes(keyword);
+  });
+};
+
 const getSortedResults = () => {
-  const sorted = [...(appData?.results ?? [])];
+  const sorted = filterResults(appData?.results ?? []);
   const sorters = {
     rankNo: (a, b) => (a.rankNo ?? 0) - (b.rankNo ?? 0),
     angle: (a, b) => b.angleDegree - a.angleDegree,
@@ -919,6 +932,16 @@ const renderSummaryPanel = () => {
           </option>
         `).join("")}
       </select>
+    </label>
+    <label class="search-control" for="stock-name-search">
+      <span>종목 검색</span>
+      <input
+        id="stock-name-search"
+        type="search"
+        value="${escapeHtml(filters.stockName)}"
+        placeholder="종목명 또는 코드 입력"
+        autocomplete="off"
+      />
     </label>
     <section class="summary-panel">
       ${metric("latest run", run.runId ?? "-")}
@@ -1051,6 +1074,7 @@ const renderResultCard = (result, visibleIndex, absoluteIndex) => {
 const renderResultPanel = () => {
   const panel = document.getElementById("result-panel");
   const sorted = getSortedResults();
+  const totalCount = appData?.results?.length ?? 0;
   const pageSize = isMobileLayout ? MOBILE_PAGE_SIZE : DESKTOP_PAGE_SIZE;
   const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
   currentPage = Math.min(currentPage, totalPages);
@@ -1060,7 +1084,7 @@ const renderResultPanel = () => {
     <header class="toolbar">
       <div>
         <h1>필터링 결과 ${sorted.length}개 종목</h1>
-        <p>${isMobileLayout ? "모바일에서는 결과를 세로 스크롤로 확인합니다." : "PC에서는 한 화면에 하나의 상세차트만 표시합니다."}</p>
+        <p>검색 결과: ${sorted.length} / ${totalCount}${isMobileLayout ? " · 모바일에서는 결과를 세로 스크롤로 확인합니다." : " · PC에서는 한 화면에 하나의 상세차트만 표시합니다."}</p>
       </div>
       <div class="actions">
         <select id="sort-select">
@@ -1213,6 +1237,16 @@ const attachEvents = () => {
       loadRunData(event.target.value).catch((error) => {
         document.getElementById("result-panel").innerHTML = `<div class="empty-state">run 데이터 로드 실패: ${escapeHtml(error.message)}</div>`;
       });
+    }
+  });
+  document.addEventListener("input", (event) => {
+    if (event.target?.id === "stock-name-search") {
+      filters.stockName = event.target.value;
+      currentPage = 1;
+      renderResultPanel();
+      const input = document.getElementById("stock-name-search");
+      input?.focus();
+      input?.setSelectionRange(input.value.length, input.value.length);
     }
   });
   document.addEventListener("click", (event) => {
