@@ -80,6 +80,7 @@ const MINI_CHART_OPTIONS = {
   showTenkanLine: false,
   showKijunLine: false,
   ichimokuDisplacement: 26,
+  debugIchimokuRender: false,
   showBollingerUpperBand: true,
   showBollingerMiddleBand: false,
   showBollingerLowerBand: false,
@@ -124,6 +125,7 @@ const DETAIL_CHART_OPTIONS = {
   showTenkanLine: false,
   showKijunLine: false,
   ichimokuDisplacement: 26,
+  debugIchimokuRender: false,
   showBollingerUpperBand: true,
   showBollingerMiddleBand: false,
   showBollingerLowerBand: false,
@@ -273,51 +275,108 @@ const splitValidLineSegments = (points) => {
   return segments;
 };
 
-const createIchimokuCloud = ({ result, series, scale, options }) => {
+const createIchimokuCloudPath = (segment, scale) => {
+  if (segment.length < 2) return "";
+  const upper = segment.map((point) => ({
+    x: point.x,
+    y: scale.y(point.upper),
+  }));
+  const lower = [...segment].reverse().map((point) => ({
+    x: point.x,
+    y: scale.y(point.lower),
+  }));
+  const points = [...upper, ...lower];
+  if (points.some((point) => !Number.isFinite(point.x) || !Number.isFinite(point.y))) return "";
+  const [first, ...rest] = points;
+  return `M ${first.x.toFixed(2)} ${first.y.toFixed(2)} ${rest.map((point) => `L ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(" ")} Z`;
+};
+
+const createIchimokuCloud = ({
+  result,
+  series,
+  scale,
+  options,
+  renderStartIndex = 0,
+  renderCandlesLength = 0,
+  rightPaddingBars = 0,
+}) => {
   if (result.screenType !== "JJAP_SUBAK" || !Array.isArray(series) || series.length < 2) {
     return "";
   }
 
-  const points = series.map((item, index) => ({
-    x: scale.x(index),
-    spanA: Number(item.senkouSpanA),
-    spanB: Number(item.senkouSpanB),
-  })).filter((point) => Number.isFinite(point.spanA) && Number.isFinite(point.spanB));
+  const points = series.map((item, index) => {
+    const spanA = Number(item.senkouSpanA);
+    const spanB = Number(item.senkouSpanB);
+    const isValid = Number.isFinite(spanA) && Number.isFinite(spanB);
+    return {
+      index,
+      x: scale.x(index),
+      spanA,
+      spanB,
+      upper: isValid ? Math.max(spanA, spanB) : Number.NaN,
+      lower: isValid ? Math.min(spanA, spanB) : Number.NaN,
+      isValid,
+    };
+  });
 
-  if (points.length < 2) return "";
+  const segments = [];
+  let current = [];
+  points.forEach((point) => {
+    if (point.isValid && Number.isFinite(point.x)) {
+      current.push(point);
+      return;
+    }
+    if (current.length >= 2) segments.push(current);
+    current = [];
+  });
+  if (current.length >= 2) segments.push(current);
+
+  if (!segments.length) return "";
+
+  if (options.debugIchimokuRender) {
+    const validPoints = segments.flat();
+    console.debug("[ICHIMOKU RENDER]", {
+      code: result.code,
+      renderStartIndex,
+      renderCandlesLength,
+      rightPaddingBars,
+      ichimokuPointCount: validPoints.length,
+      firstDisplayIndex: validPoints[0]?.index ?? null,
+      lastDisplayIndex: validPoints.at(-1)?.index ?? null,
+    });
+  }
 
   const showSenkouSpanLines =
     options.showSenkouSpanLines ?? options.showIchimokuLines ?? true;
   const spanALine = showSenkouSpanLines
-    ? createPolyline(
-        points.map((point) => ({ x: point.x, y: scale.y(point.spanA) })),
-        COLORS.ichimokuSpanA,
-        `stroke-width="1.6" opacity="0.9"`,
-      )
+    ? segments
+        .map((segment) =>
+          createPolyline(
+            segment.map((point) => ({ x: point.x, y: scale.y(point.spanA) })),
+            COLORS.ichimokuSpanA,
+            `stroke-width="1.6" opacity="0.95" stroke-linecap="round" stroke-linejoin="round"`,
+          ),
+        )
+        .join("")
     : "";
   const spanBLine = showSenkouSpanLines
-    ? createPolyline(
-        points.map((point) => ({ x: point.x, y: scale.y(point.spanB) })),
-        COLORS.ichimokuSpanB,
-        `stroke-width="1.6" opacity="0.9"`,
-      )
+    ? segments
+        .map((segment) =>
+          createPolyline(
+            segment.map((point) => ({ x: point.x, y: scale.y(point.spanB) })),
+            COLORS.ichimokuSpanB,
+            `stroke-width="1.6" opacity="0.95" stroke-linecap="round" stroke-linejoin="round"`,
+          ),
+        )
+        .join("")
     : "";
 
   const cloudFill = options.showIchimokuCloud
-    ? points.slice(1).map((point, index) => {
-        const prev = points[index];
-        const polygonPoints = [
-          [prev.x, scale.y(prev.spanA)],
-          [point.x, scale.y(point.spanA)],
-          [point.x, scale.y(point.spanB)],
-          [prev.x, scale.y(prev.spanB)],
-        ];
-        if (polygonPoints.some(([, y]) => !Number.isFinite(y))) return "";
-        const fill = point.spanA >= point.spanB
-          ? COLORS.ichimokuBullishCloud
-          : COLORS.ichimokuBearishCloud;
-        return `<polygon points="${polygonPoints.map(([x, y]) => `${x},${y}`).join(" ")}" fill="${fill}"/>`;
-      }).join("")
+    ? segments
+        .map((segment) => createIchimokuCloudPath(segment, scale))
+        .filter(Boolean)
+        .map((path) => `<path d="${path}" fill="${COLORS.ichimokuBullishCloud}"/>`)
+        .join("")
     : "";
 
   return `${cloudFill}${spanALine}${spanBLine}`;
@@ -817,7 +876,15 @@ const createCandlestickSvgChart = (result, rawCandles, optionOverrides) => {
       : "";
   const trendLinePoints = getStoredTrendLinePoints({ result, scale, candles, xStep });
   const regressionLine = createStoredTrendLine({ trendLinePoints, options });
-  const ichimokuCloud = createIchimokuCloud({ result, series: ichimokuSeries, scale, options });
+  const ichimokuCloud = createIchimokuCloud({
+    result,
+    series: ichimokuSeries,
+    scale,
+    options,
+    renderStartIndex: Math.max(0, rawCandles.length - candles.length),
+    renderCandlesLength: candles.length,
+    rightPaddingBars,
+  });
   const bollingerLines = createBollingerBandLines({
     result,
     signals: bollingerSignals,

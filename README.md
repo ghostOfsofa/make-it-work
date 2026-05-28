@@ -238,6 +238,8 @@ python3 scripts/query-prices.py --code 005930 --csv --output samsung.csv
 
 짭쩡 차트의 일목균형표는 Senkou Span A/B와 그 사이 구름 영역만 표시합니다. 전환선과 기준선은 Senkou Span A 계산에는 사용되지만 차트에는 표시하지 않습니다.
 
+차트 표시용 일목균형표는 전체 캔들 기준으로 계산한 뒤 Senkou Span A/B를 26봉 미래 방향으로 이동해 표시합니다. JJAP_SUBAK 차트에서는 오른쪽 미래 구간에 구름이 보이도록 `rightPaddingBars`를 26봉 이상 확보하고, 표시되는 Senkou Span A/B 값은 y축 가격 범위 계산에도 포함합니다. 이 내용은 차트 표시 기준이며 필터 조건과는 별도입니다.
+
 짭쩡는 close 기준 EMA112/224/448 장기 조건도 확인합니다. EMA112는 반드시 있어야 하며, 아래 중 하나라도 만족하면 통과합니다.
 
 - EMA112, EMA224, EMA448 세 개가 3% 이내로 모여 있음
