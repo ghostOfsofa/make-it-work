@@ -872,8 +872,10 @@ const createCandlestickSvgChart = (result, rawCandles, optionOverrides) => {
   const scanPoints = renderPoints.slice(-result.matchedPeriod);
   const firstScanX = scanPoints[0]?.x;
   const lastScanX = scanPoints.at(-1)?.x;
+  const showMatchedArea =
+    options.showMatchedArea && result.screenType !== "JJAP_SUBAK";
   const matchedArea =
-    options.showMatchedArea && Number.isFinite(firstScanX) && Number.isFinite(lastScanX)
+    showMatchedArea && Number.isFinite(firstScanX) && Number.isFinite(lastScanX)
       ? `<rect x="${firstScanX}" y="${margin.top}" width="${Math.max(0, lastScanX - firstScanX)}" height="${plotHeight}" fill="${COLORS.matchedArea}"/>`
       : "";
   const trendLinePoints = getStoredTrendLinePoints({ result, scale, candles, xStep });
@@ -938,19 +940,19 @@ const createCandlestickSvgChart = (result, rawCandles, optionOverrides) => {
   return `
     <svg class="stock-chart" viewBox="0 0 ${chartWidth} ${chartHeight}" role="img" aria-label="${escapeHtml(result.name)} 봉차트">
       <rect width="${chartWidth}" height="${chartHeight}" fill="${COLORS.background}"/>
-      ${matchedArea}
       ${grid}
+      ${matchedArea}
+      ${ichimokuCloud}
+      ${shortEmaLines}
+      ${longEmaLines}
+      ${candleElements}
       ${createMa5PriceGuide({ ma5Price, scale, chartWidth, margin, options })}
       ${createTrendNextPriceGuide({ trendNextPrice: result.trendNextPrice, trendNextX: trendLinePoints?.nextX, scale, chartWidth, margin, options })}
       ${axisLabels}
       ${options.showAxisLabels ? `<line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${chartHeight - margin.bottom}" stroke="${COLORS.axis}" stroke-width="1"/>
       <line x1="${chartWidth - margin.right}" y1="${margin.top}" x2="${chartWidth - margin.right}" y2="${chartHeight - margin.bottom}" stroke="${COLORS.axis}" stroke-width="1"/>` : ""}
-      ${ichimokuCloud}
       ${bollingerLines}
-      ${candleElements}
       ${selectedLine}
-      ${shortEmaLines}
-      ${longEmaLines}
       ${regressionLine}
       ${bollingerArrows}
       ${createBuySignalMarker(result.buySignal, scale, chartWidth, margin, options.showAxisLabels)}
