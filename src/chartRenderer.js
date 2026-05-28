@@ -310,6 +310,7 @@ const createIchimokuCloud = ({
     const isValid = Number.isFinite(spanA) && Number.isFinite(spanB);
     return {
       index,
+      displayIndex: renderStartIndex + index,
       x: scale.x(index),
       spanA,
       spanB,
@@ -338,11 +339,12 @@ const createIchimokuCloud = ({
     console.debug("[ICHIMOKU RENDER]", {
       code: result.code,
       renderStartIndex,
-      renderCandlesLength,
+      renderPeriod: renderCandlesLength,
       rightPaddingBars,
+      virtualPeriod: renderCandlesLength + rightPaddingBars,
+      firstIchimokuDisplayIndex: validPoints[0]?.displayIndex ?? null,
+      lastIchimokuDisplayIndex: validPoints.at(-1)?.displayIndex ?? null,
       ichimokuPointCount: validPoints.length,
-      firstDisplayIndex: validPoints[0]?.index ?? null,
-      lastDisplayIndex: validPoints.at(-1)?.index ?? null,
     });
   }
 
